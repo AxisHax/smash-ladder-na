@@ -5,7 +5,7 @@ import { applyEloAndConfirm } from "@/lib/matches";
 import { GAME_ONE_STAGES, COUNTERPICK_STAGES } from "@/lib/stages";
 import { sendDiscordDM } from "@/lib/discord-bot";
 
-export const GAMES_TO_WIN = 2; // best of 3
+export const GAMES_TO_WIN = 3; // best of 5
 const MAX_GAMES = 2 * GAMES_TO_WIN - 1;
 
 function requireParticipant(match: { player1Id: string; player2Id: string }, userId: string) {

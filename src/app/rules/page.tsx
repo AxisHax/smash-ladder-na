@@ -20,7 +20,7 @@ export default function RulesPage() {
 
       <div className="mt-8 flex flex-col gap-6 text-sm text-muted-foreground">
         <Section title="Format">
-          <p>All ranked matches are best-of-3. Stage hazards off. Standard stock/time settings.</p>
+          <p>All ranked matches are best-of-5. Stage hazards off. Standard stock/time settings.</p>
         </Section>
 
         <Section title="Stage striking — game 1">

@@ -86,7 +86,7 @@ describe("tallySetWins", () => {
 });
 
 describe("GAMES_TO_WIN", () => {
-  it("is 2 (best of 3)", () => {
-    expect(GAMES_TO_WIN).toBe(2);
+  it("is 3 (best of 5)", () => {
+    expect(GAMES_TO_WIN).toBe(3);
   });
 });
