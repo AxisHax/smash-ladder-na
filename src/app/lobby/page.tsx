@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db";
 import { getActiveLobbyEntry, getLobbyActivityStats } from "@/lib/lobby";
 import { getMatchGames, gameTurnState } from "@/lib/match-games";
 import { listMatchComments } from "@/lib/match-comments";
-import { MATCH_DISTANCE_PRESETS, MATCH_REGIONS } from "@/lib/regions";
+import { MATCH_DISTANCE_PRESETS, MATCH_REGIONS, REGION_REFERENCE_CITY } from "@/lib/regions";
 import { SMASH_CHARACTERS } from "@/lib/characters";
 import { MATCH_RATING_GAP_PRESETS, didTierUp, getRankTier } from "@/lib/rank-tier";
 import { Button } from "@/components/ui/button";
@@ -215,21 +215,22 @@ async function MatchmakingForm({ userId }: { userId: string }) {
       <label className="flex flex-col gap-1 text-sm">
         Match region
         <span className="text-xs font-normal text-muted-foreground">
-          Required to queue — matching works off the distance between regions, so pick where you
-          actually play from. Other has no location, so it only ever matches other Other players.
+          Required to queue — matching works off the distance between regions, so pick whichever
+          is physically closest to you, even if it&apos;s not your own country. Other has no
+          location, so it only ever matches other Other players.
         </span>
         <select
           key={me?.region ?? ""}
           name="region"
           defaultValue={me?.region ?? ""}
-          className="h-8 w-40 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
+          className="h-8 w-52 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
         >
           <option value="" className="bg-background text-foreground">
             Not set
           </option>
           {MATCH_REGIONS.map((r) => (
             <option key={r} value={r} className="bg-background text-foreground">
-              {r}
+              {REGION_REFERENCE_CITY[r] ? `${r} (${REGION_REFERENCE_CITY[r]})` : r}
             </option>
           ))}
         </select>

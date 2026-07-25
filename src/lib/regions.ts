@@ -44,6 +44,32 @@ const REGION_COORDINATES: Record<string, [number, number]> = {
   "Oceania": [-33.9, 151.2],
 };
 
+// Reference city for each region's representative point above — shown next
+// to the region name in the picker so players can eyeball which option is
+// physically closest to them instead of guessing from the region name
+// alone (region names are administrative, not physical: a player near a
+// border may be much closer to a neighboring region's city). "Other" has
+// no entry since it has no coordinates.
+export const REGION_REFERENCE_CITY: Partial<Record<MatchRegion, string>> = {
+  "USA East": "Washington, D.C.",
+  "USA Central": "Chicago",
+  "USA Mountain": "Denver",
+  "USA Pacific": "Los Angeles",
+  "Canada East": "Toronto",
+  "Canada Central": "Winnipeg",
+  "Canada Mountain": "Calgary",
+  "Canada Pacific": "Vancouver",
+  "Mexico North": "Monterrey",
+  "Mexico Central": "Mexico City",
+  "Central America": "Panama City",
+  "South America": "São Paulo",
+  "Europe West": "Paris",
+  "Europe East": "Warsaw",
+  "East Asia": "Tokyo",
+  "Southeast Asia": "Singapore",
+  "Oceania": "Sydney",
+};
+
 // Great-circle distance between two regions' representative points, in km.
 function distanceKm(a: [number, number], b: [number, number]) {
   const R = 6371;
@@ -66,15 +92,18 @@ function distanceKm(a: [number, number], b: [number, number]) {
 // preference is about that player's own connection tolerance.
 //
 // Labels are deliberately distance-first rather than named after a
-// geographic unit (e.g. "Continental") — a fixed km radius covers very
+// geographic unit (e.g. "Continental") — a fixed radius covers very
 // different amounts of territory depending on where you are (5,000km is
 // most of a large country in NA, but nearly all of Europe), so a label
 // claiming to match a specific unit reads wrong for a lot of players.
+//
+// Displayed in miles since the target audience is NA — the underlying
+// `km` values are what's actually stored and compared against, unchanged.
 export const MATCH_DISTANCE_PRESETS = [
   { label: "Same region only", km: 0 },
-  { label: "Nearby (~2,000 km)", km: 2000 },
-  { label: "Extended (~5,000 km)", km: 5000 },
-  { label: "Long-range (~10,000 km)", km: 10000 },
+  { label: "Nearby (~1,250 mi)", km: 2000 },
+  { label: "Extended (~3,100 mi)", km: 5000 },
+  { label: "Long-range (~6,200 mi)", km: 10000 },
   { label: "Worldwide", km: null },
 ] as const;
 
