@@ -34,7 +34,7 @@ describe("launchPreSeasonIfDue", () => {
     expect(closedSeason.endsAt).not.toBeNull();
 
     const active = await getActiveSeason();
-    expect(active?.name).toBe("Season 1");
+    expect(active?.name).toBe("Preseason");
     expect(active?.id).not.toBe(testSeason.id);
     expect(active!.startsAt.getTime()).toBeGreaterThanOrEqual(PRE_SEASON_STARTS_AT.getTime());
 
@@ -56,10 +56,10 @@ describe("launchPreSeasonIfDue", () => {
     expect(untouched.gamesPlayed).toBe(8);
   });
 
-  it("creates Season 1 outright if no season exists yet when launch time passes", async () => {
+  it("creates Preseason outright if no season exists yet when launch time passes", async () => {
     const launched = await launchPreSeasonIfDue(after);
     expect(launched).toBe(true);
     const active = await getActiveSeason();
-    expect(active?.name).toBe("Season 1");
+    expect(active?.name).toBe("Preseason");
   });
 });

@@ -91,9 +91,9 @@ export async function launchPreSeasonIfDue(now = new Date()) {
   const active = await getActiveSeason();
   if (active) {
     if (active.startsAt >= PRE_SEASON_STARTS_AT) return false;
-    await endActiveSeasonAndStartNext("Season 1", now);
+    await endActiveSeasonAndStartNext("Preseason", now);
   } else {
-    await prisma.season.create({ data: { name: "Season 1", startsAt: now } });
+    await prisma.season.create({ data: { name: "Preseason", startsAt: now } });
   }
   return true;
 }
