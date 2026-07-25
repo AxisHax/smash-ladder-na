@@ -154,6 +154,7 @@ model RatingLobbyEntry {
   id            String            @id @default(cuid())
   userId        String
   user          User              @relation(fields: [userId], references: [id])
+  character     String? // declared when joining the queue — shown to the opponent once paired
   status        LobbyEntryStatus  @default(WAITING)
   pairingMethod PairingMethod     @default(MANUAL)
   pairedEntryId String?           @unique
@@ -173,8 +174,10 @@ model RatingMatch {
   id                   String              @id @default(cuid())
   player1Id            String
   player1              User                @relation("Player1Matches", fields: [player1Id], references: [id])
+  player1Character     String? // what each player declared when joining the queue
   player2Id            String
   player2              User                @relation("Player2Matches", fields: [player2Id], references: [id])
+  player2Character     String?
   pairingMethod        PairingMethod       @default(MANUAL)
   roomCode             String? // never rendered outside the paired pair's own view
   roomCodeSetById      String? // whoever entered it owns it; the other side can only read it
@@ -200,7 +203,7 @@ model RatingMatch {
   ratingHistory RatingHistory[]
   lobbyEntry    RatingLobbyEntry?
   comments      MatchComment[]
-  games         MatchGame[] // best-of-3: game 1 decides the stage via strike+pick, games 2-3 are counterpicks
+  games         MatchGame[] // best-of-5: game 1 decides the stage via strike+pick, games 2-5 are counterpicks
   conductReports ConductReport[]
 
   @@index([status])

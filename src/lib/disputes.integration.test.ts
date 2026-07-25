@@ -54,7 +54,8 @@ describe("disputes", () => {
         expiresAt: new Date(),
       },
     });
-    // p1 already won game 1 outright — the disputed game 2 is the decider.
+    // p1 already won games 1-2 outright (BO5 needs 3 wins) — the disputed
+    // game 3 is the decider.
     await prisma.matchGame.create({
       data: {
         matchId: match.id,
@@ -67,9 +68,21 @@ describe("disputes", () => {
         winnerId: p1.id,
       },
     });
-    await createDisputedGame(match.id, p1.id, p2.id, 2);
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 2,
+        actorAId: p1.id,
+        actorAStrikes: 2,
+        actorBId: p2.id,
+        actorBStrikes: 0,
+        finalStage: "Smashville",
+        winnerId: p1.id,
+      },
+    });
+    await createDisputedGame(match.id, p1.id, p2.id, 3);
 
-    await resolveDisputedGame(match.id, 2, p1.id);
+    await resolveDisputedGame(match.id, 3, p1.id);
 
     const updatedMatch = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
     expect(updatedMatch.status).toBe(MatchStatus.CONFIRMED);

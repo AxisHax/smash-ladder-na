@@ -73,7 +73,7 @@ export async function getActiveLobbyEntry(userId: string) {
   return { ...entry, match };
 }
 
-export async function joinLobbyAndTryPair(userId: string) {
+export async function joinLobbyAndTryPair(userId: string, character: string) {
   const [waitingEntry, unresolvedMatch, me] = await Promise.all([
     prisma.ratingLobbyEntry.findFirst({ where: { userId, status: LobbyEntryStatus.WAITING } }),
     getUnresolvedMatchForUser(userId),
@@ -98,7 +98,7 @@ export async function joinLobbyAndTryPair(userId: string) {
 
   const now = new Date();
   const newEntry = await prisma.ratingLobbyEntry.create({
-    data: { userId, expiresAt: new Date(now.getTime() + LOBBY_ENTRY_TTL_MS) },
+    data: { userId, character, expiresAt: new Date(now.getTime() + LOBBY_ENTRY_TTL_MS) },
   });
 
   const myReach = getRegionsWithinDistance(myRegion, me.maxMatchDistanceKm);
@@ -142,7 +142,9 @@ export async function joinLobbyAndTryPair(userId: string) {
     const match = await tx.ratingMatch.create({
       data: {
         player1Id: candidate.userId,
+        player1Character: candidate.character,
         player2Id: userId,
+        player2Character: character,
         pairingMethod: PairingMethod.AUTO,
         status: MatchStatus.PENDING_REPORT,
         expiresAt: new Date(now.getTime() + MATCH_TTL_MS),
