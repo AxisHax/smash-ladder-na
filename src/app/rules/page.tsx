@@ -29,7 +29,7 @@ export default function RulesPage() {
         <Section title="Season prize pool">
           <p>
             The top 5 finishers on the leaderboard when the season ends split a $
-            {SEASON_PRIZE_POOL_USD} prize pool: 1st gets {PRIZE_SPLIT_PERCENT[0]}%, 2nd{" "}
+            {SEASON_PRIZE_POOL_USD} USD prize pool: 1st gets {PRIZE_SPLIT_PERCENT[0]}%, 2nd{" "}
             {PRIZE_SPLIT_PERCENT[1]}%, 3rd {PRIZE_SPLIT_PERCENT[2]}%, 4th{" "}
             {PRIZE_SPLIT_PERCENT[3]}%, and 5th {PRIZE_SPLIT_PERCENT[4]}%. You need{" "}
             {LEADERBOARD_MIN_GAMES}+ games played to appear on the leaderboard at all.

@@ -46,7 +46,7 @@ export default async function LeaderboardPage({
 
       <Card className="mt-4 border-primary/20 bg-primary/[0.04] py-3">
         <p className="px-4 text-sm">
-          🏆 <span className="font-medium">${SEASON_PRIZE_POOL_USD} season prize pool</span> —
+          🏆 <span className="font-medium">${SEASON_PRIZE_POOL_USD} USD season prize pool</span> —
           split among the top 5 finishers when {season.name} ends.
         </p>
       </Card>
@@ -114,7 +114,7 @@ export default async function LeaderboardPage({
                   {player.gamesPlayed}
                 </td>
                 <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">
-                  {prizeForPlace(index + 1) !== null ? `$${prizeForPlace(index + 1)}` : "—"}
+                  {prizeForPlace(index + 1) !== null ? `$${prizeForPlace(index + 1)} USD` : "—"}
                 </td>
               </tr>
             ))}
