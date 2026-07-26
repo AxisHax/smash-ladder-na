@@ -16,9 +16,11 @@ import { CharacterIcon } from "@/components/character-icon";
 import { RankBadge } from "@/components/rank-badge";
 import { RatingChart } from "@/components/rating-chart";
 import { DeleteAccountButton } from "@/components/delete-account-button";
+import { BlockUserButton, UnblockUserButton } from "@/components/block-user-button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { deleteAccountAction } from "../actions";
+import { isBlockedByMe } from "@/lib/blocks";
+import { blockUserAction, deleteAccountAction, unblockUserAction } from "../actions";
 
 export default async function PlayerProfilePage({
   params,
@@ -31,11 +33,12 @@ export default async function PlayerProfilePage({
   const player = await getPlayerProfile(id);
   if (!player) notFound();
 
-  const [history, chartPoints, careerStats, rivals] = await Promise.all([
+  const [history, chartPoints, careerStats, rivals, blocked] = await Promise.all([
     getPlayerMatchHistory(id),
     getRatingChartPoints(id),
     getCareerStats(id),
     getTopRivals(id),
+    session?.user?.id && !isOwnProfile ? isBlockedByMe(session.user.id, id) : Promise.resolve(false),
   ]);
   const wins = history.filter((m) => m.won).length;
   const losses = history.length - wins;
@@ -45,60 +48,70 @@ export default async function PlayerProfilePage({
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
-      <div className="flex items-center gap-4">
-        {player.avatarUrl && (
-          <Image
-            src={player.avatarUrl}
-            alt={player.username}
-            width={56}
-            height={56}
-            className="rounded-full"
-          />
-        )}
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
-            {player.username}
-            {player.mainCharacter && <CharacterIcon name={player.mainCharacter} size={22} />}
-          </h1>
-          <p className="text-sm tabular-nums text-muted-foreground">
-            {player.rating} rating · {player.gamesPlayed} games played
-            {player.mainCharacter ? ` · mains ${player.mainCharacter}` : ""}
-          </p>
-          <div className="mt-1.5 flex items-center gap-1.5">
-            <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} />
-            {player.region && (
-              <Badge variant="outline">
-                <MapPin className="size-3" />
-                {player.region}
-              </Badge>
-            )}
-            {player.wiredConnection && (
-              <Badge variant="outline">
-                <Cable className="size-3" />
-                Wired
-              </Badge>
-            )}
-            {player.noShowCount > 0 && (
-              <Badge variant="warning">{player.noShowCount} no-show{player.noShowCount === 1 ? "" : "s"}</Badge>
-            )}
-            {player.cancelCount > 0 && (
-              <Badge variant="warning">
-                {player.cancelCount} cancel{player.cancelCount === 1 ? "" : "s"}
-              </Badge>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-4">
+          {player.avatarUrl && (
+            <Image
+              src={player.avatarUrl}
+              alt={player.username}
+              width={56}
+              height={56}
+              className="rounded-full"
+            />
+          )}
+          <div>
+            <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+              {player.username}
+              {player.mainCharacter && <CharacterIcon name={player.mainCharacter} size={22} />}
+            </h1>
+            <p className="text-sm tabular-nums text-muted-foreground">
+              {player.rating} rating · {player.gamesPlayed} games played
+              {player.mainCharacter ? ` · mains ${player.mainCharacter}` : ""}
+            </p>
+            <div className="mt-1.5 flex items-center gap-1.5">
+              <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} />
+              {player.region && (
+                <Badge variant="outline">
+                  <MapPin className="size-3" />
+                  {player.region}
+                </Badge>
+              )}
+              {player.wiredConnection && (
+                <Badge variant="outline">
+                  <Cable className="size-3" />
+                  Wired
+                </Badge>
+              )}
+              {player.noShowCount > 0 && (
+                <Badge variant="warning">{player.noShowCount} no-show{player.noShowCount === 1 ? "" : "s"}</Badge>
+              )}
+              {player.cancelCount > 0 && (
+                <Badge variant="warning">
+                  {player.cancelCount} cancel{player.cancelCount === 1 ? "" : "s"}
+                </Badge>
+              )}
+            </div>
+            {player.startggUrl && (
+              <a
+                href={player.startggUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
+              >
+                View on start.gg
+                <ExternalLink className="size-3" />
+              </a>
             )}
           </div>
-          {player.startggUrl && (
-            <a
-              href={player.startggUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
-            >
-              View on start.gg
-              <ExternalLink className="size-3" />
-            </a>
-          )}
         </div>
+
+        {session?.user?.id && !isOwnProfile && (
+          blocked ? (
+            <UnblockUserButton action={unblockUserAction.bind(null, id)} />
+          ) : (
+            <BlockUserButton action={blockUserAction.bind(null, id)} username={player.username} />
+          )
+        )}
       </div>
 
       {chartPoints.length >= 2 && (

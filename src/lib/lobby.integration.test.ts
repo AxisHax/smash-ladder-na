@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { prisma } from "@/lib/db";
 import { joinLobbyAndTryPair } from "@/lib/lobby";
+import { blockUser } from "@/lib/blocks";
 import { createTestUser } from "@/test/factories";
 
 describe("joinLobbyAndTryPair", () => {
@@ -25,6 +26,23 @@ describe("joinLobbyAndTryPair", () => {
   it("does not pair players whose rating gap tolerance excludes each other", async () => {
     const a = await createTestUser({ region: "USA East", rating: 1500, maxRatingGap: 50 });
     const b = await createTestUser({ region: "USA East", rating: 1800 });
+
+    await joinLobbyAndTryPair(a.id);
+    await joinLobbyAndTryPair(b.id);
+
+    const match = await prisma.ratingMatch.findFirst({
+      where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
+    });
+    expect(match).toBeNull();
+
+    const entries = await prisma.ratingLobbyEntry.findMany({ where: { userId: { in: [a.id, b.id] } } });
+    expect(entries.every((e) => e.status === "WAITING")).toBe(true);
+  });
+
+  it("does not pair players when either side has blocked the other", async () => {
+    const a = await createTestUser({ region: "USA East" });
+    const b = await createTestUser({ region: "USA East" });
+    await blockUser(b.id, a.id); // b blocked a — should block pairing regardless of who queues first
 
     await joinLobbyAndTryPair(a.id);
     await joinLobbyAndTryPair(b.id);

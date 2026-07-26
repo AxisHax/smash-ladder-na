@@ -2,6 +2,7 @@ import { prisma, TX_OPTIONS, withTransientRetry } from "@/lib/db";
 import { LobbyEntryStatus, MatchStatus, PairingMethod } from "@/generated/prisma/enums";
 import { getLatestMatchForUser, getUnresolvedMatchForUser } from "@/lib/matches";
 import { getRegionsWithinDistance } from "@/lib/regions";
+import { blockPairKey, getAllBlockedPairKeys, getBlockedEitherWayIds } from "@/lib/blocks";
 
 function ratingGapAllows(ratingA: number, ratingB: number, maxGap: number | null) {
   return maxGap === null || Math.abs(ratingA - ratingB) <= maxGap;
@@ -58,13 +59,14 @@ export async function getActiveLobbyEntry(userId: string) {
 }
 
 export async function joinLobbyAndTryPair(userId: string) {
-  const [waitingEntry, unresolvedMatch, me] = await Promise.all([
+  const [waitingEntry, unresolvedMatch, me, blockedIds] = await Promise.all([
     prisma.ratingLobbyEntry.findFirst({ where: { userId, status: LobbyEntryStatus.WAITING } }),
     getUnresolvedMatchForUser(userId),
     prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: { region: true, maxMatchDistanceKm: true, rating: true, maxRatingGap: true },
     }),
+    getBlockedEitherWayIds(userId),
   ]);
   // A resolved (CONFIRMED/DISPUTED) match no longer blocks requeueing, even
   // though its RatingLobbyEntry rows are still sitting there as PAIRED.
@@ -96,7 +98,7 @@ export async function joinLobbyAndTryPair(userId: string) {
       where: {
         status: LobbyEntryStatus.WAITING,
         expiresAt: { gt: now },
-        userId: { not: userId },
+        userId: { notIn: [userId, ...blockedIds] },
         id: { not: newEntry.id },
         user: {
           region: { in: myReach },
@@ -172,6 +174,7 @@ function canMatch(
 export async function sweepLobbyPairing(maxPairs = 50) {
   let paired = 0;
   const now = new Date();
+  const blockedPairs = await getAllBlockedPairKeys();
 
   // Region matching isn't a strict single-bucket split anymore — a wide
   // enough match distance can pair with anyone — so straggler pairing
@@ -194,7 +197,8 @@ export async function sweepLobbyPairing(maxPairs = 50) {
 
     for (let j = i + 1; j < waiting.length; j++) {
       const b = waiting[j];
-      if (used.has(b.id) || !canMatch(a.user, b.user)) continue;
+      if (used.has(b.id) || blockedPairs.has(blockPairKey(a.userId, b.userId)) || !canMatch(a.user, b.user))
+        continue;
 
       const madeMatch = await withTransientRetry(() =>
         prisma.$transaction(async (tx) => {

@@ -109,6 +109,22 @@ enum PostStatus {
   EXPIRED
 }
 
+// One-directional: A blocking B doesn't imply B blocked A. Matchmaking treats
+// a block as mutual either way (neither side should get paired with someone
+// who blocked them, whether or not they know about it), but only the blocker
+// can see/manage their own block list.
+model Block {
+  id        String   @id @default(cuid())
+  blockerId String
+  blocker   User     @relation("BlocksMade", fields: [blockerId], references: [id], onDelete: Cascade)
+  blockedId String
+  blocked   User     @relation("BlocksReceived", fields: [blockedId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([blockerId, blockedId])
+  @@index([blockedId])
+}
+
 model User {
   id            String     @id @default(cuid())
   discordId     String     @unique
@@ -144,6 +160,8 @@ model User {
   seasonStandings  SeasonStanding[]
   tournamentsHosted Tournament[]
   tournamentEntries TournamentEntry[]
+  blocksMade       Block[]          @relation("BlocksMade")
+  blocksReceived   Block[]          @relation("BlocksReceived")
 
   @@index([rating])
   @@index([mainCharacter])

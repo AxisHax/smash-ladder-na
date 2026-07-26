@@ -1,9 +1,13 @@
 import { Settings } from "lucide-react";
+import Link from "next/link";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { StartggUrlForm } from "@/components/startgg-url-form";
+import { UnblockUserButton } from "@/components/block-user-button";
+import { listBlockedUsers } from "@/lib/blocks";
+import { unblockUserAction } from "../players/actions";
 import { updateStartggUrl, updateUsername } from "./actions";
 
 export default async function SettingsPage() {
@@ -20,10 +24,13 @@ export default async function SettingsPage() {
     );
   }
 
-  const me = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { username: true, startggUrl: true },
-  });
+  const [me, blocked] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { username: true, startggUrl: true },
+    }),
+    listBlockedUsers(session.user.id),
+  ]);
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
@@ -43,6 +50,29 @@ export default async function SettingsPage() {
             label="start.gg profile"
             description="Self-declared — link your start.gg profile so others can look up your results."
           />
+        </CardContent>
+      </Card>
+
+      <Card className="mt-4">
+        <CardContent className="pt-4">
+          <p className="text-sm font-medium">Blocked players</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Blocked players are never matched with you in ranked queueing.
+          </p>
+          {blocked.length === 0 ? (
+            <p className="mt-3 text-sm text-muted-foreground">You haven&apos;t blocked anyone.</p>
+          ) : (
+            <ul className="mt-3 flex flex-col gap-2">
+              {blocked.map((b) => (
+                <li key={b.id} className="flex items-center justify-between text-sm">
+                  <Link href={`/players/${b.blocked.id}`} className="hover:underline">
+                    {b.blocked.username}
+                  </Link>
+                  <UnblockUserButton action={unblockUserAction.bind(null, b.blocked.id)} />
+                </li>
+              ))}
+            </ul>
+          )}
         </CardContent>
       </Card>
     </main>

@@ -33,7 +33,11 @@ export async function listOpenReports() {
           username: true,
           status: true,
           misconductScore: true,
-          _count: { select: { reportsReceived: true } },
+          // blocksReceived is shown to mods as context, not counted toward
+          // ACTION_THRESHOLDS — a block is unilateral and reason-free, so
+          // weighting it like a filed report would make it gameable (mass-
+          // block someone to help get them auto-banned).
+          _count: { select: { reportsReceived: true, blocksReceived: true } },
         },
       },
       match: { select: { id: true } },

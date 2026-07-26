@@ -38,6 +38,7 @@ export default async function ReportsPage() {
       <ul className="mt-6 flex flex-col gap-4">
         {reports.map((report) => {
           const totalReports = report.reportedUser._count.reportsReceived;
+          const totalBlocks = report.reportedUser._count.blocksReceived;
           const canSuspend = totalReports >= ACTION_THRESHOLDS.SUSPENDED;
           const canBan = totalReports >= ACTION_THRESHOLDS.BANNED;
 
@@ -59,6 +60,11 @@ export default async function ReportsPage() {
                       <Badge variant="outline" className="tabular-nums">
                         {totalReports} report{totalReports === 1 ? "" : "s"} total
                       </Badge>
+                      {totalBlocks > 0 && (
+                        <Badge variant="outline" className="tabular-nums">
+                          blocked by {totalBlocks}
+                        </Badge>
+                      )}
                       <Badge variant="outline">{report.reportedUser.status.toLowerCase()}</Badge>
                     </div>
                   </div>

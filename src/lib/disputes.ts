@@ -1,8 +1,24 @@
 import { prisma, TX_OPTIONS, withTransientRetry } from "@/lib/db";
 import { MatchStatus, ConfirmationMethod } from "@/generated/prisma/enums";
-import { applyEloAndConfirm, matchWithPlayers } from "@/lib/matches";
+import { applyEloAndConfirm } from "@/lib/matches";
 import { tallySetWins, GAMES_TO_WIN } from "@/lib/match-games";
 import { sendDiscordDM } from "@/lib/discord-bot";
+
+// Same shape as matches.ts's matchWithPlayers, plus report/block counts —
+// kept separate rather than added to that shared constant since this
+// moderation context (how many times each side has been reported or
+// blocked) is only relevant for mods reviewing a dispute, not regular
+// match display.
+const disputePlayerSelect = {
+  select: {
+    id: true,
+    username: true,
+    avatarUrl: true,
+    rating: true,
+    mainCharacter: true,
+    _count: { select: { reportsReceived: true, blocksReceived: true } },
+  },
+} as const;
 
 // A disputed game (both sides reported, but disagreed) no longer flips the
 // whole match to a blocking DISPUTED status — the set keeps going on the
@@ -21,7 +37,11 @@ export async function listDisputedGames() {
       match: { status: { notIn: [MatchStatus.CONFIRMED, MatchStatus.CANCELLED] } },
     },
     orderBy: { createdAt: "desc" },
-    include: { match: { include: matchWithPlayers } },
+    include: {
+      match: {
+        include: { player1: disputePlayerSelect, player2: disputePlayerSelect },
+      },
+    },
   });
   // Prisma can't express "these two columns differ" directly in a where
   // clause, so that check happens here instead.

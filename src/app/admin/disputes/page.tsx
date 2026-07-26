@@ -13,6 +13,29 @@ function nameFor(game: DisputedGame, userId: string | null) {
   return userId === game.match.player1Id ? game.match.player1.username : game.match.player2.username;
 }
 
+function ModContextBadges({
+  player,
+}: {
+  player: { username: string; _count: { reportsReceived: number; blocksReceived: number } };
+}) {
+  if (player._count.reportsReceived === 0 && player._count.blocksReceived === 0) return null;
+  return (
+    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      {player.username}:
+      {player._count.reportsReceived > 0 && (
+        <Badge variant="outline" className="tabular-nums">
+          {player._count.reportsReceived} report{player._count.reportsReceived === 1 ? "" : "s"}
+        </Badge>
+      )}
+      {player._count.blocksReceived > 0 && (
+        <Badge variant="outline" className="tabular-nums">
+          blocked by {player._count.blocksReceived}
+        </Badge>
+      )}
+    </span>
+  );
+}
+
 export default async function DisputesPage() {
   const session = await auth();
   const role = session?.user?.role;
@@ -62,6 +85,10 @@ export default async function DisputesPage() {
                   {nameFor(game, game.secondReportById)} reported{" "}
                   {nameFor(game, game.secondReportWinnerId)} won.
                 </p>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <ModContextBadges player={game.match.player1} />
+                  <ModContextBadges player={game.match.player2} />
+                </div>
                 {game.finalStage && (
                   <p className="mt-1 text-xs text-muted-foreground">Stage: {game.finalStage}</p>
                 )}
