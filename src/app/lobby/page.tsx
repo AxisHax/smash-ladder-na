@@ -16,6 +16,7 @@ import { LobbyPoller } from "@/components/lobby-poller";
 import { JoinLobbyForm } from "@/components/join-lobby-button";
 import { VictoryCelebration } from "@/components/victory-celebration";
 import { ReportCharacterForm } from "@/components/report-character-form";
+import { CharacterIcon } from "@/components/character-icon";
 import { MatchSettingsForm, type MatchSettingsState } from "@/components/match-settings-form";
 import {
   beginFirstGame,
@@ -580,10 +581,17 @@ function CharacterPickSection({
   if (yourCharacter && opponentCharacter) {
     return (
       <CardContent className="border-t border-border pt-4">
-        <p className="text-sm text-muted-foreground">
-          Game {game.gameNumber} characters — you: <span className="font-medium text-foreground">{yourCharacter}</span>,{" "}
-          {opponentName}: <span className="font-medium text-foreground">{opponentCharacter}</span>
-        </p>
+        <p className="text-sm text-muted-foreground">Game {game.gameNumber} characters</p>
+        <div className="mt-2 flex flex-col gap-1.5">
+          <span className="flex items-center gap-2 text-sm">
+            <CharacterIcon name={yourCharacter} size={20} />
+            You: <span className="font-medium text-foreground">{yourCharacter}</span>
+          </span>
+          <span className="flex items-center gap-2 text-sm">
+            <CharacterIcon name={opponentCharacter} size={20} />
+            {opponentName}: <span className="font-medium text-foreground">{opponentCharacter}</span>
+          </span>
+        </div>
       </CardContent>
     );
   }
@@ -591,7 +599,8 @@ function CharacterPickSection({
   if (yourCharacter && !opponentCharacter) {
     return (
       <CardContent className="border-t border-border pt-4">
-        <p className="text-sm text-muted-foreground">
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <CharacterIcon name={yourCharacter} size={20} />
           Game {game.gameNumber} — you locked in{" "}
           <span className="font-medium text-foreground">{yourCharacter}</span>. Waiting for{" "}
           {opponentName} to pick…
@@ -612,7 +621,8 @@ function CharacterPickSection({
 
   return (
     <CardContent className="border-t border-border pt-4">
-      <p className="text-sm text-muted-foreground">
+      <p className="flex items-center gap-2 text-sm text-muted-foreground">
+        {opponentCharacter && <CharacterIcon name={opponentCharacter} size={20} />}
         Game {game.gameNumber} —{" "}
         {game.gameNumber === 1
           ? "pick your character (blind — hidden until you're both locked in)."
