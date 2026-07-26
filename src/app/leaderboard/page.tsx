@@ -44,12 +44,14 @@ export default async function LeaderboardPage({
         {isValidCharacter ? ` who main ${character}` : ""}.
       </p>
 
-      <Card className="mt-4 border-primary/20 bg-primary/[0.04] py-3">
-        <p className="px-4 text-sm">
-          🏆 <span className="font-medium">${SEASON_PRIZE_POOL_USD} USD season prize pool</span> —
-          split among the top 5 finishers when {season.name} ends.
-        </p>
-      </Card>
+      {!isValidCharacter && (
+        <Card className="mt-4 border-primary/20 bg-primary/[0.04] py-3">
+          <p className="px-4 text-sm">
+            🏆 <span className="font-medium">${SEASON_PRIZE_POOL_USD} USD season prize pool</span> —
+            split among the top 5 finishers when {season.name} ends.
+          </p>
+        </Card>
+      )}
 
       <form method="get" className="mt-4 flex items-end gap-2">
         <label className="flex flex-col gap-1 text-sm">
@@ -83,7 +85,9 @@ export default async function LeaderboardPage({
               <th className="py-2 font-medium">Tier</th>
               <th className="py-2 font-medium text-right tabular-nums">Rating</th>
               <th className="py-2 font-medium text-right tabular-nums">Games</th>
-              <th className="py-2 pr-4 font-medium text-right tabular-nums">Prize</th>
+              {!isValidCharacter && (
+                <th className="py-2 pr-4 font-medium text-right tabular-nums">Prize</th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -113,9 +117,11 @@ export default async function LeaderboardPage({
                 <td className="py-2 text-right tabular-nums text-muted-foreground">
                   {player.gamesPlayed}
                 </td>
-                <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">
-                  {prizeForPlace(index + 1) !== null ? `$${prizeForPlace(index + 1)} USD` : "—"}
-                </td>
+                {!isValidCharacter && (
+                  <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">
+                    {prizeForPlace(index + 1) !== null ? `$${prizeForPlace(index + 1)} USD` : "—"}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
