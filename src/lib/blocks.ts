@@ -12,16 +12,16 @@ export async function blockUser(blockerId: string, blockedId: string) {
 
   const count = await prisma.block.count({ where: { blockerId } });
   if (count >= MAX_BLOCKS_PER_USER) {
-    throw new Error(`You can only block up to ${MAX_BLOCKS_PER_USER} players — unblock someone first.`);
+    throw new Error(`You can only block up to ${MAX_BLOCKS_PER_USER} players.`);
   }
 
   await prisma.block.create({ data: { blockerId, blockedId } });
 }
 
-export async function unblockUser(blockerId: string, blockedId: string) {
-  await prisma.block.deleteMany({ where: { blockerId, blockedId } });
-}
-
+// Blocks are permanent by design — there's no unblockUser. This keeps the
+// cap meaningful (a real commitment, not a toggle) and means matchmaking
+// exclusions can't be quietly undone by whoever's on the receiving end of a
+// dispute.
 export async function isBlockedByMe(blockerId: string, blockedId: string) {
   const block = await prisma.block.findUnique({
     where: { blockerId_blockedId: { blockerId, blockedId } },

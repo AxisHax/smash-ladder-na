@@ -21,7 +21,7 @@ export function BlockUserButton({
         onSubmit={(e) => {
           if (
             !confirm(
-              `Block ${username}? You'll never be matched with them again in ranked queueing. You can unblock them later from Settings.`,
+              `Block ${username}? This is permanent and can't be undone — you'll never be matched with them again in ranked queueing.`,
             )
           ) {
             e.preventDefault();
@@ -34,15 +34,5 @@ export function BlockUserButton({
       </form>
       {state.error && <p className="text-xs text-destructive">{state.error}</p>}
     </div>
-  );
-}
-
-export function UnblockUserButton({ action }: { action: () => Promise<void> }) {
-  return (
-    <form action={action}>
-      <Button type="submit" variant="outline" size="sm">
-        Unblock
-      </Button>
-    </form>
   );
 }

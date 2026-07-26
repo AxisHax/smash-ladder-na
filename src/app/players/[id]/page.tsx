@@ -16,11 +16,11 @@ import { CharacterIcon } from "@/components/character-icon";
 import { RankBadge } from "@/components/rank-badge";
 import { RatingChart } from "@/components/rating-chart";
 import { DeleteAccountButton } from "@/components/delete-account-button";
-import { BlockUserButton, UnblockUserButton } from "@/components/block-user-button";
+import { BlockUserButton } from "@/components/block-user-button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { isBlockedByMe } from "@/lib/blocks";
-import { blockUserAction, deleteAccountAction, unblockUserAction } from "../actions";
+import { blockUserAction, deleteAccountAction } from "../actions";
 
 export default async function PlayerProfilePage({
   params,
@@ -107,7 +107,7 @@ export default async function PlayerProfilePage({
 
         {session?.user?.id && !isOwnProfile && (
           blocked ? (
-            <UnblockUserButton action={unblockUserAction.bind(null, id)} />
+            <Badge variant="outline">Blocked</Badge>
           ) : (
             <BlockUserButton action={blockUserAction.bind(null, id)} username={player.username} />
           )

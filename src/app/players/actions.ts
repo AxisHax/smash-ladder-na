@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { auth, signOut } from "@/auth";
 import { deleteMyAccount } from "@/lib/account";
-import { blockUser, unblockUser } from "@/lib/blocks";
+import { blockUser } from "@/lib/blocks";
 
 export async function deleteAccountAction() {
   const session = await auth();
@@ -34,12 +34,4 @@ export async function blockUserAction(
   revalidatePath(`/players/${blockedId}`);
   revalidatePath("/settings");
   return { error: null };
-}
-
-export async function unblockUserAction(blockedId: string) {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Not signed in");
-  await unblockUser(session.user.id, blockedId);
-  revalidatePath(`/players/${blockedId}`);
-  revalidatePath("/settings");
 }
