@@ -1,6 +1,6 @@
 import { prisma, TX_OPTIONS, withTransientRetry } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
-import { ConfirmationMethod } from "@/generated/prisma/enums";
+import { ConfirmationMethod, UserRole } from "@/generated/prisma/enums";
 import { applyEloAndConfirm } from "@/lib/matches";
 import { GAME_ONE_STAGES, COUNTERPICK_STAGES } from "@/lib/stages";
 import { SMASH_CHARACTERS } from "@/lib/characters";
@@ -311,9 +311,19 @@ async function notifyReportOutcome(outcome: ReportOutcome, gameNumber: number) {
   const continuation = outcome.setDecidedDespiteDispute
     ? " Your set is already decided by the other games either way, so this won't change the result."
     : " The set continues in the meantime — head to the lobby.";
+  const mods = await prisma.user.findMany({
+    where: { role: { in: [UserRole.MOD, UserRole.ADMIN] } },
+    select: { discordId: true },
+  });
   await Promise.all([
     sendDiscordDM(p1.discordId, `⚠️ You and ${p2.username} reported different results for game ${gameNumber} — a mod will review it.${continuation}`),
     sendDiscordDM(p2.discordId, `⚠️ You and ${p1.username} reported different results for game ${gameNumber} — a mod will review it.${continuation}`),
+    ...mods.map((mod) =>
+      sendDiscordDM(
+        mod.discordId,
+        `🚩 New dispute: ${p1.username} vs ${p2.username}, game ${gameNumber} — check /admin/disputes.`,
+      ),
+    ),
   ]);
 }
 
