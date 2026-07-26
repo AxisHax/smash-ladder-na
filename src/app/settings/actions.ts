@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
-import { setUserStartggUrl, setUsername } from "@/lib/account";
+import { setRematchCooldown, setUserStartggUrl, setUsername } from "@/lib/account";
 
 async function requireUserId() {
   const session = await auth();
@@ -16,6 +16,13 @@ export async function updateUsername(username: string) {
   revalidatePath("/settings");
   revalidatePath(`/players/${userId}`);
   revalidatePath("/leaderboard");
+}
+
+export async function updateRematchCooldownSetting(rematchCooldownHours: number | null) {
+  const userId = await requireUserId();
+  await setRematchCooldown(userId, rematchCooldownHours);
+  revalidatePath("/settings");
+  revalidatePath("/lobby");
 }
 
 export type StartggUrlState = { error: string | null };

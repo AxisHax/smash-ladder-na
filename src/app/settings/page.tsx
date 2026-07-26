@@ -6,7 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { StartggUrlForm } from "@/components/startgg-url-form";
 import { listBlockedUsers } from "@/lib/blocks";
-import { updateStartggUrl, updateUsername } from "./actions";
+import { REMATCH_COOLDOWN_PRESETS } from "@/lib/rematch-cooldown";
+import { updateRematchCooldownSetting, updateStartggUrl, updateUsername } from "./actions";
+
+const ANYTIME_VALUE = "anytime";
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -25,7 +28,7 @@ export default async function SettingsPage() {
   const [me, blocked] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { username: true, startggUrl: true },
+      select: { username: true, startggUrl: true, rematchCooldownHours: true },
     }),
     listBlockedUsers(session.user.id),
   ]);
@@ -48,6 +51,12 @@ export default async function SettingsPage() {
             label="start.gg profile"
             description="Self-declared — link your start.gg profile so others can look up your results."
           />
+        </CardContent>
+      </Card>
+
+      <Card className="mt-4">
+        <CardContent className="pt-4">
+          <RematchCooldownForm defaultValue={me?.rematchCooldownHours ?? null} />
         </CardContent>
       </Card>
 
@@ -108,6 +117,44 @@ function UsernameForm({ defaultValue }: { defaultValue: string }) {
           defaultValue={defaultValue}
           className="h-8 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
         />
+      </label>
+      <Button type="submit" size="sm">
+        Save
+      </Button>
+    </form>
+  );
+}
+
+function RematchCooldownForm({ defaultValue }: { defaultValue: number | null }) {
+  async function action(formData: FormData) {
+    "use server";
+    const value = String(formData.get("rematchCooldownHours") ?? "");
+    await updateRematchCooldownSetting(value === ANYTIME_VALUE ? null : Number(value));
+  }
+
+  return (
+    <form action={action} className="flex items-end gap-2">
+      <label className="flex flex-1 flex-col gap-1 text-sm">
+        Rematch cooldown
+        <span className="text-xs font-normal text-muted-foreground">
+          Minimum time before you can be matched with the same opponent again. Matching requires
+          BOTH players&apos; cooldown to have elapsed.
+        </span>
+        <select
+          name="rematchCooldownHours"
+          defaultValue={String(defaultValue ?? ANYTIME_VALUE)}
+          className="h-8 w-52 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
+        >
+          {REMATCH_COOLDOWN_PRESETS.map((preset) => (
+            <option
+              key={preset.label}
+              value={String(preset.hours ?? ANYTIME_VALUE)}
+              className="bg-background text-foreground"
+            >
+              {preset.label}
+            </option>
+          ))}
+        </select>
       </label>
       <Button type="submit" size="sm">
         Save
