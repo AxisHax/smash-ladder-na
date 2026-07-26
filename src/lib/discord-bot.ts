@@ -13,6 +13,21 @@ async function discordRequest(path: string, init: RequestInit) {
   });
 }
 
+// Sends to many recipients one at a time instead of firing them all at once —
+// a burst of identical, unsolicited DMs (e.g. announcing a tournament to every
+// entrant) is exactly the pattern Discord's abuse detection flags, and it can
+// get the whole application (bot + OAuth login) suspended pending review.
+export async function sendDiscordDMsSequentially(
+  recipients: { discordId: string }[],
+  content: string,
+  delayMs = 1000,
+) {
+  for (const { discordId } of recipients) {
+    await sendDiscordDM(discordId, content);
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+}
+
 // Best-effort only: a DM can fail for reasons entirely outside our control
 // (the bot and recipient don't share a Discord server, the user has DMs
 // from server members turned off, etc.), so a failure here must never break

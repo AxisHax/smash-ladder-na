@@ -1,6 +1,7 @@
+import { after } from "next/server";
 import { prisma } from "@/lib/db";
 import { TournamentStatus } from "@/generated/prisma/enums";
-import { sendDiscordDM } from "@/lib/discord-bot";
+import { sendDiscordDMsSequentially } from "@/lib/discord-bot";
 import { normalizeStartggUrl } from "@/lib/startgg";
 
 const entryWithUser = {
@@ -113,7 +114,8 @@ export async function markInProgress(
   const message = tournament.startggUrl
     ? `🏆 **${tournament.name}** is starting! Bracket: ${tournament.startggUrl}`
     : `🏆 **${tournament.name}** is starting!`;
-  await Promise.all(entries.map((e) => sendDiscordDM(e.user.discordId, message)));
+  const recipients = entries.map((e) => e.user);
+  after(() => sendDiscordDMsSequentially(recipients, message));
 }
 
 export async function markCompleted(

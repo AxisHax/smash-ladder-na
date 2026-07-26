@@ -15,7 +15,7 @@ import {
   UserRound,
   Users,
 } from "lucide-react";
-import { auth, signIn, signOut } from "@/auth";
+import { auth, signIn, signOut, primaryProviderId } from "@/auth";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -100,7 +100,7 @@ export async function SiteHeader() {
                 // happened to be clicked — that's where the region prompt is,
                 // and a large fraction of sign-ups otherwise never set one
                 // (silently blocking themselves from ever queueing).
-                await signIn(undefined, { redirectTo: "/lobby" });
+                await signIn(primaryProviderId, { redirectTo: "/lobby" });
               }}
             >
               <Button type="submit" size="sm">

@@ -39,10 +39,13 @@ const devCredentials = Credentials({
   },
 });
 
-const providers =
-  process.env.NODE_ENV === "development" && !process.env.AUTH_DISCORD_ID
-    ? [devCredentials]
-    : [Discord];
+const useDevCredentials = process.env.NODE_ENV === "development" && !process.env.AUTH_DISCORD_ID;
+const providers = useDevCredentials ? [devCredentials] : [Discord];
+
+// Only one provider is ever registered above, but `signIn()` with no provider
+// id renders Auth.js's generic (unstyled) provider-picker page instead of
+// going straight to it — callers should pass this explicitly.
+export const primaryProviderId = useDevCredentials ? "credentials" : "discord";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers,

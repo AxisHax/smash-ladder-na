@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Activity, Swords, Trophy, Users } from "lucide-react";
-import { auth, signIn } from "@/auth";
+import { auth, signIn, primaryProviderId } from "@/auth";
 import { getPublicStats } from "@/lib/public-stats";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -37,7 +37,7 @@ export default async function Home() {
         <form
           action={async () => {
             "use server";
-            await signIn();
+            await signIn(primaryProviderId);
           }}
           className="mt-8"
         >
