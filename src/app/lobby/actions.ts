@@ -21,7 +21,6 @@ import { postMatchComment } from "@/lib/match-comments";
 import { cancelMatch } from "@/lib/matches";
 import { fileMatchReport } from "@/lib/reports";
 import { reportOpponentCharacter } from "@/lib/character-stats";
-import { SMASH_CHARACTERS } from "@/lib/characters";
 import { prisma } from "@/lib/db";
 import { enforceRateLimit, minutesAgo } from "@/lib/rate-limit";
 
@@ -61,13 +60,10 @@ export type JoinLobbyState = { error: string | null };
 // nothing was displaying it: the button's pending state would just clear
 // and the page would fall back to the pre-join view with zero explanation
 // (e.g. hitting the rate limit, or being region-locked out).
-export async function joinLobby(_prevState: JoinLobbyState, formData: FormData): Promise<JoinLobbyState> {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- useActionState requires this exact (prevState, formData) shape
+export async function joinLobby(_prevState: JoinLobbyState, _formData: FormData): Promise<JoinLobbyState> {
   const userId = await requireUserId();
   try {
-    const character = String(formData.get("character") ?? "");
-    if (!(SMASH_CHARACTERS as readonly string[]).includes(character)) {
-      return { error: "Pick which character you're queueing with." };
-    }
     await requireNotBanned(userId); // ranked play stays open at Level-1 (SUSPENDED)
     await enforceRateLimit({
       count: () =>
@@ -75,7 +71,7 @@ export async function joinLobby(_prevState: JoinLobbyState, formData: FormData):
       limit: 5,
       windowLabel: "minute",
     });
-    await joinLobbyAndTryPair(userId, character);
+    await joinLobbyAndTryPair(userId);
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
   }

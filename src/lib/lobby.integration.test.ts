@@ -8,10 +8,10 @@ describe("joinLobbyAndTryPair", () => {
     const a = await createTestUser({ region: "USA East" });
     const b = await createTestUser({ region: "USA East" });
 
-    const first = await joinLobbyAndTryPair(a.id, "Mario");
+    const first = await joinLobbyAndTryPair(a.id);
     expect(first?.status).toBe("WAITING");
 
-    const second = await joinLobbyAndTryPair(b.id, "Luigi");
+    const second = await joinLobbyAndTryPair(b.id);
     expect(second?.status).toBe("PAIRED");
 
     const match = await prisma.ratingMatch.findFirst({
@@ -26,8 +26,8 @@ describe("joinLobbyAndTryPair", () => {
     const a = await createTestUser({ region: "USA East", rating: 1500, maxRatingGap: 50 });
     const b = await createTestUser({ region: "USA East", rating: 1800 });
 
-    await joinLobbyAndTryPair(a.id, "Mario");
-    await joinLobbyAndTryPair(b.id, "Luigi");
+    await joinLobbyAndTryPair(a.id);
+    await joinLobbyAndTryPair(b.id);
 
     const match = await prisma.ratingMatch.findFirst({
       where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
@@ -40,6 +40,6 @@ describe("joinLobbyAndTryPair", () => {
 
   it("requires a region to be set before joining", async () => {
     const noRegion = await createTestUser({ region: null });
-    await expect(joinLobbyAndTryPair(noRegion.id, "Mario")).rejects.toThrow(/region/i);
+    await expect(joinLobbyAndTryPair(noRegion.id)).rejects.toThrow(/region/i);
   });
 });

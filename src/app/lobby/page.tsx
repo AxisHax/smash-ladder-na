@@ -84,7 +84,7 @@ export default async function LobbyPage() {
             <p className="mt-1 text-xs text-muted-foreground">
               This starts a brand new search — it&apos;s not related to the match below.
             </p>
-            <JoinLobbyForm action={joinLobby} characters={SMASH_CHARACTERS} className="mt-3" />
+            <JoinLobbyForm action={joinLobby} className="mt-3" />
           </CardContent>
         </Card>
       )}
@@ -109,7 +109,7 @@ export default async function LobbyPage() {
         <Card className="mt-4">
           <CardContent className="pt-4">
             <p className="text-sm text-muted-foreground">You&apos;re not in the queue.</p>
-            <JoinLobbyForm action={joinLobby} characters={SMASH_CHARACTERS} className="mt-4" />
+            <JoinLobbyForm action={joinLobby} className="mt-4" />
           </CardContent>
         </Card>
       )}
@@ -118,10 +118,7 @@ export default async function LobbyPage() {
         <Card className="mt-4">
           <CardContent className="flex items-center gap-3 pt-4">
             <Loader2 className="size-4 animate-spin text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              Waiting for an opponent…
-              {entry.character && ` Queued as ${entry.character}.`}
-            </p>
+            <p className="text-sm text-muted-foreground">Waiting for an opponent…</p>
           </CardContent>
           <CardContent className="pt-0">
             <form action={cancelLobby}>
@@ -305,8 +302,6 @@ async function MatchmakingForm({ userId }: { userId: string }) {
 // (or the brief cancelled/expired note), and point elsewhere for the rest.
 async function PairedView({ userId, match }: { userId: string; match: Match }) {
   const opponent = match.player1Id === userId ? match.player2 : match.player1;
-  const opponentCharacter =
-    match.player1Id === userId ? match.player2Character : match.player1Character;
 
   if (match.status === "CONFIRMED" || match.status === "CANCELLED" || match.status === "EXPIRED") {
     return (
@@ -355,10 +350,7 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
         )}
         <div>
           <p className="font-medium">{opponent.username}</p>
-          <p className="text-sm text-muted-foreground tabular-nums">
-            {opponent.rating} rating
-            {opponentCharacter && ` · playing ${opponentCharacter}`}
-          </p>
+          <p className="text-sm text-muted-foreground tabular-nums">{opponent.rating} rating</p>
         </div>
         {games.length > 0 && (
           <Badge variant="outline" className="ml-auto tabular-nums">

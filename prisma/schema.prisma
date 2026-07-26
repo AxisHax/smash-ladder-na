@@ -154,7 +154,6 @@ model RatingLobbyEntry {
   id            String            @id @default(cuid())
   userId        String
   user          User              @relation(fields: [userId], references: [id])
-  character     String? // declared when joining the queue — shown to the opponent once paired
   status        LobbyEntryStatus  @default(WAITING)
   pairingMethod PairingMethod     @default(MANUAL)
   pairedEntryId String?           @unique
@@ -174,10 +173,8 @@ model RatingMatch {
   id                   String              @id @default(cuid())
   player1Id            String
   player1              User                @relation("Player1Matches", fields: [player1Id], references: [id])
-  player1Character     String? // what each player declared when joining the queue
   player2Id            String
   player2              User                @relation("Player2Matches", fields: [player2Id], references: [id])
-  player2Character     String?
   pairingMethod        PairingMethod       @default(MANUAL)
   roomCode             String? // never rendered outside the paired pair's own view
   roomCodeSetById      String? // whoever entered it owns it; the other side can only read it
@@ -213,11 +210,11 @@ model RatingMatch {
   @@index([player2Id, status, confirmedAt])
 }
 
-// One game within a RatingMatch's best-of-3 set. Stage selection is
+// One game within a RatingMatch's best-of-5 set. Stage selection is
 // strike-then-pick: actorA strikes actorAStrikes stages, actorB strikes
 // actorBStrikes, then whichever of the two struck fewer stages picks the
 // final stage from what's left (game 1: actorA struck 1 vs actorB's 2, so
-// actorA picks; games 2-3: the previous game's winner strikes 2 and the
+// actorA picks; games 2-5: the previous game's winner strikes 2 and the
 // loser, who struck 0, picks).
 model MatchGame {
   id               String      @id @default(cuid())
