@@ -4,7 +4,7 @@ import { listDisputedGames } from "@/lib/disputes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { cancelDispute, resolveDispute } from "./actions";
+import { cancelDispute, messageDisputedPlayer, resolveDispute } from "./actions";
 
 type DisputedGame = Awaited<ReturnType<typeof listDisputedGames>>[number];
 
@@ -88,11 +88,45 @@ export default async function DisputesPage() {
                     </Button>
                   </form>
                 </div>
+
+                <div className="mt-4 flex flex-col gap-2 border-t border-border pt-3">
+                  <p className="text-xs text-muted-foreground">
+                    Message a player about this dispute (sent as a Discord DM):
+                  </p>
+                  <MessagePlayerForm
+                    playerId={game.match.player1Id}
+                    playerName={game.match.player1.username}
+                  />
+                  <MessagePlayerForm
+                    playerId={game.match.player2Id}
+                    playerName={game.match.player2.username}
+                  />
+                </div>
               </CardContent>
             </Card>
           </li>
         ))}
       </ul>
     </main>
+  );
+}
+
+function MessagePlayerForm({ playerId, playerName }: { playerId: string; playerName: string }) {
+  return (
+    <form action={messageDisputedPlayer.bind(null, playerId)} className="flex items-end gap-2">
+      <label className="flex flex-1 flex-col gap-1 text-sm">
+        {playerName}
+        <input
+          name="message"
+          required
+          maxLength={1000}
+          placeholder={`Message to ${playerName}…`}
+          className="h-8 w-full rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
+        />
+      </label>
+      <Button type="submit" size="sm" variant="outline">
+        Send
+      </Button>
+    </form>
   );
 }

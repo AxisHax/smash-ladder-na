@@ -297,46 +297,24 @@ export async function reportGameResult(
   await notifyReportOutcome(outcome, gameNumber);
 }
 
+// Only disputes get a DM — routine progress (reported/game_won/set_confirmed)
+// is left for players to check in the lobby instead of paging their phone.
 async function notifyReportOutcome(outcome: ReportOutcome, gameNumber: number) {
-  if (outcome.type === "reported") {
-    const opponent = await prisma.user.findUnique({
-      where: { id: outcome.opponentId },
-      select: { discordId: true },
-    });
-    if (opponent) {
-      await sendDiscordDM(
-        opponent.discordId,
-        `📋 Your opponent reported game ${gameNumber}'s result — head to the lobby to confirm or dispute it.`,
-      );
-    }
-    return;
-  }
+  if (outcome.type !== "disputed") return;
 
   const [p1, p2] = await Promise.all([
-    prisma.user.findUnique({ where: { id: outcome.player1Id }, select: { discordId: true, username: true, rating: true } }),
-    prisma.user.findUnique({ where: { id: outcome.player2Id }, select: { discordId: true, username: true, rating: true } }),
+    prisma.user.findUnique({ where: { id: outcome.player1Id }, select: { discordId: true, username: true } }),
+    prisma.user.findUnique({ where: { id: outcome.player2Id }, select: { discordId: true, username: true } }),
   ]);
   if (!p1 || !p2) return;
 
-  if (outcome.type === "disputed") {
-    const continuation = outcome.setDecidedDespiteDispute
-      ? " Your set is already decided by the other games either way, so this won't change the result."
-      : " The set continues in the meantime — head to the lobby.";
-    await Promise.all([
-      sendDiscordDM(p1.discordId, `⚠️ You and ${p2.username} reported different results for game ${gameNumber} — a mod will review it.${continuation}`),
-      sendDiscordDM(p2.discordId, `⚠️ You and ${p1.username} reported different results for game ${gameNumber} — a mod will review it.${continuation}`),
-    ]);
-  } else if (outcome.type === "game_won") {
-    await Promise.all([
-      sendDiscordDM(p1.discordId, `Game ${gameNumber} is decided — on to game ${outcome.nextGameNumber}. Head to the lobby.`),
-      sendDiscordDM(p2.discordId, `Game ${gameNumber} is decided — on to game ${outcome.nextGameNumber}. Head to the lobby.`),
-    ]);
-  } else if (outcome.type === "set_confirmed") {
-    await Promise.all([
-      sendDiscordDM(p1.discordId, `✅ Your set vs ${p2.username} is confirmed! New rating: ${p1.rating}.`),
-      sendDiscordDM(p2.discordId, `✅ Your set vs ${p1.username} is confirmed! New rating: ${p2.rating}.`),
-    ]);
-  }
+  const continuation = outcome.setDecidedDespiteDispute
+    ? " Your set is already decided by the other games either way, so this won't change the result."
+    : " The set continues in the meantime — head to the lobby.";
+  await Promise.all([
+    sendDiscordDM(p1.discordId, `⚠️ You and ${p2.username} reported different results for game ${gameNumber} — a mod will review it.${continuation}`),
+    sendDiscordDM(p2.discordId, `⚠️ You and ${p1.username} reported different results for game ${gameNumber} — a mod will review it.${continuation}`),
+  ]);
 }
 
 export const MATCH_TTL_MS = 24 * 60 * 60 * 1000; // mirrors lobby.ts's match no-show/no-report cutoff

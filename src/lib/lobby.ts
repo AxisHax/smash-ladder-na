@@ -1,7 +1,6 @@
 import { prisma, TX_OPTIONS, withTransientRetry } from "@/lib/db";
 import { LobbyEntryStatus, MatchStatus, PairingMethod } from "@/generated/prisma/enums";
 import { getLatestMatchForUser, getUnresolvedMatchForUser } from "@/lib/matches";
-import { sendDiscordDM } from "@/lib/discord-bot";
 import { getRegionsWithinDistance } from "@/lib/regions";
 
 function ratingGapAllows(ratingA: number, ratingB: number, maxGap: number | null) {
@@ -27,21 +26,6 @@ export async function getLobbyActivityStats() {
     }),
   ]);
   return { waiting, inMatch: inMatch * 2 };
-}
-
-// Fires after the pairing transaction has already committed — a DM is a
-// network call and has no business holding a DB transaction open.
-async function notifyMatchPaired(player1Id: string, player2Id: string) {
-  const [p1, p2] = await Promise.all([
-    prisma.user.findUnique({ where: { id: player1Id }, select: { discordId: true, username: true } }),
-    prisma.user.findUnique({ where: { id: player2Id }, select: { discordId: true, username: true } }),
-  ]);
-  if (p1 && p2) {
-    await Promise.all([
-      sendDiscordDM(p1.discordId, `🎮 You've been matched with **${p2.username}**! Head to the lobby to get the stage picked.`),
-      sendDiscordDM(p2.discordId, `🎮 You've been matched with **${p1.username}**! Head to the lobby to get the stage picked.`),
-    ]);
-  }
 }
 
 export async function getActiveLobbyEntry(userId: string) {
@@ -164,8 +148,6 @@ export async function joinLobbyAndTryPair(userId: string) {
     return match;
   }, TX_OPTIONS));
 
-  if (paired) await notifyMatchPaired(paired.player1Id, paired.player2Id);
-
   return paired ? getActiveLobbyEntry(userId) : newEntry;
 }
 
@@ -243,7 +225,6 @@ export async function sweepLobbyPairing(maxPairs = 50) {
         }, TX_OPTIONS),
       );
       if (madeMatch) {
-        await notifyMatchPaired(madeMatch.player1Id, madeMatch.player2Id);
         used.add(a.id);
         used.add(b.id);
         paired++;
