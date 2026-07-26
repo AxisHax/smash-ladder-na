@@ -350,7 +350,14 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
           />
         )}
         <div>
-          <p className="font-medium">{opponent.username}</p>
+          <p className="font-medium">
+            {opponent.username}
+            {opponent.mainCharacter && (
+              <span className="ml-2 text-sm font-normal text-muted-foreground">
+                ({opponent.mainCharacter})
+              </span>
+            )}
+          </p>
           <p className="text-sm text-muted-foreground tabular-nums">{opponent.rating} rating</p>
         </div>
         {games.length > 0 && (
