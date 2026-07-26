@@ -36,9 +36,19 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
-        <Script id="theme-init" strategy="beforeInteractive">
-          {`try{if(matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.classList.add('dark')}catch(e){}`}
-        </Script>
+        {/* Plain script tag, not next/script — layout.tsx is a Server
+            Component, so this only ever exists in the static SSR'd HTML and
+            runs before hydration. next/script's beforeInteractive strategy
+            re-renders this same element as part of a Client Component on
+            the client, which trips React 19's "script tag rendered on the
+            client" warning without actually changing what ships. */}
+        <script
+          id="theme-init"
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{
+            __html: `try{if(matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.classList.add('dark')}catch(e){}`,
+          }}
+        />
         {ADSENSE_CLIENT_ID && (
           <Script
             async
