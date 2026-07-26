@@ -38,17 +38,17 @@ export default function RulesPage() {
 
         <Section title="Stage striking — game 1">
           <p>
-            Game 1 draws from five stages: Final Destination, Battlefield, Small Battlefield,
-            Pokémon Stadium 2, and Hollow Bastion. A randomly chosen player strikes 1, their
-            opponent strikes 2, and the first striker picks the stage from the two that remain.
+            Game 1 draws from five stages: Battlefield, Small Battlefield, Pokémon Stadium 2,
+            Smashville, and Town and City. A randomly chosen player strikes 1, their opponent
+            strikes 2, and the first striker picks the stage from the two that remain.
           </p>
         </Section>
 
-        <Section title="Stage striking — games 2 and 3">
+        <Section title="Stage striking — games 2 and beyond">
           <p>
-            Two counterpick stages are added — Smashville and Town and City — for seven total.
-            The winner of the previous game strikes 2, and the loser picks the stage from what
-            remains.
+            Three counterpick stages are added — Final Destination, Hollow Bastion, and Kalos
+            Pokémon League — for eight total. The winner of the previous game strikes 3, and the
+            loser picks the stage from what remains.
           </p>
         </Section>
 

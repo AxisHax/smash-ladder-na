@@ -13,9 +13,10 @@ describe("stage lists", () => {
     expect(COUNTERPICK_STAGES.length).toBeGreaterThan(GAME_ONE_STAGES.length);
   });
 
-  it("counterpick adds Smashville and Town and City", () => {
-    expect(COUNTERPICK_STAGES).toContain("Smashville");
-    expect(COUNTERPICK_STAGES).toContain("Town and City");
+  it("counterpick adds Final Destination, Hollow Bastion, and Kalos Pokémon League", () => {
+    expect(COUNTERPICK_STAGES).toContain("Final Destination");
+    expect(COUNTERPICK_STAGES).toContain("Hollow Bastion");
+    expect(COUNTERPICK_STAGES).toContain("Kalos Pokémon League");
   });
 
   it("no duplicate stages in either list", () => {

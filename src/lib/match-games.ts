@@ -413,12 +413,13 @@ async function progressSet(
   if (decidedGameNumber >= MAX_GAMES) return null;
 
   const loserId = gameWinnerId === match.player1Id ? match.player2Id : match.player1Id;
+  const nextGameNumber = decidedGameNumber + 1;
   await tx.matchGame.create({
     data: {
       matchId: match.id,
-      gameNumber: decidedGameNumber + 1,
+      gameNumber: nextGameNumber,
       actorAId: gameWinnerId, // previous game's winner strikes first
-      actorAStrikes: 2,
+      actorAStrikes: 3,
       actorBId: loserId,
       actorBStrikes: 0,
       stagesRemaining: [...COUNTERPICK_STAGES],
