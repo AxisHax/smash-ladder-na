@@ -12,12 +12,28 @@ export async function deleteAccountAction() {
   await signOut({ redirectTo: "/" });
 }
 
-export async function blockUserAction(blockedId: string) {
+export type BlockState = { error: string | null };
+
+// (prevState, formData) shape so useActionState can drive it — hitting the
+// block-count cap throws, and a plain thrown error would otherwise crash to
+// Next's generic error overlay instead of showing an inline message.
+export async function blockUserAction(
+  blockedId: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- required by useActionState's call signature
+  _prevState: BlockState,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- required by useActionState's call signature
+  _formData: FormData,
+): Promise<BlockState> {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not signed in");
-  await blockUser(session.user.id, blockedId);
+  try {
+    await blockUser(session.user.id, blockedId);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+  }
   revalidatePath(`/players/${blockedId}`);
   revalidatePath("/settings");
+  return { error: null };
 }
 
 export async function unblockUserAction(blockedId: string) {

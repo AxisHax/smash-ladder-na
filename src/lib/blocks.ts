@@ -1,12 +1,21 @@
 import { prisma } from "@/lib/db";
 
+export const MAX_BLOCKS_PER_USER = 10;
+
 export async function blockUser(blockerId: string, blockedId: string) {
   if (blockerId === blockedId) throw new Error("You can't block yourself");
-  await prisma.block.upsert({
+
+  const existing = await prisma.block.findUnique({
     where: { blockerId_blockedId: { blockerId, blockedId } },
-    update: {},
-    create: { blockerId, blockedId },
   });
+  if (existing) return; // already blocked — no-op, doesn't count against the cap again
+
+  const count = await prisma.block.count({ where: { blockerId } });
+  if (count >= MAX_BLOCKS_PER_USER) {
+    throw new Error(`You can only block up to ${MAX_BLOCKS_PER_USER} players — unblock someone first.`);
+  }
+
+  await prisma.block.create({ data: { blockerId, blockedId } });
 }
 
 export async function unblockUser(blockerId: string, blockedId: string) {
