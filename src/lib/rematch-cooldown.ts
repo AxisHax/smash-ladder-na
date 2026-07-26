@@ -4,9 +4,12 @@
 // matching requires the time since these two last played to clear BOTH
 // sides' chosen cooldown, not just whoever queues second.
 export const REMATCH_COOLDOWN_PRESETS = [
-  { label: "Rematches allowed anytime", hours: null },
-  { label: "Wait 12 hours", hours: 12 },
   { label: "Wait 24 hours", hours: 24 },
+  { label: "Wait 12 hours", hours: 12 },
+  { label: "Wait 6 hours", hours: 6 },
+  { label: "Wait 3 hours", hours: 3 },
+  { label: "Wait 1 hour", hours: 1 },
+  { label: "Rematches allowed anytime", hours: null },
 ] as const;
 
 export const MAX_REMATCH_COOLDOWN_HOURS = Math.max(

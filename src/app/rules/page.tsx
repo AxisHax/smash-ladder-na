@@ -123,8 +123,8 @@ export default function RulesPage() {
             region only, Nearby (~1,250 mi), Extended (~3,100 mi, the default), Long-range
             (~6,200 mi), or Worldwide. You can also set a
             rating gap — Strict (within 50), Close (within 100), Moderate (within 150), Wide
-            (within 300), or Any rating (the default) — and a rematch cooldown — Anytime (the
-            default), Wait 12 hours, or Wait 24 hours. Distance, rating-gap, and rematch-cooldown
+            (within 300), or Any rating (the default) — and a rematch cooldown — Wait 24, 12, 6,
+            3, or 1 hour(s), or Anytime (the default). Distance, rating-gap, and rematch-cooldown
             settings all require BOTH players&apos; choice to cover the actual difference —
             widening yours doesn&apos;t override the other side&apos;s narrower one, so a
             Worldwide/Any rating/Anytime setting still won&apos;t match you with someone who chose
