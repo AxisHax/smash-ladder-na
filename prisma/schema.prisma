@@ -223,8 +223,10 @@ model MatchGame {
   gameNumber       Int
   actorAId         String
   actorAStrikes    Int
+  actorACharacter  String? // game 1: blind pick, hidden until both are in. Games 2-5: actorA (previous winner) must lock in first.
   actorBId         String
   actorBStrikes    Int
+  actorBCharacter  String?
   stagesRemaining  String[]    @default([])
   struckStages     String[]    @default([])
   finalStage       String?

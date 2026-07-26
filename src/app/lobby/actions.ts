@@ -12,6 +12,7 @@ import {
   setWiredConnection,
 } from "@/lib/account";
 import {
+  pickGameCharacter,
   pickGameStage,
   reportGameResult,
   startFirstGame,
@@ -43,6 +44,8 @@ const STALE_GAME_ERRORS = new Set([
   "Not a valid remaining stage",
   "This game is already decided",
   "You already reported this game",
+  "You already picked your character for this game",
+  "Wait for your opponent to pick their character first",
 ]);
 
 async function ignoringStaleGameRaces(fn: () => Promise<void>) {
@@ -110,6 +113,14 @@ export async function pickStage(matchId: string, gameNumber: number, stage: stri
   const userId = await requireUserId();
   await requireNotBanned(userId);
   await ignoringStaleGameRaces(() => pickGameStage(userId, matchId, gameNumber, stage));
+  revalidatePath("/lobby");
+}
+
+export async function pickCharacter(matchId: string, gameNumber: number, formData: FormData) {
+  const userId = await requireUserId();
+  await requireNotBanned(userId);
+  const character = String(formData.get("character") ?? "");
+  await ignoringStaleGameRaces(() => pickGameCharacter(userId, matchId, gameNumber, character));
   revalidatePath("/lobby");
 }
 

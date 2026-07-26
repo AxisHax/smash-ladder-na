@@ -6,7 +6,7 @@ vi.mock("@/generated/prisma/enums", () => ({ ConfirmationMethod: {}, MatchStatus
 vi.mock("@/lib/matches", () => ({ applyEloAndConfirm: vi.fn() }));
 vi.mock("@/lib/discord-bot", () => ({ sendDiscordDM: vi.fn() }));
 
-import { gameTurnState, tallySetWins, GAMES_TO_WIN } from "./match-games";
+import { characterPickState, gameTurnState, tallySetWins, GAMES_TO_WIN } from "./match-games";
 
 describe("gameTurnState", () => {
   const base = {
@@ -88,5 +88,75 @@ describe("tallySetWins", () => {
 describe("GAMES_TO_WIN", () => {
   it("is 3 (best of 5)", () => {
     expect(GAMES_TO_WIN).toBe(3);
+  });
+});
+
+describe("characterPickState", () => {
+  const game1Base = { gameNumber: 1, actorAId: "p1", actorBId: "p2" };
+
+  it("game 1: neither pick is visible until both have locked in", () => {
+    const state = characterPickState(
+      { ...game1Base, actorACharacter: "Mario", actorBCharacter: null },
+      "p1",
+    );
+    expect(state).toEqual({ yourCharacter: "Mario", opponentCharacter: null, canPickNow: false });
+  });
+
+  it("game 1: the other side sees no hint either, and can still pick", () => {
+    const state = characterPickState(
+      { ...game1Base, actorACharacter: "Mario", actorBCharacter: null },
+      "p2",
+    );
+    expect(state).toEqual({ yourCharacter: null, opponentCharacter: null, canPickNow: true });
+  });
+
+  it("game 1: both picks reveal once both are locked in", () => {
+    const state = characterPickState(
+      { ...game1Base, actorACharacter: "Mario", actorBCharacter: "Luigi" },
+      "p1",
+    );
+    expect(state).toEqual({ yourCharacter: "Mario", opponentCharacter: "Luigi", canPickNow: false });
+  });
+
+  it("game 1: nobody has picked yet — both can pick", () => {
+    const state = characterPickState(
+      { ...game1Base, actorACharacter: null, actorBCharacter: null },
+      "p1",
+    );
+    expect(state).toEqual({ yourCharacter: null, opponentCharacter: null, canPickNow: true });
+  });
+
+  const counterpickBase = { gameNumber: 2, actorAId: "winner", actorBId: "loser" };
+
+  it("games 2+: actorA (previous winner) can pick first, before actorB does anything", () => {
+    const state = characterPickState(
+      { ...counterpickBase, actorACharacter: null, actorBCharacter: null },
+      "winner",
+    );
+    expect(state).toEqual({ yourCharacter: null, opponentCharacter: null, canPickNow: true });
+  });
+
+  it("games 2+: actorB is blocked until actorA locks in", () => {
+    const state = characterPickState(
+      { ...counterpickBase, actorACharacter: null, actorBCharacter: null },
+      "loser",
+    );
+    expect(state).toEqual({ yourCharacter: null, opponentCharacter: null, canPickNow: false });
+  });
+
+  it("games 2+: once actorA locks in, actorB sees it immediately and can react", () => {
+    const state = characterPickState(
+      { ...counterpickBase, actorACharacter: "Fox", actorBCharacter: null },
+      "loser",
+    );
+    expect(state).toEqual({ yourCharacter: null, opponentCharacter: "Fox", canPickNow: true });
+  });
+
+  it("games 2+: actorA sees actorB's counterpick once it's in, though it's moot by then", () => {
+    const state = characterPickState(
+      { ...counterpickBase, actorACharacter: "Fox", actorBCharacter: "Falco" },
+      "winner",
+    );
+    expect(state).toEqual({ yourCharacter: "Fox", opponentCharacter: "Falco", canPickNow: false });
   });
 });

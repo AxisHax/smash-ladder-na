@@ -4,7 +4,7 @@ import { Loader2, Swords, Users } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { getActiveLobbyEntry, getLobbyActivityStats } from "@/lib/lobby";
-import { getMatchGames, gameTurnState } from "@/lib/match-games";
+import { characterPickState, getMatchGames, gameTurnState } from "@/lib/match-games";
 import { listMatchComments } from "@/lib/match-comments";
 import { MATCH_DISTANCE_PRESETS, MATCH_REGIONS, REGION_REFERENCE_CITY } from "@/lib/regions";
 import { SMASH_CHARACTERS } from "@/lib/characters";
@@ -22,6 +22,7 @@ import {
   cancelLobby,
   cancelMatchInProgress,
   joinLobby,
+  pickCharacter,
   pickStage,
   reportConduct,
   reportGame,
@@ -493,10 +494,19 @@ function GameSection({
   }
 
   const turn = gameTurnState(current);
+  const characterSection = (
+    <CharacterPickSection
+      userId={userId}
+      matchId={match.id}
+      game={current}
+      opponentName={opponentName}
+    />
+  );
 
   if (turn.phase === "done") {
     return (
       <>
+        {characterSection}
         <CardContent className="border-t border-border pt-4">
           <p className="text-sm text-muted-foreground">Game {current.gameNumber} stage</p>
           <p className="mt-1 font-medium">{current.finalStage}</p>
@@ -527,20 +537,109 @@ function GameSection({
       : `${verb} a stage`;
 
   return (
+    <>
+      {characterSection}
+      <CardContent className="border-t border-border pt-4">
+        <p className="text-sm text-muted-foreground">
+          Game {current.gameNumber} —{" "}
+          {myTurn ? `Your turn — ${turnDescription}.` : `Waiting for ${opponentName} to ${verb}…`}
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {current.stagesRemaining.map((stage) => (
+            <form key={stage} action={action.bind(null, match.id, current.gameNumber, stage)}>
+              <Button type="submit" size="sm" variant="outline" disabled={!myTurn}>
+                {stage}
+              </Button>
+            </form>
+          ))}
+        </div>
+      </CardContent>
+    </>
+  );
+}
+
+function CharacterPickSection({
+  userId,
+  matchId,
+  game,
+  opponentName,
+}: {
+  userId: string;
+  matchId: string;
+  game: {
+    gameNumber: number;
+    actorAId: string;
+    actorBId: string;
+    actorACharacter: string | null;
+    actorBCharacter: string | null;
+  };
+  opponentName: string;
+}) {
+  const { yourCharacter, opponentCharacter, canPickNow } = characterPickState(game, userId);
+
+  if (yourCharacter && opponentCharacter) {
+    return (
+      <CardContent className="border-t border-border pt-4">
+        <p className="text-sm text-muted-foreground">
+          Game {game.gameNumber} characters — you: <span className="font-medium text-foreground">{yourCharacter}</span>,{" "}
+          {opponentName}: <span className="font-medium text-foreground">{opponentCharacter}</span>
+        </p>
+      </CardContent>
+    );
+  }
+
+  if (yourCharacter && !opponentCharacter) {
+    return (
+      <CardContent className="border-t border-border pt-4">
+        <p className="text-sm text-muted-foreground">
+          Game {game.gameNumber} — you locked in{" "}
+          <span className="font-medium text-foreground">{yourCharacter}</span>. Waiting for{" "}
+          {opponentName} to pick…
+        </p>
+      </CardContent>
+    );
+  }
+
+  if (!canPickNow) {
+    return (
+      <CardContent className="border-t border-border pt-4">
+        <p className="text-sm text-muted-foreground">
+          Game {game.gameNumber} — waiting for {opponentName} to lock in their character first.
+        </p>
+      </CardContent>
+    );
+  }
+
+  return (
     <CardContent className="border-t border-border pt-4">
       <p className="text-sm text-muted-foreground">
-        Game {current.gameNumber} —{" "}
-        {myTurn ? `Your turn — ${turnDescription}.` : `Waiting for ${opponentName} to ${verb}…`}
+        Game {game.gameNumber} —{" "}
+        {game.gameNumber === 1
+          ? "pick your character (blind — hidden until you're both locked in)."
+          : opponentCharacter
+            ? `${opponentName} locked in ${opponentCharacter}. Your pick:`
+            : "pick your character — you're up first, this locks in before the opponent picks."}
       </p>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {current.stagesRemaining.map((stage) => (
-          <form key={stage} action={action.bind(null, match.id, current.gameNumber, stage)}>
-            <Button type="submit" size="sm" variant="outline" disabled={!myTurn}>
-              {stage}
-            </Button>
-          </form>
-        ))}
-      </div>
+      <form action={pickCharacter.bind(null, matchId, game.gameNumber)} className="mt-3 flex items-end gap-2">
+        <select
+          name="character"
+          defaultValue=""
+          required
+          className="h-8 w-48 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
+        >
+          <option value="" disabled className="bg-background text-foreground">
+            Select character
+          </option>
+          {SMASH_CHARACTERS.map((c) => (
+            <option key={c} value={c} className="bg-background text-foreground">
+              {c}
+            </option>
+          ))}
+        </select>
+        <Button type="submit" size="sm" variant="outline">
+          Lock in
+        </Button>
+      </form>
     </CardContent>
   );
 }

@@ -3,6 +3,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { ConfirmationMethod } from "@/generated/prisma/enums";
 import { applyEloAndConfirm } from "@/lib/matches";
 import { GAME_ONE_STAGES, COUNTERPICK_STAGES } from "@/lib/stages";
+import { SMASH_CHARACTERS } from "@/lib/characters";
 import { sendDiscordDM } from "@/lib/discord-bot";
 
 export const GAMES_TO_WIN = 3; // best of 5
@@ -80,6 +81,75 @@ export function gameTurnState(game: {
   const striker = actorForStrike(game);
   if (striker) return { phase: "striking", actorId: striker };
   return { phase: "picking", actorId: picker(game) };
+}
+
+type CharacterPickGame = {
+  gameNumber: number;
+  actorAId: string;
+  actorBId: string;
+  actorACharacter: string | null;
+  actorBCharacter: string | null;
+};
+
+// Game 1 is a blind pick — neither side sees the other's character until
+// both have locked one in. Games 2+ mirror the stage-strike order: actorA
+// (the previous game's winner) must lock in first, then actorB picks with
+// actorA's choice visible, so the loser gets to react.
+export function characterPickState(
+  game: CharacterPickGame,
+  userId: string,
+): {
+  yourCharacter: string | null;
+  opponentCharacter: string | null;
+  canPickNow: boolean;
+} {
+  const isActorA = userId === game.actorAId;
+  const yourCharacter = isActorA ? game.actorACharacter : game.actorBCharacter;
+  const theirCharacter = isActorA ? game.actorBCharacter : game.actorACharacter;
+
+  if (game.gameNumber === 1) {
+    const bothPicked = game.actorACharacter !== null && game.actorBCharacter !== null;
+    return {
+      yourCharacter,
+      opponentCharacter: bothPicked ? theirCharacter : null,
+      canPickNow: yourCharacter === null,
+    };
+  }
+
+  const actorALockedIn = game.actorACharacter !== null;
+  return {
+    yourCharacter,
+    opponentCharacter: theirCharacter,
+    canPickNow: yourCharacter === null && (isActorA || actorALockedIn),
+  };
+}
+
+export async function pickGameCharacter(
+  userId: string,
+  matchId: string,
+  gameNumber: number,
+  character: string,
+) {
+  const game = await requireGame(matchId, gameNumber);
+  if (userId !== game.actorAId && userId !== game.actorBId) {
+    throw new Error("Not a participant in this game");
+  }
+  if (!(SMASH_CHARACTERS as readonly string[]).includes(character)) {
+    throw new Error("Not a recognized character");
+  }
+
+  const { canPickNow, yourCharacter } = characterPickState(game, userId);
+  if (yourCharacter !== null) throw new Error("You already picked your character for this game");
+  if (!canPickNow) throw new Error("Wait for your opponent to pick their character first");
+
+  const isActorA = userId === game.actorAId;
+  await prisma.matchGame.updateMany({
+    where: {
+      id: game.id,
+      ...(isActorA ? { actorACharacter: null } : { actorBCharacter: null }),
+    },
+    data: isActorA ? { actorACharacter: character } : { actorBCharacter: character },
+  });
 }
 
 async function requireGame(matchId: string, gameNumber: number) {
