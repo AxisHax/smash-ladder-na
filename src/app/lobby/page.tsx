@@ -10,6 +10,7 @@ import { listMatchComments } from "@/lib/match-comments";
 import { MATCH_DISTANCE_PRESETS, MATCH_REGIONS, REGION_REFERENCE_CITY } from "@/lib/regions";
 import { SMASH_CHARACTERS } from "@/lib/characters";
 import { MATCH_RATING_GAP_PRESETS, didTierUp, getRankTier } from "@/lib/rank-tier";
+import { REMATCH_COOLDOWN_PRESETS } from "@/lib/rematch-cooldown";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -35,6 +36,7 @@ import {
   updateMaxMatchDistance,
   updateMaxRatingGap,
   updateRegion,
+  updateRematchCooldown,
   updateWiredConnection,
 } from "./actions";
 
@@ -179,6 +181,7 @@ function ActivityLine({
 
 const WORLDWIDE_VALUE = "worldwide";
 const ANY_RATING_VALUE = "any";
+const ANYTIME_VALUE = "anytime";
 
 async function MatchmakingForm({ userId }: { userId: string }) {
   const me = await prisma.user.findUnique({
@@ -187,6 +190,7 @@ async function MatchmakingForm({ userId }: { userId: string }) {
       region: true,
       maxMatchDistanceKm: true,
       maxRatingGap: true,
+      rematchCooldownHours: true,
       wiredConnection: true,
     },
   });
@@ -203,6 +207,8 @@ async function MatchmakingForm({ userId }: { userId: string }) {
       await updateMaxMatchDistance(distance === WORLDWIDE_VALUE ? null : Number(distance));
       const ratingGap = String(formData.get("maxRatingGap") ?? "");
       await updateMaxRatingGap(ratingGap === ANY_RATING_VALUE ? null : Number(ratingGap));
+      const rematchCooldown = String(formData.get("rematchCooldownHours") ?? "");
+      await updateRematchCooldown(rematchCooldown === ANYTIME_VALUE ? null : Number(rematchCooldown));
       await updateWiredConnection(formData.get("wired") === "on");
     } catch (err) {
       return {
@@ -277,6 +283,28 @@ async function MatchmakingForm({ userId }: { userId: string }) {
             <option
               key={preset.label}
               value={String(preset.gap ?? ANY_RATING_VALUE)}
+              className="bg-background text-foreground"
+            >
+              {preset.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="flex flex-col gap-1 text-sm">
+        Rematch cooldown
+        <span className="text-xs font-normal text-muted-foreground">
+          Matching requires BOTH players&apos; cooldown to have elapsed since you two last played.
+        </span>
+        <select
+          key={String(me?.rematchCooldownHours ?? ANYTIME_VALUE)}
+          name="rematchCooldownHours"
+          defaultValue={String(me?.rematchCooldownHours ?? ANYTIME_VALUE)}
+          className="h-8 w-48 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
+        >
+          {REMATCH_COOLDOWN_PRESETS.map((preset) => (
+            <option
+              key={preset.label}
+              value={String(preset.hours ?? ANYTIME_VALUE)}
               className="bg-background text-foreground"
             >
               {preset.label}

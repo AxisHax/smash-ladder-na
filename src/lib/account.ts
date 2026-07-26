@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { UserStatus } from "@/generated/prisma/enums";
 import { MATCH_DISTANCE_PRESETS, MATCH_REGIONS } from "@/lib/regions";
 import { MATCH_RATING_GAP_PRESETS } from "@/lib/rank-tier";
+import { REMATCH_COOLDOWN_PRESETS } from "@/lib/rematch-cooldown";
 import { normalizeStartggUrl } from "@/lib/startgg";
 
 // Small-start launch control: while set, only players who've declared this
@@ -93,6 +94,16 @@ export async function setMaxRatingGap(userId: string, maxRatingGap: number | nul
     throw new Error("Not a recognized rating gap");
   }
   await prisma.user.update({ where: { id: userId }, data: { maxRatingGap } });
+}
+
+// Self-declared cooldown before rematching the same opponent — null means
+// anytime. Same both-sides-must-cover-it logic as match distance/rating gap.
+export async function setRematchCooldown(userId: string, rematchCooldownHours: number | null) {
+  const isValidPreset = REMATCH_COOLDOWN_PRESETS.some((preset) => preset.hours === rematchCooldownHours);
+  if (!isValidPreset) {
+    throw new Error("Not a recognized rematch cooldown");
+  }
+  await prisma.user.update({ where: { id: userId }, data: { rematchCooldownHours } });
 }
 
 // Self-declared, unverified — a player could enter someone else's link.

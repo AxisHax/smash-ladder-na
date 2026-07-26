@@ -123,12 +123,13 @@ export default function RulesPage() {
             region only, Nearby (~1,250 mi), Extended (~3,100 mi, the default), Long-range
             (~6,200 mi), or Worldwide. You can also set a
             rating gap — Strict (within 50), Close (within 100), Moderate (within 150), Wide
-            (within 300), or Any rating (the default). Both the distance and rating-gap settings
-            require BOTH players&apos; choice to cover the actual difference — widening yours
-            doesn&apos;t override the other side&apos;s narrower one, so a Worldwide/Any rating
-            setting still won&apos;t match you with someone who chose Same region only or a
-            Strict rating gap. Wired-connection status is self-declared too and shown on
-            profiles, though it isn&apos;t part of matching.
+            (within 300), or Any rating (the default) — and a rematch cooldown — Anytime (the
+            default), Wait 12 hours, or Wait 24 hours. Distance, rating-gap, and rematch-cooldown
+            settings all require BOTH players&apos; choice to cover the actual difference —
+            widening yours doesn&apos;t override the other side&apos;s narrower one, so a
+            Worldwide/Any rating/Anytime setting still won&apos;t match you with someone who chose
+            Same region only, a Strict rating gap, or a 24-hour cooldown. Wired-connection status
+            is self-declared too and shown on profiles, though it isn&apos;t part of matching.
           </p>
           <p>
             Joining the ranked lobby queues you for up to 10 minutes before the entry expires. You

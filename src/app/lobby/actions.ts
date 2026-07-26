@@ -8,6 +8,7 @@ import {
   requireNotBanned,
   setMaxMatchDistance,
   setMaxRatingGap,
+  setRematchCooldown,
   setUserRegion,
   setWiredConnection,
 } from "@/lib/account";
@@ -177,6 +178,12 @@ export async function updateMaxMatchDistance(maxMatchDistanceKm: number | null) 
 export async function updateMaxRatingGap(maxRatingGap: number | null) {
   const userId = await requireUserId();
   await setMaxRatingGap(userId, maxRatingGap);
+  revalidatePath("/lobby");
+}
+
+export async function updateRematchCooldown(rematchCooldownHours: number | null) {
+  const userId = await requireUserId();
+  await setRematchCooldown(userId, rematchCooldownHours);
   revalidatePath("/lobby");
 }
 

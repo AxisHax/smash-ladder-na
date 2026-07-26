@@ -3,9 +3,46 @@ import { LobbyEntryStatus, MatchStatus, PairingMethod } from "@/generated/prisma
 import { getLatestMatchForUser, getUnresolvedMatchForUser } from "@/lib/matches";
 import { getRegionsWithinDistance } from "@/lib/regions";
 import { blockPairKey, getAllBlockedPairKeys, getBlockedEitherWayIds } from "@/lib/blocks";
+import { MAX_REMATCH_COOLDOWN_HOURS, rematchCooldownAllows } from "@/lib/rematch-cooldown";
 
 function ratingGapAllows(ratingA: number, ratingB: number, maxGap: number | null) {
   return maxGap === null || Math.abs(ratingA - ratingB) <= maxGap;
+}
+
+// One query covers every candidate's cooldown check for this join attempt:
+// every match `userId` played within the longest possible cooldown window,
+// collapsed to each opponent's most recent one (results are already newest
+// first, so the first hit per opponent wins).
+async function getRecentOpponentTimestamps(userId: string) {
+  const since = new Date(Date.now() - MAX_REMATCH_COOLDOWN_HOURS * 60 * 60 * 1000);
+  const matches = await prisma.ratingMatch.findMany({
+    where: { OR: [{ player1Id: userId }, { player2Id: userId }], createdAt: { gte: since } },
+    select: { player1Id: true, player2Id: true, createdAt: true },
+    orderBy: { createdAt: "desc" },
+  });
+  const timestamps = new Map<string, Date>();
+  for (const m of matches) {
+    const opponentId = m.player1Id === userId ? m.player2Id : m.player1Id;
+    if (!timestamps.has(opponentId)) timestamps.set(opponentId, m.createdAt);
+  }
+  return timestamps;
+}
+
+// Same idea as getRecentOpponentTimestamps, but for the whole waiting queue
+// at once (sweepLobbyPairing checks many pairs, not just one user's).
+async function getRecentMatchPairTimestamps() {
+  const since = new Date(Date.now() - MAX_REMATCH_COOLDOWN_HOURS * 60 * 60 * 1000);
+  const matches = await prisma.ratingMatch.findMany({
+    where: { createdAt: { gte: since } },
+    select: { player1Id: true, player2Id: true, createdAt: true },
+  });
+  const timestamps = new Map<string, Date>();
+  for (const m of matches) {
+    const key = blockPairKey(m.player1Id, m.player2Id);
+    const existing = timestamps.get(key);
+    if (!existing || m.createdAt > existing) timestamps.set(key, m.createdAt);
+  }
+  return timestamps;
 }
 
 const LOBBY_ENTRY_TTL_MS = 10 * 60 * 1000; // 10 min queue timeout
@@ -59,14 +96,15 @@ export async function getActiveLobbyEntry(userId: string) {
 }
 
 export async function joinLobbyAndTryPair(userId: string) {
-  const [waitingEntry, unresolvedMatch, me, blockedIds] = await Promise.all([
+  const [waitingEntry, unresolvedMatch, me, blockedIds, recentOpponents] = await Promise.all([
     prisma.ratingLobbyEntry.findFirst({ where: { userId, status: LobbyEntryStatus.WAITING } }),
     getUnresolvedMatchForUser(userId),
     prisma.user.findUniqueOrThrow({
       where: { id: userId },
-      select: { region: true, maxMatchDistanceKm: true, rating: true, maxRatingGap: true },
+      select: { region: true, maxMatchDistanceKm: true, rating: true, maxRatingGap: true, rematchCooldownHours: true },
     }),
     getBlockedEitherWayIds(userId),
+    getRecentOpponentTimestamps(userId),
   ]);
   // A resolved (CONFIRMED/DISPUTED) match no longer blocks requeueing, even
   // though its RatingLobbyEntry rows are still sitting there as PAIRED.
@@ -109,12 +147,23 @@ export async function joinLobbyAndTryPair(userId: string) {
       },
       orderBy: { joinedAt: "asc" },
       take: 20,
-      include: { user: { select: { region: true, maxMatchDistanceKm: true, rating: true, maxRatingGap: true } } },
+      include: {
+        user: {
+          select: {
+            region: true,
+            maxMatchDistanceKm: true,
+            rating: true,
+            maxRatingGap: true,
+            rematchCooldownHours: true,
+          },
+        },
+      },
     });
     const candidate = candidates.find(
       (c) =>
         getRegionsWithinDistance(c.user.region, c.user.maxMatchDistanceKm).includes(myRegion) &&
-        ratingGapAllows(me.rating, c.user.rating, c.user.maxRatingGap),
+        ratingGapAllows(me.rating, c.user.rating, c.user.maxRatingGap) &&
+        rematchCooldownAllows(recentOpponents.get(c.userId), me.rematchCooldownHours, c.user.rematchCooldownHours),
     );
     if (!candidate) return null;
 
@@ -158,16 +207,22 @@ export async function joinLobbyAndTryPair(userId: string) {
 // WAITING even though plenty of mutual partners exist. Rather than only
 // pairing opportunistically at join time, the cron finalizer sweeps the
 // queue periodically and pairs up whoever's left waiting.
-function canMatch(
-  a: { region: string | null; maxMatchDistanceKm: number | null; rating: number; maxRatingGap: number | null },
-  b: { region: string | null; maxMatchDistanceKm: number | null; rating: number; maxRatingGap: number | null },
-) {
+type MatchCandidate = {
+  region: string | null;
+  maxMatchDistanceKm: number | null;
+  rating: number;
+  maxRatingGap: number | null;
+  rematchCooldownHours: number | null;
+};
+
+function canMatch(a: MatchCandidate, b: MatchCandidate, lastMatchAt: Date | undefined) {
   if (!a.region || !b.region) return false;
   return (
     getRegionsWithinDistance(a.region, a.maxMatchDistanceKm).includes(b.region) &&
     getRegionsWithinDistance(b.region, b.maxMatchDistanceKm).includes(a.region) &&
     ratingGapAllows(a.rating, b.rating, a.maxRatingGap) &&
-    ratingGapAllows(a.rating, b.rating, b.maxRatingGap)
+    ratingGapAllows(a.rating, b.rating, b.maxRatingGap) &&
+    rematchCooldownAllows(lastMatchAt, a.rematchCooldownHours, b.rematchCooldownHours)
   );
 }
 
@@ -175,6 +230,7 @@ export async function sweepLobbyPairing(maxPairs = 50) {
   let paired = 0;
   const now = new Date();
   const blockedPairs = await getAllBlockedPairKeys();
+  const recentMatchPairs = await getRecentMatchPairTimestamps();
 
   // Region matching isn't a strict single-bucket split anymore — a wide
   // enough match distance can pair with anyone — so straggler pairing
@@ -186,7 +242,15 @@ export async function sweepLobbyPairing(maxPairs = 50) {
     where: { status: LobbyEntryStatus.WAITING, expiresAt: { gt: now } },
     orderBy: { joinedAt: "asc" },
     include: {
-      user: { select: { region: true, maxMatchDistanceKm: true, rating: true, maxRatingGap: true } },
+      user: {
+        select: {
+          region: true,
+          maxMatchDistanceKm: true,
+          rating: true,
+          maxRatingGap: true,
+          rematchCooldownHours: true,
+        },
+      },
     },
   });
 
@@ -197,7 +261,12 @@ export async function sweepLobbyPairing(maxPairs = 50) {
 
     for (let j = i + 1; j < waiting.length; j++) {
       const b = waiting[j];
-      if (used.has(b.id) || blockedPairs.has(blockPairKey(a.userId, b.userId)) || !canMatch(a.user, b.user))
+      const pairKey = blockPairKey(a.userId, b.userId);
+      if (
+        used.has(b.id) ||
+        blockedPairs.has(pairKey) ||
+        !canMatch(a.user, b.user, recentMatchPairs.get(pairKey))
+      )
         continue;
 
       const madeMatch = await withTransientRetry(() =>

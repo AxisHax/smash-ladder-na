@@ -4,6 +4,18 @@ import { joinLobbyAndTryPair } from "@/lib/lobby";
 import { blockUser } from "@/lib/blocks";
 import { createTestUser } from "@/test/factories";
 
+async function createPastMatch(p1: string, p2: string, createdAt: Date) {
+  return prisma.ratingMatch.create({
+    data: {
+      player1Id: p1,
+      player2Id: p2,
+      status: "CONFIRMED",
+      createdAt,
+      expiresAt: createdAt,
+    },
+  });
+}
+
 describe("joinLobbyAndTryPair", () => {
   it("pairs two compatible waiting players", async () => {
     const a = await createTestUser({ region: "USA East" });
@@ -54,6 +66,34 @@ describe("joinLobbyAndTryPair", () => {
 
     const entries = await prisma.ratingLobbyEntry.findMany({ where: { userId: { in: [a.id, b.id] } } });
     expect(entries.every((e) => e.status === "WAITING")).toBe(true);
+  });
+
+  it("does not pair players who played within either side's rematch cooldown", async () => {
+    const a = await createTestUser({ region: "USA East", rematchCooldownHours: 24 });
+    const b = await createTestUser({ region: "USA East" });
+    await createPastMatch(a.id, b.id, new Date(Date.now() - 60 * 60 * 1000)); // 1h ago
+
+    await joinLobbyAndTryPair(a.id);
+    await joinLobbyAndTryPair(b.id);
+
+    const newMatch = await prisma.ratingMatch.findFirst({
+      where: { player1Id: { in: [a.id, b.id] }, player2Id: { in: [a.id, b.id] }, status: "PENDING_REPORT" },
+    });
+    expect(newMatch).toBeNull();
+
+    const entries = await prisma.ratingLobbyEntry.findMany({ where: { userId: { in: [a.id, b.id] } } });
+    expect(entries.every((e) => e.status === "WAITING")).toBe(true);
+  });
+
+  it("pairs players again once their rematch cooldown has elapsed", async () => {
+    const a = await createTestUser({ region: "USA East", rematchCooldownHours: 12 });
+    const b = await createTestUser({ region: "USA East" });
+    await createPastMatch(a.id, b.id, new Date(Date.now() - 13 * 60 * 60 * 1000)); // 13h ago
+
+    await joinLobbyAndTryPair(a.id);
+    const second = await joinLobbyAndTryPair(b.id);
+
+    expect(second?.status).toBe("PAIRED");
   });
 
   it("requires a region to be set before joining", async () => {
