@@ -6,6 +6,7 @@ import { deleteMyAccount } from "@/lib/account";
 import { blockUser } from "@/lib/blocks";
 import { adminOverrideMatchResult, requestResultCorrection } from "@/lib/matches";
 import { moderateUserDirectly } from "@/lib/reports";
+import { banIp } from "@/lib/ip-bans";
 
 async function requireModerator() {
   const session = await auth();
@@ -100,6 +101,28 @@ export async function moderateUserAction(
   }
   revalidatePath(`/players/${targetUserId}`);
   return { error: null };
+}
+
+export type BanIpState = { error: string | null; message: string | null };
+
+// Bans the network, not the account — meant for when a mod suspects a
+// banned player will just sign up again with a fresh Discord account from
+// the same connection. Checked in auth.ts's signIn callback.
+export async function banPlayerIpAction(
+  targetUserId: string,
+  ip: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- required by useActionState's call signature
+  _prevState: BanIpState,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- required by useActionState's call signature
+  _formData: FormData,
+): Promise<BanIpState> {
+  await requireModerator();
+  try {
+    await banIp(ip, `Last known IP of player ${targetUserId}`);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Something went wrong — try again.", message: null };
+  }
+  return { error: null, message: `Banned ${ip}.` };
 }
 
 export type AdminOverrideState = { error: string | null };

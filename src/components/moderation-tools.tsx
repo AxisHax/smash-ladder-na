@@ -65,6 +65,37 @@ export function ModerationStatusForm({
   );
 }
 
+type BanIpState = { error: string | null; message: string | null };
+
+export function BanIpButton({
+  action,
+  ip,
+}: {
+  action: (prevState: BanIpState, formData: FormData) => Promise<BanIpState>;
+  ip: string;
+}) {
+  const [state, formAction, isPending] = useActionState(action, { error: null, message: null });
+
+  return (
+    <div className="flex flex-col gap-1">
+      <form
+        action={formAction}
+        onSubmit={(e) => {
+          if (!confirm(`Ban IP ${ip}? This blocks sign-in from this address, not just this account.`)) {
+            e.preventDefault();
+          }
+        }}
+      >
+        <Button type="submit" size="sm" variant="destructive" disabled={isPending}>
+          Ban last known IP ({ip})
+        </Button>
+      </form>
+      {state.error && <p className="text-xs text-destructive">{state.error}</p>}
+      {state.message && <p className="text-xs text-muted-foreground">{state.message}</p>}
+    </div>
+  );
+}
+
 type AdminOverrideState = { error: string | null };
 
 type AdminOverrideAction = (prevState: AdminOverrideState, formData: FormData) => Promise<AdminOverrideState>;

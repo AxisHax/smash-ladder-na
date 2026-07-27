@@ -20,13 +20,14 @@ import { RatingChart } from "@/components/rating-chart";
 import { DeleteAccountButton } from "@/components/delete-account-button";
 import { BlockUserButton } from "@/components/block-user-button";
 import { RequestCorrectionForm } from "@/components/request-correction-form";
-import { AdminMatchOverride, ModerationStatusForm } from "@/components/moderation-tools";
+import { AdminMatchOverride, BanIpButton, ModerationStatusForm } from "@/components/moderation-tools";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { isBlockedByMe } from "@/lib/blocks";
 import { listReportsForUser } from "@/lib/reports";
 import {
   adminOverrideResultAction,
+  banPlayerIpAction,
   blockUserAction,
   deleteAccountAction,
   moderateUserAction,
@@ -325,6 +326,15 @@ export default async function PlayerProfilePage({
           <div className="mt-6">
             <ModerationStatusForm action={moderateUserAction.bind(null, id)} currentStatus={player.status} />
           </div>
+
+          {player.lastKnownIp && (
+            <div className="mt-4">
+              <BanIpButton
+                action={banPlayerIpAction.bind(null, id, player.lastKnownIp)}
+                ip={player.lastKnownIp}
+              />
+            </div>
+          )}
         </div>
       )}
 

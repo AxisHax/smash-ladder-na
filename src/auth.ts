@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import NextAuth from "next-auth";
 import type { DefaultSession } from "next-auth";
 import Discord from "next-auth/providers/discord";
@@ -8,6 +9,7 @@ import type { JWT } from "next-auth/jwt";
 import { prisma } from "@/lib/db";
 import { UserStatus } from "@/generated/prisma/enums";
 import type { UserRole } from "@/generated/prisma/enums";
+import { extractClientIp, isIpBanned } from "@/lib/ip-bans";
 
 declare module "next-auth" {
   interface Session {
@@ -53,6 +55,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   callbacks: {
     async signIn({ profile, credentials }) {
+      // Checked before anything else, including the dev-credentials bypass —
+      // this targets the network (ban-evasion via a fresh Discord account
+      // from the same connection), not a specific account.
+      const ip = extractClientIp((await headers()).get("x-forwarded-for"));
+      if (await isIpBanned(ip)) return false;
+
       if (credentials) return true; // dev credentials — user already created in authorize()
 
       const discordProfile = profile as DiscordProfile | undefined;
@@ -72,12 +80,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // would silently wipe that out.
         update: {
           avatarUrl: discordProfile.image_url,
+          lastKnownIp: ip ?? undefined,
         },
         create: {
           discordId: discordProfile.id,
           username: discordProfile.global_name ?? discordProfile.username,
           avatarUrl: discordProfile.image_url,
           email: discordProfile.email ?? undefined,
+          lastKnownIp: ip ?? undefined,
         },
       });
 

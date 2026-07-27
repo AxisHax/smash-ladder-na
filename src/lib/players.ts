@@ -18,6 +18,7 @@ export async function getPlayerProfile(userId: string) {
       noShowCount: true,
       cancelCount: true,
       status: true,
+      lastKnownIp: true, // only ever rendered in the mod-only section of the profile page
       _count: { select: { connectionReportsReceived: true } },
     },
   });
