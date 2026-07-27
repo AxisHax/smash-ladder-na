@@ -1,8 +1,32 @@
 import { describe, it, expect } from "vitest";
 import { prisma } from "@/lib/db";
-import { applyEloAndConfirm } from "@/lib/matches";
+import { applyEloAndConfirm, requestResultCorrection, resolveMatchCorrection } from "@/lib/matches";
+import { endActiveSeasonAndStartNext } from "@/lib/seasons";
 import { ConfirmationMethod, MatchStatus } from "@/generated/prisma/enums";
 import { createTestUser } from "@/test/factories";
+
+async function createConfirmedMatch(winnerId: string, loserId: string) {
+  const match = await prisma.ratingMatch.create({
+    data: {
+      player1Id: winnerId,
+      player2Id: loserId,
+      status: MatchStatus.PENDING_REPORT,
+      expiresAt: new Date(),
+      // applyEloAndConfirm doesn't set these itself — production sets them
+      // via the report flow before ever calling it.
+      reportedWinnerId: winnerId,
+      reportedById: winnerId,
+      reportedAt: new Date(),
+    },
+  });
+  await prisma.$transaction((tx) =>
+    applyEloAndConfirm(tx, match, winnerId, ConfirmationMethod.SELF_CONFIRMED, {
+      winnerId,
+      reporterId: winnerId,
+    }),
+  );
+  return prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+}
 
 describe("applyEloAndConfirm", () => {
   it("confirms the match, updates both ratings, and records history", async () => {
@@ -68,5 +92,122 @@ describe("applyEloAndConfirm", () => {
     const winnerGain = updated.player1RatingAfter! - updated.player1RatingBefore!;
     const loserLoss = updated.player2RatingBefore! - updated.player2RatingAfter!;
     expect(winnerGain).toBeGreaterThan(loserLoss);
+  });
+});
+
+describe("requestResultCorrection", () => {
+  it("does nothing until both sides submit the same correction", async () => {
+    const p1 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
+    const p2 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
+    const match = await createConfirmedMatch(p1.id, p2.id); // p1 reported as winner
+
+    const first = await requestResultCorrection(p1.id, match.id, p2.id); // p1 now says p2 won
+    expect(first.applied).toBe(false);
+
+    const stillUnchanged = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(stillUnchanged.reportedWinnerId).toBe(p1.id);
+    expect(stillUnchanged.player1RatingAfter).toBe(match.player1RatingAfter);
+  });
+
+  it("reverses and reapplies Elo from the original pre-match ratings when both sides agree", async () => {
+    const p1 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
+    const p2 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
+    const match = await createConfirmedMatch(p1.id, p2.id); // p1 (player1) wins originally
+
+    await requestResultCorrection(p1.id, match.id, p2.id); // p1 admits p2 actually won
+    const second = await requestResultCorrection(p2.id, match.id, p2.id); // p2 agrees p2 won
+    expect(second.applied).toBe(true);
+
+    const corrected = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(corrected.reportedWinnerId).toBe(p2.id);
+    expect(corrected.confirmationMethod).toBe("CORRECTED");
+    expect(corrected.correctionWinnerId).toBeNull();
+    expect(corrected.correctionReportedById).toBeNull();
+
+    // Symmetric ratings before the match (both 1500, both 20 games), so
+    // reversing the win should land p2 exactly where p1 originally landed,
+    // and vice versa.
+    expect(corrected.player2RatingAfter).toBe(match.player1RatingAfter);
+    expect(corrected.player1RatingAfter).toBe(match.player2RatingAfter);
+
+    const [updatedP1, updatedP2] = await Promise.all([
+      prisma.user.findUniqueOrThrow({ where: { id: p1.id } }),
+      prisma.user.findUniqueOrThrow({ where: { id: p2.id } }),
+    ]);
+    expect(updatedP1.rating).toBe(corrected.player1RatingAfter);
+    expect(updatedP2.rating).toBe(corrected.player2RatingAfter);
+    // gamesPlayed must not double-count — this isn't a new game.
+    expect(updatedP1.gamesPlayed).toBe(21);
+    expect(updatedP2.gamesPlayed).toBe(21);
+
+    const history = await prisma.ratingHistory.findMany({
+      where: { matchId: match.id },
+      orderBy: { createdAt: "asc" },
+    });
+    expect(history).toHaveLength(4); // 2 from the original confirm, 2 from the correction
+  });
+
+  it("flags correctionDisputed when the two sides disagree", async () => {
+    const p1 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
+    const p2 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
+    const match = await createConfirmedMatch(p1.id, p2.id); // p1 confirmed as winner
+
+    await requestResultCorrection(p1.id, match.id, p2.id); // p1 admits p2 actually won
+    const second = await requestResultCorrection(p2.id, match.id, p1.id); // p2 insists p1 really won
+    expect(second.applied).toBe(false);
+    expect(second.disputed).toBe(true);
+
+    const disputed = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(disputed.correctionDisputed).toBe(true);
+    expect(disputed.reportedWinnerId).toBe(p1.id); // untouched until a mod resolves it
+  });
+
+  it("rejects a correction once a newer match has been confirmed for either player", async () => {
+    const p1 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
+    const p2 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
+    const p3 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
+    const match = await createConfirmedMatch(p1.id, p2.id);
+    await createConfirmedMatch(p1.id, p3.id); // p1 plays again after
+
+    await expect(requestResultCorrection(p1.id, match.id, p2.id)).rejects.toThrow(/newer match/i);
+  });
+
+  it("rejects a correction once the match's season has ended", async () => {
+    const p1 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
+    const p2 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
+    const match = await createConfirmedMatch(p1.id, p2.id);
+
+    await endActiveSeasonAndStartNext();
+
+    await expect(requestResultCorrection(p1.id, match.id, p2.id)).rejects.toThrow(/season has ended/i);
+  });
+
+  it("rejects a non-participant", async () => {
+    const p1 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
+    const p2 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
+    const outsider = await createTestUser();
+    const match = await createConfirmedMatch(p1.id, p2.id);
+
+    await expect(requestResultCorrection(outsider.id, match.id, p2.id)).rejects.toThrow(/not a participant/i);
+  });
+});
+
+describe("resolveMatchCorrection", () => {
+  it("applies a mod's decision on a disputed correction", async () => {
+    const p1 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
+    const p2 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
+    const match = await createConfirmedMatch(p1.id, p2.id);
+
+    await requestResultCorrection(p1.id, match.id, p1.id); // p1 says p1 (self) won — no change
+    await requestResultCorrection(p2.id, match.id, p2.id); // p2 disagrees, says p2 won
+
+    const disputed = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(disputed.correctionDisputed).toBe(true);
+
+    await resolveMatchCorrection(match.id, p2.id);
+
+    const resolved = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(resolved.correctionDisputed).toBe(false);
+    expect(resolved.reportedWinnerId).toBe(p2.id);
   });
 });

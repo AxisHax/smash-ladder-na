@@ -76,6 +76,13 @@ export default function RulesPage() {
             neither player reports within 24 hours, the match closes with no rating impact for
             either side.
           </p>
+          <p>
+            Reported the wrong winner? Either player can request a correction from their own
+            profile page, from the &quot;Wrong result?&quot; link under their most recent match.
+            Matching corrections apply immediately and re-run the rating math; a mismatch goes to a
+            mod instead. Only available while it&apos;s still both players&apos; most recent
+            confirmed match and the season hasn&apos;t ended since.
+          </p>
         </Section>
 
         <Section title="Canceling a match">

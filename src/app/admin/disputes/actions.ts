@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { adminCancelMatch, resolveDisputedGame } from "@/lib/disputes";
+import { resolveMatchCorrection } from "@/lib/matches";
 import { sendDiscordDM } from "@/lib/discord-bot";
 import { prisma } from "@/lib/db";
 
@@ -24,6 +25,13 @@ export async function resolveDispute(matchId: string, gameNumber: number, winner
 export async function cancelDispute(matchId: string) {
   await requireModerator();
   await adminCancelMatch(matchId);
+  revalidatePath("/admin/disputes");
+  revalidatePath("/lobby");
+}
+
+export async function resolveCorrection(matchId: string, winnerId: string) {
+  await requireModerator();
+  await resolveMatchCorrection(matchId, winnerId);
   revalidatePath("/admin/disputes");
   revalidatePath("/lobby");
 }

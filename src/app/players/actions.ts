@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { auth, signOut } from "@/auth";
 import { deleteMyAccount } from "@/lib/account";
 import { blockUser } from "@/lib/blocks";
+import { requestResultCorrection } from "@/lib/matches";
 
 export async function deleteAccountAction() {
   const session = await auth();
@@ -34,4 +35,32 @@ export async function blockUserAction(
   revalidatePath(`/players/${blockedId}`);
   revalidatePath("/settings");
   return { error: null };
+}
+
+export type CorrectionState = { error: string | null; message: string | null };
+
+export async function requestCorrectionAction(
+  matchId: string,
+  _prevState: CorrectionState,
+  formData: FormData,
+): Promise<CorrectionState> {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Not signed in");
+  const winnerId = String(formData.get("winnerId") ?? "");
+  try {
+    const result = await requestResultCorrection(session.user.id, matchId, winnerId);
+    revalidatePath(`/players/${session.user.id}`);
+    if (result.applied) {
+      return { error: null, message: "Correction applied — ratings updated." };
+    }
+    if (result.disputed) {
+      return {
+        error: null,
+        message: "Your correction doesn't match what your opponent submitted — a mod will review it.",
+      };
+    }
+    return { error: null, message: "Submitted — waiting for your opponent to agree." };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Something went wrong — try again.", message: null };
+  }
 }

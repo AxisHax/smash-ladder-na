@@ -1,16 +1,23 @@
 import { Shield } from "lucide-react";
 import { auth } from "@/auth";
 import { listDisputedGames } from "@/lib/disputes";
+import { listDisputedCorrections } from "@/lib/matches";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { cancelDispute, messageDisputedPlayer, resolveDispute } from "./actions";
+import { cancelDispute, messageDisputedPlayer, resolveCorrection, resolveDispute } from "./actions";
 
 type DisputedGame = Awaited<ReturnType<typeof listDisputedGames>>[number];
+type DisputedCorrection = Awaited<ReturnType<typeof listDisputedCorrections>>[number];
 
 function nameFor(game: DisputedGame, userId: string | null) {
   if (!userId) return "no one";
   return userId === game.match.player1Id ? game.match.player1.username : game.match.player2.username;
+}
+
+function nameForCorrection(correction: DisputedCorrection, userId: string | null) {
+  if (!userId) return "no one";
+  return userId === correction.player1Id ? correction.player1.username : correction.player2.username;
 }
 
 function ModContextBadges({
@@ -51,7 +58,7 @@ export default async function DisputesPage() {
     );
   }
 
-  const games = await listDisputedGames();
+  const [games, corrections] = await Promise.all([listDisputedGames(), listDisputedCorrections()]);
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
@@ -128,6 +135,56 @@ export default async function DisputesPage() {
                     playerId={game.match.player2Id}
                     playerName={game.match.player2.username}
                   />
+                </div>
+              </CardContent>
+            </Card>
+          </li>
+        ))}
+      </ul>
+
+      <div className="mt-10 flex items-center gap-2">
+        <Shield className="size-5 text-muted-foreground" />
+        <h2 className="text-xl font-semibold tracking-tight">Correction disputes</h2>
+      </div>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Both sides tried to correct an already-confirmed match&apos;s result and disagreed on the
+        winner.
+      </p>
+
+      {corrections.length === 0 && (
+        <p className="mt-4 text-sm text-muted-foreground">No disputed corrections.</p>
+      )}
+
+      <ul className="mt-6 flex flex-col gap-4">
+        {corrections.map((correction) => (
+          <li key={correction.id}>
+            <Card>
+              <CardContent className="pt-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">
+                    {correction.player1.username} vs {correction.player2.username}
+                  </p>
+                  <Badge variant="warning">correction disputed</Badge>
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Confirmed result: {nameForCorrection(correction, correction.reportedWinnerId)} won.{" "}
+                  {nameForCorrection(correction, correction.correctionReportedById)} says{" "}
+                  {nameForCorrection(correction, correction.correctionWinnerId)} actually won.{" "}
+                  {nameForCorrection(correction, correction.correctionSecondReportedById)} says{" "}
+                  {nameForCorrection(correction, correction.correctionSecondWinnerId)} actually won.
+                </p>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <form action={resolveCorrection.bind(null, correction.id, correction.player1Id)}>
+                    <Button type="submit" size="sm">
+                      {correction.player1.username} won
+                    </Button>
+                  </form>
+                  <form action={resolveCorrection.bind(null, correction.id, correction.player2Id)}>
+                    <Button type="submit" size="sm">
+                      {correction.player2.username} won
+                    </Button>
+                  </form>
                 </div>
               </CardContent>
             </Card>

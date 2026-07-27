@@ -19,10 +19,11 @@ import { RankBadge } from "@/components/rank-badge";
 import { RatingChart } from "@/components/rating-chart";
 import { DeleteAccountButton } from "@/components/delete-account-button";
 import { BlockUserButton } from "@/components/block-user-button";
+import { RequestCorrectionForm } from "@/components/request-correction-form";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { isBlockedByMe } from "@/lib/blocks";
-import { blockUserAction, deleteAccountAction } from "../actions";
+import { blockUserAction, deleteAccountAction, requestCorrectionAction } from "../actions";
 
 export default async function PlayerProfilePage({
   params,
@@ -245,24 +246,31 @@ export default async function PlayerProfilePage({
 
         {history.length > 0 && (
           <Card className="mt-4 divide-y divide-border overflow-hidden py-0">
-            {history.map((match) => (
-              <div
-                key={match.id}
-                className="flex items-center justify-between px-4 py-2.5 text-sm"
-              >
-                <span className="flex items-center gap-2">
-                  <Badge variant={match.won ? "success" : "destructive"} className="w-6 justify-center">
-                    {match.won ? "W" : "L"}
-                  </Badge>
-                  vs{" "}
-                  <Link href={`/players/${match.opponent.id}`} className="hover:underline">
-                    {match.opponent.username}
-                  </Link>
-                </span>
-                <span className="tabular-nums text-muted-foreground">
-                  {match.ratingBefore} → {match.ratingAfter} ({match.delta >= 0 ? "+" : ""}
-                  {match.delta})
-                </span>
+            {history.map((match, i) => (
+              <div key={match.id} className="px-4 py-2.5 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <Badge variant={match.won ? "success" : "destructive"} className="w-6 justify-center">
+                      {match.won ? "W" : "L"}
+                    </Badge>
+                    vs{" "}
+                    <Link href={`/players/${match.opponent.id}`} className="hover:underline">
+                      {match.opponent.username}
+                    </Link>
+                  </span>
+                  <span className="tabular-nums text-muted-foreground">
+                    {match.ratingBefore} → {match.ratingAfter} ({match.delta >= 0 ? "+" : ""}
+                    {match.delta})
+                  </span>
+                </div>
+                {isOwnProfile && i === 0 && (
+                  <RequestCorrectionForm
+                    action={requestCorrectionAction.bind(null, match.id)}
+                    myId={id}
+                    opponentId={match.opponent.id}
+                    opponentUsername={match.opponent.username}
+                  />
+                )}
               </div>
             ))}
           </Card>
