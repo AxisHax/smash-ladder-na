@@ -4,6 +4,33 @@
 // tiny two-note chime, not something worth a licensed sound effect for.
 // Best-effort only: browsers can block autoplay audio outside a direct user
 // gesture, so a rejected play() must never throw into the caller.
+
+// A fresh AudioContext created outside a user gesture starts (and stays)
+// "suspended" in Chrome/Safari — exactly what happens when the match-found
+// chime fires from a polling-triggered router.refresh(), not a click. A
+// context resumed during a REAL gesture stays usable for later programmatic
+// sounds too, so this keeps one shared context alive instead of making a
+// fresh (potentially permanently-suspended) one per chime.
+let sharedCtx: AudioContext | null = null;
+
+function getContext(): AudioContext | null {
+  try {
+    if (!sharedCtx) sharedCtx = new AudioContext();
+    if (sharedCtx.state === "suspended") void sharedCtx.resume();
+    return sharedCtx;
+  } catch {
+    return null;
+  }
+}
+
+if (typeof window !== "undefined") {
+  const unlock = () => getContext();
+  // Any of these count as a user gesture — first one wins, then this is done.
+  ["pointerdown", "keydown", "touchstart"].forEach((event) =>
+    window.addEventListener(event, unlock, { once: true, passive: true }),
+  );
+}
+
 function playTone(ctx: AudioContext, frequency: number, startTime: number, duration: number) {
   const oscillator = ctx.createOscillator();
   const gain = ctx.createGain();
@@ -19,37 +46,37 @@ function playTone(ctx: AudioContext, frequency: number, startTime: number, durat
 }
 
 export function playVictoryChime() {
+  const ctx = getContext();
+  if (!ctx) return;
   try {
-    const ctx = new AudioContext();
     const now = ctx.currentTime;
     playTone(ctx, 660, now, 0.15);
     playTone(ctx, 880, now + 0.12, 0.25);
-    setTimeout(() => ctx.close(), 500);
   } catch {
     // Autoplay restrictions, unsupported browser, etc. — silently skip.
   }
 }
 
 export function playMatchFoundChime() {
+  const ctx = getContext();
+  if (!ctx) return;
   try {
-    const ctx = new AudioContext();
     const now = ctx.currentTime;
     playTone(ctx, 587, now, 0.12);
     playTone(ctx, 740, now + 0.1, 0.2);
-    setTimeout(() => ctx.close(), 450);
   } catch {
     // Autoplay restrictions, unsupported browser, etc. — silently skip.
   }
 }
 
 export function playTierUpChime() {
+  const ctx = getContext();
+  if (!ctx) return;
   try {
-    const ctx = new AudioContext();
     const now = ctx.currentTime;
     playTone(ctx, 523, now, 0.14);
     playTone(ctx, 659, now + 0.1, 0.14);
     playTone(ctx, 784, now + 0.2, 0.3);
-    setTimeout(() => ctx.close(), 700);
   } catch {
     // Autoplay restrictions, unsupported browser, etc. — silently skip.
   }
