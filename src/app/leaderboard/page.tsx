@@ -18,10 +18,12 @@ const PAGE_SIZE = 50;
 export default async function LeaderboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ character?: string; page?: string }>;
+  searchParams: Promise<{ character?: string; page?: string; q?: string }>;
 }) {
-  const { character, page: pageParam } = await searchParams;
+  const { character, page: pageParam, q } = await searchParams;
   const isValidCharacter = character && (SMASH_CHARACTERS as readonly string[]).includes(character);
+  const query = (q ?? "").trim().slice(0, 32);
+  const isFiltered = Boolean(isValidCharacter) || query.length > 0;
 
   const requestedPage = Number(pageParam);
   const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
@@ -30,6 +32,7 @@ export default async function LeaderboardPage({
   const where = {
     gamesPlayed: { gte: LEADERBOARD_MIN_GAMES },
     ...(isValidCharacter ? { mainCharacter: character } : {}),
+    ...(query ? { username: { contains: query, mode: "insensitive" as const } } : {}),
   };
   const [totalCount, players] = await Promise.all([
     prisma.user.count({ where }),
@@ -53,10 +56,11 @@ export default async function LeaderboardPage({
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
         Ranked players with {LEADERBOARD_MIN_GAMES}+ games played
-        {isValidCharacter ? ` who main ${character}` : ""}.
+        {isValidCharacter ? ` who main ${character}` : ""}
+        {query ? ` matching "${query}"` : ""}.
       </p>
 
-      {!isValidCharacter && (
+      {!isFiltered && (
         <Card className="mt-4 border-primary/20 bg-primary/[0.04] py-3">
           <p className="px-4 text-sm">
             🏆 <span className="font-medium">${SEASON_PRIZE_POOL_USD} USD season prize pool</span> —
@@ -66,6 +70,17 @@ export default async function LeaderboardPage({
       )}
 
       <form method="get" className="mt-4 flex items-end gap-2">
+        <label className="flex flex-col gap-1 text-sm">
+          Player name
+          <input
+            type="text"
+            name="q"
+            defaultValue={query}
+            placeholder="Search by username"
+            maxLength={32}
+            className="h-8 w-48 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
+          />
+        </label>
         <label className="flex flex-col gap-1 text-sm">
           Character
           <select
@@ -97,7 +112,7 @@ export default async function LeaderboardPage({
               <th className="py-2 font-medium">Tier</th>
               <th className="py-2 font-medium text-right tabular-nums">Rating</th>
               <th className="py-2 font-medium text-right tabular-nums">Games</th>
-              {!isValidCharacter && (
+              {!isFiltered && (
                 <th className="py-2 pr-4 font-medium text-right tabular-nums">Prize</th>
               )}
             </tr>
@@ -131,7 +146,7 @@ export default async function LeaderboardPage({
                   <td className="py-2 text-right tabular-nums text-muted-foreground">
                     {player.gamesPlayed}
                   </td>
-                  {!isValidCharacter && (
+                  {!isFiltered && (
                     <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">
                       {prizeForPlace(rank + 1) !== null ? `$${prizeForPlace(rank + 1)} USD` : "—"}
                     </td>
@@ -154,7 +169,12 @@ export default async function LeaderboardPage({
           </Badge>
           {totalPages > 1 && (
             <div className="flex items-center gap-2 text-sm">
-              <PageLink page={page - 1} character={isValidCharacter ? character : undefined} disabled={page <= 1}>
+              <PageLink
+                page={page - 1}
+                character={isValidCharacter ? character : undefined}
+                query={query || undefined}
+                disabled={page <= 1}
+              >
                 ← Previous
               </PageLink>
               <span className="text-muted-foreground tabular-nums">
@@ -163,6 +183,7 @@ export default async function LeaderboardPage({
               <PageLink
                 page={page + 1}
                 character={isValidCharacter ? character : undefined}
+                query={query || undefined}
                 disabled={page >= totalPages}
               >
                 Next →
@@ -180,11 +201,13 @@ export default async function LeaderboardPage({
 function PageLink({
   page,
   character,
+  query,
   disabled,
   children,
 }: {
   page: number;
   character?: string;
+  query?: string;
   disabled: boolean;
   children: React.ReactNode;
 }) {
@@ -193,6 +216,7 @@ function PageLink({
   }
   const params = new URLSearchParams();
   if (character) params.set("character", character);
+  if (query) params.set("q", query);
   params.set("page", String(page));
   return (
     <Link href={`/leaderboard?${params.toString()}`} className="hover:underline">
