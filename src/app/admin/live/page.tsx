@@ -100,6 +100,7 @@ export default async function LiveMatchesPage() {
                           required
                           maxLength={500}
                           placeholder="Message both players as a mod…"
+                          autoComplete="off"
                           className="h-8 w-full rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
                         />
                         <Button type="submit" size="sm" variant="outline">

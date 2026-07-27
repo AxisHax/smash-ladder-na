@@ -3,7 +3,7 @@ import { Trophy } from "lucide-react";
 import { SMASH_CHARACTERS } from "@/lib/characters";
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
 import { getLeaderboardPlayers } from "@/lib/leaderboard";
-import { ensureActiveSeason } from "@/lib/seasons";
+import { ensureActiveSeason, PRE_SEASON_DURATION_MONTHS, PRE_SEASON_EXPECTED_END_AT } from "@/lib/seasons";
 import { SEASON_PRIZE_POOL_USD, prizeForPlace } from "@/lib/prizes";
 import { CharacterIcon } from "@/components/character-icon";
 import { RankBadge } from "@/components/rank-badge";
@@ -54,6 +54,17 @@ export default async function LeaderboardPage({
           <p className="px-4 text-sm">
             🏆 <span className="font-medium">${SEASON_PRIZE_POOL_USD} USD season prize pool</span> —
             split among the top 5 finishers when {season.name} ends.
+            {season.name === "Preseason" && (
+              <>
+                {" "}
+                This is a fixed {PRE_SEASON_DURATION_MONTHS}-month preseason, expected to end around{" "}
+                {PRE_SEASON_EXPECTED_END_AT.toLocaleDateString("en-US", {
+                  timeZone: "America/New_York",
+                  dateStyle: "long",
+                })}
+                .
+              </>
+            )}
           </p>
         </Card>
       )}
