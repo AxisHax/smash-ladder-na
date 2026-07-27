@@ -142,6 +142,13 @@ export async function setUserStartggUrl(userId: string, url: string) {
 export const WIRED_TRUST_MIN_CANCELS = 3;
 export const WIRED_TRUST_MAX_CANCEL_RATIO = 0.25;
 
+// Self-declared matching preference — "only pair me with opponents who
+// have wiredConnection on." Independent of the wiredConnection fact itself,
+// so this doesn't get gated by the trust check above.
+export async function setRequireWiredOpponent(userId: string, requireWiredOpponent: boolean) {
+  await prisma.user.update({ where: { id: userId }, data: { requireWiredOpponent } });
+}
+
 export function isWiredClaimUntrustworthy(cancelCount: number, gamesPlayed: number) {
   if (cancelCount < WIRED_TRUST_MIN_CANCELS) return false;
   const ratio = cancelCount / (cancelCount + gamesPlayed);

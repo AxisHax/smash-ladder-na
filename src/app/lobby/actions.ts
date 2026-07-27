@@ -9,6 +9,7 @@ import {
   setMaxMatchDistance,
   setMaxRatingGap,
   setRematchCooldown,
+  setRequireWiredOpponent,
   setUserRegion,
   setWiredConnection,
 } from "@/lib/account";
@@ -229,6 +230,12 @@ export async function updateWiredConnection(wired: boolean) {
   await setWiredConnection(userId, wired);
   revalidatePath("/lobby");
   revalidatePath(`/players/${userId}`);
+}
+
+export async function updateRequireWiredOpponent(requireWired: boolean) {
+  const userId = await requireUserId();
+  await setRequireWiredOpponent(userId, requireWired);
+  revalidatePath("/lobby");
 }
 
 export type ReportCharacterState = { reportedCharacter: string | null; error: string | null };

@@ -143,7 +143,10 @@ export default function RulesPage() {
             widening yours doesn&apos;t override the other side&apos;s narrower one, so a
             Worldwide/Any rating/Anytime setting still won&apos;t match you with someone who chose
             Same region only, a Strict rating gap, or a 24-hour cooldown. Wired-connection status
-            is self-declared too and shown on profiles, though it isn&apos;t part of matching.
+            is self-declared and shown on profiles. There&apos;s also an opt-in &quot;only match
+            with wired opponents&quot; toggle — like the others, it&apos;s checked per side: if you
+            turn it on, opponents without wired toggled on are excluded, and the same applies if
+            an opponent has it on and you don&apos;t.
           </p>
           <p>
             Joining the ranked lobby queues you for up to 10 minutes before the entry expires. You

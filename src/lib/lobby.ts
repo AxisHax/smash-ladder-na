@@ -9,6 +9,16 @@ function ratingGapAllows(ratingA: number, ratingB: number, maxGap: number | null
   return maxGap === null || Math.abs(ratingA - ratingB) <= maxGap;
 }
 
+// Not symmetric like distance/rating gap — this checks each side's
+// requirement against the OTHER side's actual wiredConnection fact, not a
+// shared value both sides have their own tolerance for.
+function wiredRequirementAllows(
+  a: { wiredConnection: boolean; requireWiredOpponent: boolean },
+  b: { wiredConnection: boolean; requireWiredOpponent: boolean },
+) {
+  return (!a.requireWiredOpponent || b.wiredConnection) && (!b.requireWiredOpponent || a.wiredConnection);
+}
+
 // One query covers every candidate's cooldown check for this join attempt:
 // every match `userId` played within the longest possible cooldown window,
 // collapsed to each opponent's most recent one (results are already newest
@@ -101,7 +111,15 @@ export async function joinLobbyAndTryPair(userId: string) {
     getUnresolvedMatchForUser(userId),
     prisma.user.findUniqueOrThrow({
       where: { id: userId },
-      select: { region: true, maxMatchDistanceKm: true, rating: true, maxRatingGap: true, rematchCooldownHours: true },
+      select: {
+        region: true,
+        maxMatchDistanceKm: true,
+        rating: true,
+        maxRatingGap: true,
+        rematchCooldownHours: true,
+        wiredConnection: true,
+        requireWiredOpponent: true,
+      },
     }),
     getBlockedEitherWayIds(userId),
     getRecentOpponentTimestamps(userId),
@@ -155,6 +173,8 @@ export async function joinLobbyAndTryPair(userId: string) {
             rating: true,
             maxRatingGap: true,
             rematchCooldownHours: true,
+            wiredConnection: true,
+            requireWiredOpponent: true,
           },
         },
       },
@@ -163,7 +183,8 @@ export async function joinLobbyAndTryPair(userId: string) {
       (c) =>
         getRegionsWithinDistance(c.user.region, c.user.maxMatchDistanceKm).includes(myRegion) &&
         ratingGapAllows(me.rating, c.user.rating, c.user.maxRatingGap) &&
-        rematchCooldownAllows(recentOpponents.get(c.userId), me.rematchCooldownHours, c.user.rematchCooldownHours),
+        rematchCooldownAllows(recentOpponents.get(c.userId), me.rematchCooldownHours, c.user.rematchCooldownHours) &&
+        wiredRequirementAllows(me, c.user),
     );
     if (!candidate) return null;
 
@@ -213,6 +234,8 @@ type MatchCandidate = {
   rating: number;
   maxRatingGap: number | null;
   rematchCooldownHours: number | null;
+  wiredConnection: boolean;
+  requireWiredOpponent: boolean;
 };
 
 function canMatch(a: MatchCandidate, b: MatchCandidate, lastMatchAt: Date | undefined) {
@@ -222,7 +245,8 @@ function canMatch(a: MatchCandidate, b: MatchCandidate, lastMatchAt: Date | unde
     getRegionsWithinDistance(b.region, b.maxMatchDistanceKm).includes(a.region) &&
     ratingGapAllows(a.rating, b.rating, a.maxRatingGap) &&
     ratingGapAllows(a.rating, b.rating, b.maxRatingGap) &&
-    rematchCooldownAllows(lastMatchAt, a.rematchCooldownHours, b.rematchCooldownHours)
+    rematchCooldownAllows(lastMatchAt, a.rematchCooldownHours, b.rematchCooldownHours) &&
+    wiredRequirementAllows(a, b)
   );
 }
 
@@ -249,6 +273,8 @@ export async function sweepLobbyPairing(maxPairs = 50) {
           rating: true,
           maxRatingGap: true,
           rematchCooldownHours: true,
+          wiredConnection: true,
+          requireWiredOpponent: true,
         },
       },
     },

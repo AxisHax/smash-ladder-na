@@ -96,6 +96,29 @@ describe("joinLobbyAndTryPair", () => {
     expect(second?.status).toBe("PAIRED");
   });
 
+  it("does not pair when one side requires a wired opponent and the other isn't wired", async () => {
+    const a = await createTestUser({ region: "USA East", requireWiredOpponent: true });
+    const b = await createTestUser({ region: "USA East", wiredConnection: false });
+
+    await joinLobbyAndTryPair(a.id);
+    await joinLobbyAndTryPair(b.id);
+
+    const match = await prisma.ratingMatch.findFirst({
+      where: { OR: [{ player1Id: a.id }, { player2Id: a.id }] },
+    });
+    expect(match).toBeNull();
+  });
+
+  it("pairs when the wired requirement is satisfied", async () => {
+    const a = await createTestUser({ region: "USA East", requireWiredOpponent: true });
+    const b = await createTestUser({ region: "USA East", wiredConnection: true });
+
+    await joinLobbyAndTryPair(a.id);
+    const second = await joinLobbyAndTryPair(b.id);
+
+    expect(second?.status).toBe("PAIRED");
+  });
+
   it("requires a region to be set before joining", async () => {
     const noRegion = await createTestUser({ region: null });
     await expect(joinLobbyAndTryPair(noRegion.id)).rejects.toThrow(/region/i);

@@ -46,6 +46,7 @@ import {
   updateMaxRatingGap,
   updateRegion,
   updateRematchCooldown,
+  updateRequireWiredOpponent,
   updateWiredConnection,
 } from "./actions";
 
@@ -201,6 +202,7 @@ async function MatchmakingForm({ userId }: { userId: string }) {
       maxRatingGap: true,
       rematchCooldownHours: true,
       wiredConnection: true,
+      requireWiredOpponent: true,
     },
   });
 
@@ -218,6 +220,7 @@ async function MatchmakingForm({ userId }: { userId: string }) {
       await updateMaxRatingGap(ratingGap === ANY_RATING_VALUE ? null : Number(ratingGap));
       const rematchCooldown = String(formData.get("rematchCooldownHours") ?? "");
       await updateRematchCooldown(rematchCooldown === ANYTIME_VALUE ? null : Number(rematchCooldown));
+      await updateRequireWiredOpponent(formData.get("requireWiredOpponent") === "on");
       await updateWiredConnection(formData.get("wired") === "on");
     } catch (err) {
       return {
@@ -330,6 +333,16 @@ async function MatchmakingForm({ userId }: { userId: string }) {
           className="size-4 rounded border-border"
         />
         On a wired (LAN) connection
+      </label>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          key={String(me?.requireWiredOpponent ?? false)}
+          type="checkbox"
+          name="requireWiredOpponent"
+          defaultChecked={me?.requireWiredOpponent ?? false}
+          className="size-4 rounded border-border"
+        />
+        Only match with wired opponents
       </label>
     </MatchSettingsForm>
   );
