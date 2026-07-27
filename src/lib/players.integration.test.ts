@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { prisma } from "@/lib/db";
-import { getCharacterUsage, getTopCharacters } from "@/lib/players";
+import { getCharacterUsage, getPlayerMatchHistory, getTopCharacters } from "@/lib/players";
 import { MatchStatus } from "@/generated/prisma/enums";
 import { createTestUser } from "@/test/factories";
 
@@ -176,5 +176,42 @@ describe("getCharacterUsage", () => {
     await createGame(match.id, 1, player.id, "Terry", opponent.id, "Ken", null);
 
     expect(await getCharacterUsage(player.id)).toEqual([]);
+  });
+});
+
+describe("getPlayerMatchHistory", () => {
+  it("includes the per-game score and the distinct characters played", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const match = await createConfirmedMatch(player.id, opponent.id);
+    await createGame(match.id, 1, player.id, "Terry", opponent.id, "Ken", player.id);
+    await createGame(match.id, 2, player.id, "Terry", opponent.id, "Ken", opponent.id);
+    await createGame(match.id, 3, player.id, "Cloud", opponent.id, "Ken", player.id);
+
+    const [entry] = await getPlayerMatchHistory(player.id);
+    expect(entry.score).toEqual({ wins: 2, losses: 1 });
+    expect(entry.characters).toEqual(["Terry", "Cloud"]);
+  });
+
+  it("ignores games with no decided winner when computing score", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const match = await createConfirmedMatch(player.id, opponent.id);
+    await createGame(match.id, 1, player.id, "Terry", opponent.id, "Ken", player.id);
+    await createGame(match.id, 2, player.id, null, opponent.id, null, null);
+
+    const [entry] = await getPlayerMatchHistory(player.id);
+    expect(entry.score).toEqual({ wins: 1, losses: 0 });
+    expect(entry.characters).toEqual(["Terry"]);
+  });
+
+  it("returns an empty score and character list when no games were recorded", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    await createConfirmedMatch(player.id, opponent.id);
+
+    const [entry] = await getPlayerMatchHistory(player.id);
+    expect(entry.score).toEqual({ wins: 0, losses: 0 });
+    expect(entry.characters).toEqual([]);
   });
 });

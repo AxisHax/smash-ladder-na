@@ -268,11 +268,28 @@ export default async function PlayerProfilePage({
                     <Link href={`/players/${match.opponent.id}`} className="hover:underline">
                       {match.opponent.username}
                     </Link>
+                    {(match.score.wins > 0 || match.score.losses > 0) && (
+                      <span className="tabular-nums text-muted-foreground">
+                        {match.score.wins}–{match.score.losses}
+                      </span>
+                    )}
                   </span>
                   <span className="tabular-nums text-muted-foreground">
                     {match.ratingBefore} → {match.ratingAfter} ({match.delta >= 0 ? "+" : ""}
                     {match.delta})
                   </span>
+                </div>
+                <div className="mt-0.5 flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{match.characters.length > 0 ? match.characters.join(", ") : "—"}</span>
+                  {match.confirmedAt && (
+                    <span>
+                      {match.confirmedAt.toLocaleString("en-US", {
+                        timeZone: "UTC",
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      })}
+                    </span>
+                  )}
                 </div>
                 {isOwnProfile && i === 0 && (
                   <RequestCorrectionForm

@@ -38,12 +38,37 @@ export async function getPlayerMatchHistory(userId: string, limit = 20) {
     },
   });
 
+  // Batched rather than per-match, since this list can be up to `limit` long.
+  const games = await prisma.matchGame.findMany({
+    where: { matchId: { in: matches.map((m) => m.id) }, winnerId: { not: null } },
+    orderBy: { gameNumber: "asc" },
+    select: { matchId: true, actorAId: true, actorACharacter: true, actorBId: true, actorBCharacter: true, winnerId: true },
+  });
+  const gamesByMatch = new Map<string, typeof games>();
+  for (const g of games) {
+    const list = gamesByMatch.get(g.matchId);
+    if (list) list.push(g);
+    else gamesByMatch.set(g.matchId, [g]);
+  }
+
   return matches.map((match) => {
     const isPlayer1 = match.player1Id === userId;
     const opponent = isPlayer1 ? match.player2 : match.player1;
     const ratingBefore = isPlayer1 ? match.player1RatingBefore : match.player2RatingBefore;
     const ratingAfter = isPlayer1 ? match.player1RatingAfter : match.player2RatingAfter;
     const won = match.reportedWinnerId === userId;
+
+    const matchGames = gamesByMatch.get(match.id) ?? [];
+    let gamesWon = 0;
+    let gamesLost = 0;
+    const characters: string[] = [];
+    for (const g of matchGames) {
+      if (g.winnerId === userId) gamesWon++;
+      else gamesLost++;
+      const character = g.actorAId === userId ? g.actorACharacter : g.actorBCharacter;
+      if (character && !characters.includes(character)) characters.push(character);
+    }
+
     return {
       id: match.id,
       opponent,
@@ -52,6 +77,8 @@ export async function getPlayerMatchHistory(userId: string, limit = 20) {
       ratingAfter,
       delta: (ratingAfter ?? 0) - (ratingBefore ?? 0),
       confirmedAt: match.confirmedAt,
+      score: { wins: gamesWon, losses: gamesLost },
+      characters,
     };
   });
 }
