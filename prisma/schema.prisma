@@ -268,6 +268,7 @@ model MatchGame {
   stagesRemaining  String[]    @default([])
   struckStages     String[]    @default([])
   finalStage       String?
+  turnStartedAt    DateTime    @default(now()) // reset on every strike/pick; a stale turn past STRIKE_TIMEOUT_MS auto-resolves with a random remaining stage
 
   reportedWinnerId     String?
   reportedById         String?

@@ -9,13 +9,59 @@ import { sendDiscordDM } from "@/lib/discord-bot";
 export const GAMES_TO_WIN = 3; // best of 5
 const MAX_GAMES = 2 * GAMES_TO_WIN - 1;
 
+// Indirection so `Date.now()` isn't called directly in a component's render
+// body (Server Components render once per request — there's no memoization/
+// re-render concern here — but the lint rule can't tell the difference).
+export function secondsUntil(deadline: Date) {
+  return Math.max(0, Math.ceil((deadline.getTime() - Date.now()) / 1000));
+}
+
 function requireParticipant(match: { player1Id: string; player2Id: string }, userId: string) {
   if (match.player1Id !== userId && match.player2Id !== userId) {
     throw new Error("Not a participant in this match");
   }
 }
 
+// How long a player has to strike or pick before it auto-resolves for them —
+// stage selection happens live during a session, unlike the 24h match-level
+// no-report timeout, so this needs to be short enough to actually unstick a
+// stalled/AFK opponent mid-session.
+export const STRIKE_TIMEOUT_MS = 60 * 1000;
+
+// Lazy, not cron-driven (the finalize cron only runs daily — far too coarse
+// for a live in-session timer): checked on every read, same idea as
+// liftExpiredSuspension in account.ts. Picks a uniformly random stage from
+// whatever's left rather than favoring either side.
+async function autoResolveStaleTurn(matchId: string) {
+  const game = await prisma.matchGame.findFirst({
+    where: { matchId, winnerId: null, finalStage: null },
+    orderBy: { gameNumber: "desc" },
+  });
+  if (!game) return;
+  if (Date.now() - game.turnStartedAt.getTime() < STRIKE_TIMEOUT_MS) return;
+
+  const striker = actorForStrike(game);
+  if (striker) {
+    const stage = game.stagesRemaining[Math.floor(Math.random() * game.stagesRemaining.length)];
+    if (!stage) return;
+    await prisma.matchGame.updateMany({
+      where: { id: game.id, struckStages: { equals: game.struckStages } },
+      data: {
+        stagesRemaining: game.stagesRemaining.filter((s) => s !== stage),
+        struckStages: [...game.struckStages, stage],
+        turnStartedAt: new Date(),
+      },
+    });
+    return;
+  }
+
+  const stage = game.stagesRemaining[Math.floor(Math.random() * game.stagesRemaining.length)];
+  if (!stage) return;
+  await prisma.matchGame.updateMany({ where: { id: game.id, finalStage: null }, data: { finalStage: stage } });
+}
+
 export async function getMatchGames(matchId: string) {
+  await autoResolveStaleTurn(matchId);
   return prisma.matchGame.findMany({ where: { matchId }, orderBy: { gameNumber: "asc" } });
 }
 
@@ -180,6 +226,30 @@ export async function strikeGameStage(
     data: {
       stagesRemaining: game.stagesRemaining.filter((s) => s !== stage),
       struckStages: [...game.struckStages, stage],
+      turnStartedAt: new Date(), // a fresh turn (next strike or the pick) starts now
+    },
+  });
+}
+
+// Undo your own most recent strike, as long as nobody's struck after it —
+// i.e. it's still (part of) your turn. Once the other side has struck since,
+// yours is locked in; you can't reach back and change it.
+export async function unstrikeLastGameStage(userId: string, matchId: string, gameNumber: number) {
+  const game = await requireGame(matchId, gameNumber);
+  if (game.finalStage) throw new Error("Stage already decided");
+  if (game.struckStages.length === 0) throw new Error("Nothing to undo yet");
+
+  const lastIndex = game.struckStages.length - 1;
+  const actorOfLastStrike = lastIndex < game.actorAStrikes ? game.actorAId : game.actorBId;
+  if (actorOfLastStrike !== userId) throw new Error("You can only undo your own most recent strike");
+
+  const lastStage = game.struckStages[lastIndex];
+  await prisma.matchGame.updateMany({
+    where: { id: game.id, struckStages: { equals: game.struckStages } },
+    data: {
+      struckStages: game.struckStages.slice(0, -1),
+      stagesRemaining: [...game.stagesRemaining, lastStage],
+      turnStartedAt: new Date(),
     },
   });
 }

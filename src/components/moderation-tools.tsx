@@ -67,21 +67,24 @@ export function ModerationStatusForm({
 
 type AdminOverrideState = { error: string | null };
 
+type AdminOverrideAction = (prevState: AdminOverrideState, formData: FormData) => Promise<AdminOverrideState>;
+
 export function AdminMatchOverride({
-  player1Id,
   player1Username,
-  player2Id,
   player2Username,
-  actionFor,
+  actionForPlayer1,
+  actionForPlayer2,
 }: {
-  player1Id: string;
   player1Username: string;
-  player2Id: string;
   player2Username: string;
-  actionFor: (winnerId: string) => (prevState: AdminOverrideState, formData: FormData) => Promise<AdminOverrideState>;
+  // Must already be bound server actions (e.g. `serverAction.bind(null, ...)`)
+  // — a plain closure built in the parent Server Component isn't a Server
+  // Action itself and can't be passed as a prop to this Client Component.
+  actionForPlayer1: AdminOverrideAction;
+  actionForPlayer2: AdminOverrideAction;
 }) {
-  const [state1, formAction1, isPending1] = useActionState(actionFor(player1Id), { error: null });
-  const [state2, formAction2, isPending2] = useActionState(actionFor(player2Id), { error: null });
+  const [state1, formAction1, isPending1] = useActionState(actionForPlayer1, { error: null });
+  const [state2, formAction2, isPending2] = useActionState(actionForPlayer2, { error: null });
   const error = state1.error ?? state2.error;
 
   return (

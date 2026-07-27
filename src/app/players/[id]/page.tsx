@@ -283,11 +283,10 @@ export default async function PlayerProfilePage({
                 )}
                 {isModerator && !isOwnProfile && i === 0 && (
                   <AdminMatchOverride
-                    player1Id={id}
                     player1Username={player.username}
-                    player2Id={match.opponent.id}
                     player2Username={match.opponent.username}
-                    actionFor={(winnerId) => adminOverrideResultAction.bind(null, match.id, id, winnerId)}
+                    actionForPlayer1={adminOverrideResultAction.bind(null, match.id, id, id)}
+                    actionForPlayer2={adminOverrideResultAction.bind(null, match.id, id, match.opponent.id)}
                   />
                 )}
               </div>

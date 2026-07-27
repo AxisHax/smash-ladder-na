@@ -5,7 +5,13 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { getActiveLobbyEntry, getLobbyActivityStats } from "@/lib/lobby";
 import { getTopCharacters } from "@/lib/players";
-import { characterPickState, getMatchGames, gameTurnState } from "@/lib/match-games";
+import {
+  STRIKE_TIMEOUT_MS,
+  characterPickState,
+  getMatchGames,
+  gameTurnState,
+  secondsUntil,
+} from "@/lib/match-games";
 import { listMatchComments } from "@/lib/match-comments";
 import { MATCH_DISTANCE_PRESETS, MATCH_REGIONS, REGION_REFERENCE_CITY } from "@/lib/regions";
 import { SMASH_CHARACTERS } from "@/lib/characters";
@@ -35,6 +41,7 @@ import {
   sendMatchComment,
   strikeStage,
   submitRoomCode,
+  unstrikeStage,
   updateMaxMatchDistance,
   updateMaxRatingGap,
   updateRegion,
@@ -585,13 +592,23 @@ function GameSection({
       ? `${verb} ${remainingStrikes} stage${remainingStrikes === 1 ? "" : "s"}`
       : `${verb} a stage`;
 
+  const secondsLeft = secondsUntil(new Date(current.turnStartedAt.getTime() + STRIKE_TIMEOUT_MS));
+
+  const lastStrikeIndex = current.struckStages.length - 1;
+  const canUndoLastStrike =
+    turn.phase === "striking" &&
+    lastStrikeIndex >= 0 &&
+    (lastStrikeIndex < current.actorAStrikes ? current.actorAId : current.actorBId) === userId;
+
   return (
     <>
       {characterSection}
       <CardContent className="border-t border-border pt-4">
         <p className="text-sm text-muted-foreground">
           Game {current.gameNumber} —{" "}
-          {myTurn ? `Your turn — ${turnDescription}.` : `Waiting for ${opponentName} to ${verb}…`}
+          {myTurn
+            ? `Your turn — ${turnDescription} (${secondsLeft}s left, or it auto-picks).`
+            : `Waiting for ${opponentName} to ${verb}… (${secondsLeft}s left)`}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           {current.stagesRemaining.map((stage) => (
@@ -602,6 +619,13 @@ function GameSection({
             </form>
           ))}
         </div>
+        {canUndoLastStrike && (
+          <form action={unstrikeStage.bind(null, match.id, current.gameNumber)} className="mt-2">
+            <Button type="submit" size="sm" variant="ghost">
+              Undo my last strike
+            </Button>
+          </form>
+        )}
       </CardContent>
     </>
   );

@@ -18,6 +18,7 @@ import {
   reportGameResult,
   startFirstGame,
   strikeGameStage,
+  unstrikeLastGameStage,
 } from "@/lib/match-games";
 import { postMatchComment } from "@/lib/match-comments";
 import { cancelMatch } from "@/lib/matches";
@@ -47,6 +48,8 @@ const STALE_GAME_ERRORS = new Set([
   "You already reported this game",
   "You already picked your character for this game",
   "Wait for your opponent to pick their character first",
+  "Nothing to undo yet",
+  "You can only undo your own most recent strike",
 ]);
 
 async function ignoringStaleGameRaces(fn: () => Promise<void>) {
@@ -107,6 +110,13 @@ export async function strikeStage(matchId: string, gameNumber: number, stage: st
   const userId = await requireUserId();
   await requireNotBanned(userId);
   await ignoringStaleGameRaces(() => strikeGameStage(userId, matchId, gameNumber, stage));
+  revalidatePath("/lobby");
+}
+
+export async function unstrikeStage(matchId: string, gameNumber: number) {
+  const userId = await requireUserId();
+  await requireNotBanned(userId);
+  await ignoringStaleGameRaces(() => unstrikeLastGameStage(userId, matchId, gameNumber));
   revalidatePath("/lobby");
 }
 
