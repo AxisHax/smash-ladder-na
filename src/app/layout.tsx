@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
@@ -24,18 +25,27 @@ export const metadata: Metadata = {
   description: "North American ranked ladder and matchmaking for Smash.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // /stream/* pages are captured directly by OBS as a broadcast overlay —
+  // none of the normal site chrome (nav, banners, ads, footer) belongs in
+  // that frame, and a transparent background lets them composite over
+  // whatever's underneath instead of blocking it with a solid box.
+  const pathname = (await headers()).get("x-pathname") ?? "";
+  const isStreamOverlay = pathname.startsWith("/stream");
+
   return (
     <html
       lang="en"
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-background text-foreground">
+      <body
+        className={`min-h-full flex flex-col text-foreground ${isStreamOverlay ? "bg-transparent" : "bg-background"}`}
+      >
         {/* Plain script tag, not next/script — layout.tsx is a Server
             Component, so this only ever exists in the static SSR'd HTML and
             runs before hydration. next/script's beforeInteractive strategy
@@ -49,7 +59,7 @@ export default function RootLayout({
             __html: `try{if(matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.classList.add('dark')}catch(e){}`,
           }}
         />
-        {ADSENSE_CLIENT_ID && (
+        {!isStreamOverlay && ADSENSE_CLIENT_ID && (
           <Script
             async
             src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT_ID}`}
@@ -57,12 +67,12 @@ export default function RootLayout({
             strategy="afterInteractive"
           />
         )}
-        <SiteHeader />
-        <PreSeasonBanner />
-        <RegionSetupBanner />
+        {!isStreamOverlay && <SiteHeader />}
+        {!isStreamOverlay && <PreSeasonBanner />}
+        {!isStreamOverlay && <RegionSetupBanner />}
         {children}
-        <SiteFooter />
-        <Analytics />
+        {!isStreamOverlay && <SiteFooter />}
+        {!isStreamOverlay && <Analytics />}
       </body>
     </html>
   );

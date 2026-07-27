@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { Trophy } from "lucide-react";
-import { prisma } from "@/lib/db";
 import { SMASH_CHARACTERS } from "@/lib/characters";
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
+import { getLeaderboardPlayers } from "@/lib/leaderboard";
 import { ensureActiveSeason } from "@/lib/seasons";
 import { SEASON_PRIZE_POOL_USD, prizeForPlace } from "@/lib/prizes";
 import { CharacterIcon } from "@/components/character-icon";
@@ -29,21 +29,10 @@ export default async function LeaderboardPage({
   const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
 
   const season = await ensureActiveSeason();
-  const where = {
-    gamesPlayed: { gte: LEADERBOARD_MIN_GAMES },
-    ...(isValidCharacter ? { mainCharacter: character } : {}),
-    ...(query ? { username: { contains: query, mode: "insensitive" as const } } : {}),
-  };
-  const [totalCount, players] = await Promise.all([
-    prisma.user.count({ where }),
-    prisma.user.findMany({
-      where,
-      orderBy: { rating: "desc" },
-      select: { id: true, username: true, rating: true, gamesPlayed: true, mainCharacter: true },
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
-    }),
-  ]);
+  const { players, totalCount } = await getLeaderboardPlayers(
+    { character: isValidCharacter ? character : null, query },
+    { skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE },
+  );
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const rankOffset = (page - 1) * PAGE_SIZE;
 
