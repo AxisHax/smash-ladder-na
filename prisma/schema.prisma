@@ -163,6 +163,8 @@ model User {
   tournamentEntries TournamentEntry[]
   blocksMade       Block[]          @relation("BlocksMade")
   blocksReceived   Block[]          @relation("BlocksReceived")
+  connectionReportsFiled    ConnectionReport[] @relation("ConnectionReportsFiled")
+  connectionReportsReceived ConnectionReport[] @relation("ConnectionReportsReceived")
 
   @@index([rating])
   @@index([mainCharacter])
@@ -221,6 +223,7 @@ model RatingMatch {
   comments      MatchComment[]
   games         MatchGame[] // best-of-5: game 1 decides the stage via strike+pick, games 2-5 are counterpicks
   conductReports ConductReport[]
+  connectionReports ConnectionReport[]
 
   @@index([status])
   @@index([player1Id])
@@ -290,6 +293,25 @@ model ConductReport {
 
   @@index([reportedUserId])
   @@index([status])
+}
+
+// A lighter-weight signal than ConductReport: connection quality isn't
+// misconduct, so this doesn't feed a mod queue or touch UserStatus — it's
+// just a visible count (like noShowCount/cancelCount) other players can
+// weigh before matching someone who claims a wired connection. One per
+// match per reporter — a single click, not a written complaint.
+model ConnectionReport {
+  id             String      @id @default(cuid())
+  matchId        String
+  match          RatingMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  reporterId     String
+  reporter       User        @relation("ConnectionReportsFiled", fields: [reporterId], references: [id])
+  reportedUserId String
+  reportedUser   User        @relation("ConnectionReportsReceived", fields: [reportedUserId], references: [id])
+  createdAt      DateTime    @default(now())
+
+  @@unique([matchId, reporterId])
+  @@index([reportedUserId])
 }
 
 // endsAt null = the currently active season. Ending one snapshots standings

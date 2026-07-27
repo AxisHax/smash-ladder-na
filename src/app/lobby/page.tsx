@@ -28,6 +28,7 @@ import {
   pickCharacter,
   pickStage,
   reportConduct,
+  reportConnection,
   reportGame,
   reportOpponentCharacterAction,
   sendMatchComment,
@@ -477,6 +478,16 @@ function MatchFooterActions({ match }: { match: Match }) {
           </Button>
         </form>
       </details>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs text-muted-foreground">
+          Laggy, rollback-heavy, or disconnected during this match?
+        </p>
+        <form action={reportConnection.bind(null, match.id)}>
+          <Button type="submit" size="sm" variant="outline">
+            Connection Report
+          </Button>
+        </form>
+      </div>
     </CardContent>
   );
 }

@@ -106,6 +106,12 @@ export default async function PlayerProfilePage({
                   {player.cancelCount} cancel{player.cancelCount === 1 ? "" : "s"}
                 </Badge>
               )}
+              {player._count.connectionReportsReceived > 0 && (
+                <Badge variant="warning">
+                  {player._count.connectionReportsReceived} connection report
+                  {player._count.connectionReportsReceived === 1 ? "" : "s"}
+                </Badge>
+              )}
             </div>
             {player.startggUrl && (
               <a

@@ -9,6 +9,7 @@ beforeEach(async () => {
   await prisma.matchGame.deleteMany();
   await prisma.matchComment.deleteMany();
   await prisma.conductReport.deleteMany();
+  await prisma.connectionReport.deleteMany();
   await prisma.ratingMatch.deleteMany();
   await prisma.ratingLobbyEntry.deleteMany();
   await prisma.seasonStanding.deleteMany();

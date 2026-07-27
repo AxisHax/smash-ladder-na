@@ -21,7 +21,7 @@ import {
 } from "@/lib/match-games";
 import { postMatchComment } from "@/lib/match-comments";
 import { cancelMatch } from "@/lib/matches";
-import { fileMatchReport } from "@/lib/reports";
+import { fileConnectionReport, fileMatchReport } from "@/lib/reports";
 import { reportOpponentCharacter } from "@/lib/character-stats";
 import { prisma } from "@/lib/db";
 import { enforceRateLimit, minutesAgo } from "@/lib/rate-limit";
@@ -160,6 +160,13 @@ export async function reportConduct(matchId: string, reason: string) {
     windowLabel: "hour",
   });
   await fileMatchReport(userId, matchId, reason);
+  revalidatePath("/lobby");
+}
+
+export async function reportConnection(matchId: string) {
+  const userId = await requireUserId();
+  await requireActiveUser(userId); // suspension blocks filing new reports, same as reportConduct
+  await fileConnectionReport(userId, matchId);
   revalidatePath("/lobby");
 }
 

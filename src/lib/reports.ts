@@ -21,6 +21,24 @@ export async function fileMatchReport(
   });
 }
 
+// One click, no reason required — connection quality isn't misconduct, so
+// this never touches UserStatus or a mod queue. @@unique([matchId, reporterId])
+// makes a repeat click a no-op instead of an error.
+export async function fileConnectionReport(reporterId: string, matchId: string) {
+  const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
+  if (!match) throw new Error("Match not found");
+  if (match.player1Id !== reporterId && match.player2Id !== reporterId) {
+    throw new Error("Not a participant in this match");
+  }
+  const reportedUserId = match.player1Id === reporterId ? match.player2Id : match.player1Id;
+
+  await prisma.connectionReport.upsert({
+    where: { matchId_reporterId: { matchId, reporterId } },
+    update: {},
+    create: { matchId, reporterId, reportedUserId },
+  });
+}
+
 export async function listOpenReports() {
   return prisma.conductReport.findMany({
     where: { status: ReportStatus.OPEN },
