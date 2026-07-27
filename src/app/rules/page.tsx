@@ -78,10 +78,11 @@ export default function RulesPage() {
           </p>
           <p>
             If only one player reports and the other never responds, the lone report is accepted
-            automatically after 24 hours, and the non-reporting player is charged a no-show. If
-            neither player reports within 24 hours, the match closes with no rating impact for
-            either side — if that leaves you stuck after a set you actually won, message a mod and
-            they can close it out manually from the Live matches page.
+            automatically after 3 hours, and the non-reporting player is charged a no-show — you&apos;ll
+            get a Discord reminder as soon as your opponent reports, so you know the clock has
+            started. If neither player reports within 3 hours, the match closes with no rating
+            impact for either side — if that leaves you stuck after a set you actually won, message
+            a mod and they can close it out manually from the Live matches page.
           </p>
           <p>
             Reported the wrong winner? Either player can request a correction from their own

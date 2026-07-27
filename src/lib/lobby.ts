@@ -4,6 +4,7 @@ import { getLatestMatchForUser, getUnresolvedMatchForUser } from "@/lib/matches"
 import { getRegionsWithinDistance } from "@/lib/regions";
 import { blockPairKey, getAllBlockedPairKeys, getBlockedEitherWayIds } from "@/lib/blocks";
 import { MAX_REMATCH_COOLDOWN_HOURS, rematchCooldownAllows } from "@/lib/rematch-cooldown";
+import { MATCH_TTL_MS } from "@/lib/match-games";
 
 function ratingGapAllows(ratingA: number, ratingB: number, maxGap: number | null) {
   return maxGap === null || Math.abs(ratingA - ratingB) <= maxGap;
@@ -56,7 +57,6 @@ async function getRecentMatchPairTimestamps() {
 }
 
 const LOBBY_ENTRY_TTL_MS = 10 * 60 * 1000; // 10 min queue timeout
-const MATCH_TTL_MS = 24 * 60 * 60 * 1000; // no-show / no-report cutoff
 
 export type ActiveLobbyEntry = Awaited<ReturnType<typeof getActiveLobbyEntry>>;
 

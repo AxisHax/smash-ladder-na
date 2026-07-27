@@ -36,6 +36,12 @@ export const STRIKE_TIMEOUT_MS = 60 * 1000;
 // used to share the 60s stage-strike clock.
 export const CHARACTER_PICK_TIMEOUT_MS = 3 * 60 * 1000;
 
+// How long a match waits for a report before the cron finalizer steps in
+// (see autoConfirmStaleGameReport / finalize.ts). Shortened from 24h after
+// a batch of sets sat all night with a losing player just never reporting
+// — a shorter window means the honest side isn't stuck till the next day.
+export const MATCH_TTL_MS = 3 * 60 * 60 * 1000;
+
 // Lazy, not cron-driven (the finalize cron only runs daily — far too coarse
 // for a live in-session timer): checked on every read, same idea as
 // liftExpiredSuspension in account.ts. Picks a uniformly random stage from
@@ -328,7 +334,7 @@ export async function pickGameStage(
 }
 
 type ReportOutcome =
-  | { type: "reported"; opponentId: string }
+  | { type: "reported"; opponentId: string; reporterId: string }
   | { type: "disputed"; player1Id: string; player2Id: string; setDecidedDespiteDispute: boolean }
   | { type: "game_won"; player1Id: string; player2Id: string; nextGameNumber: number }
   | { type: "set_confirmed"; player1Id: string; player2Id: string };
@@ -360,7 +366,7 @@ export async function reportGameResult(
           where: { id: game.id },
           data: { reportedWinnerId: winnerId, reportedById: userId, reportedAt: new Date() },
         });
-        return { type: "reported", opponentId };
+        return { type: "reported", opponentId, reporterId: userId };
       }
 
       if (game.reportedById === userId) throw new Error("You already reported this game");
@@ -422,9 +428,28 @@ export async function reportGameResult(
   await notifyReportOutcome(outcome, gameNumber);
 }
 
-// Only disputes get a DM — routine progress (reported/game_won/set_confirmed)
-// is left for players to check in the lobby instead of paging their phone.
+const MATCH_TTL_HOURS = MATCH_TTL_MS / (60 * 60 * 1000);
+
+// Disputes and a fresh report both get a DM — the report reminder exists
+// so a player who's just genuinely forgotten to open the site gets nudged
+// before the no-report timeout charges them a no-show, rather than the
+// other side being stuck waiting with no idea whether the opponent even
+// saw it. game_won/set_confirmed stay unannounced — nothing time-sensitive
+// there, players already see it in the lobby.
 async function notifyReportOutcome(outcome: ReportOutcome, gameNumber: number) {
+  if (outcome.type === "reported") {
+    const [opponent, reporter] = await Promise.all([
+      prisma.user.findUnique({ where: { id: outcome.opponentId }, select: { discordId: true } }),
+      prisma.user.findUnique({ where: { id: outcome.reporterId }, select: { username: true } }),
+    ]);
+    if (opponent && reporter) {
+      await sendDiscordDM(
+        opponent.discordId,
+        `⏱️ ${reporter.username} reported game ${gameNumber}'s result. Confirm or dispute it in the Lobby — if you don't respond within ${MATCH_TTL_HOURS} hours it auto-confirms and you're charged a no-show.`,
+      );
+    }
+    return;
+  }
   if (outcome.type !== "disputed") return;
 
   const [p1, p2] = await Promise.all([
@@ -452,8 +477,6 @@ async function notifyReportOutcome(outcome: ReportOutcome, gameNumber: number) {
   ]);
 }
 
-export const MATCH_TTL_MS = 24 * 60 * 60 * 1000; // mirrors lobby.ts's match no-show/no-report cutoff
-
 // Called by the cron finalizer for a PENDING_REPORT match past its deadline.
 // If the current game has one player's report sitting unconfirmed, accept
 // it as the result — the reporting player did their part, so the match
@@ -464,7 +487,7 @@ export const MATCH_TTL_MS = 24 * 60 * 60 * 1000; // mirrors lobby.ts's match no-
 export async function autoConfirmStaleGameReport(
   match: { id: string; player1Id: string; player2Id: string },
   now: Date,
-): Promise<{ nonReporterId: string } | null> {
+): Promise<{ nonReporterId: string; reporterId: string; gameNumber: number } | null> {
   const hangingGame = await prisma.matchGame.findFirst({
     where: { matchId: match.id, winnerId: null, reportedById: { not: null } },
     orderBy: { gameNumber: "desc" },
@@ -493,7 +516,7 @@ export async function autoConfirmStaleGameReport(
     }, TX_OPTIONS),
   );
 
-  return { nonReporterId };
+  return { nonReporterId, reporterId: hangingGame.reportedById, gameNumber: hangingGame.gameNumber };
 }
 
 // Only counts games with a settled winnerId, so a still-disputed game
