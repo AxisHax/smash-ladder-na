@@ -144,10 +144,27 @@ export async function sendMatchComment(matchId: string, body: string) {
   revalidatePath("/lobby");
 }
 
-export async function cancelMatchInProgress(matchId: string) {
+export type CancelMatchState = { error: string | null };
+
+// (prevState, formData) shape so useActionState can drive it — cancelling
+// is now blocked once a game's been decided or reported, and a plain thrown
+// error would otherwise crash to Next's generic error overlay instead of
+// showing an inline message.
+export async function cancelMatchInProgress(
+  matchId: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- required by useActionState's call signature
+  _prevState: CancelMatchState,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- required by useActionState's call signature
+  _formData: FormData,
+): Promise<CancelMatchState> {
   const userId = await requireUserId();
-  await cancelMatch(userId, matchId);
+  try {
+    await cancelMatch(userId, matchId);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+  }
   revalidatePath("/lobby");
+  return { error: null };
 }
 
 export async function reportConduct(matchId: string, reason: string) {

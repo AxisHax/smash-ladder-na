@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { CharacterIcon } from "@/components/character-icon";
 import { LobbyPoller } from "@/components/lobby-poller";
 import { JoinLobbyForm } from "@/components/join-lobby-button";
+import { CancelMatchButton } from "@/components/cancel-match-button";
 import { VictoryCelebration } from "@/components/victory-celebration";
 import { ReportCharacterForm } from "@/components/report-character-form";
 import { MatchSettingsForm, type MatchSettingsState } from "@/components/match-settings-form";
@@ -453,11 +454,7 @@ function MatchFooterActions({ match }: { match: Match }) {
           Problem with this match? Cancel it or report your opponent.
         </p>
         {(match.status === "PENDING_REPORT" || match.status === "REPORTED") && (
-          <form action={cancelMatchInProgress.bind(null, match.id)}>
-            <Button type="submit" variant="destructive" size="sm">
-              Cancel match
-            </Button>
-          </form>
+          <CancelMatchButton action={cancelMatchInProgress.bind(null, match.id)} />
         )}
       </div>
       <details className="text-xs">

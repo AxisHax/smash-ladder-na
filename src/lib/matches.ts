@@ -28,8 +28,14 @@ export async function getLatestMatchForUser(userId: string) {
 }
 
 // Either player can back out unilaterally while the set is still in
-// progress — no rating impact either way. Once a result's been confirmed
-// (or is already disputed) it's too late to just walk away from.
+// progress and nothing's actually happened yet — no rating impact either
+// way. Once any game has a decided winner OR someone's filed a report on
+// one (even if not yet finalized), cancelling is blocked: a player who's
+// losing (or has just been reported as having lost) shouldn't be able to
+// erase the set out from under a pending/decided result instead of
+// reporting or disputing it. (A real incident: a player down 2 games, with
+// the 4th already reported against them, cancelled instead of letting it
+// confirm — no Elo was ever applied for a match they'd clearly lost.)
 export async function cancelMatch(userId: string, matchId: string) {
   const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
   if (!match) throw new Error("Match not found");
@@ -43,6 +49,16 @@ export async function cancelMatch(userId: string, matchId: string) {
   if (match.status !== MatchStatus.PENDING_REPORT && match.status !== MatchStatus.REPORTED) {
     throw new Error("This match can no longer be cancelled");
   }
+
+  const gameInProgress = await prisma.matchGame.findFirst({
+    where: { matchId, OR: [{ winnerId: { not: null } }, { reportedById: { not: null } }] },
+  });
+  if (gameInProgress) {
+    throw new Error(
+      "Can't cancel once a game has been decided or reported — report the result or dispute it instead.",
+    );
+  }
+
   const [, updatedUser] = await prisma.$transaction([
     prisma.ratingMatch.update({ where: { id: matchId }, data: { status: MatchStatus.CANCELLED } }),
     prisma.user.update({ where: { id: userId }, data: { cancelCount: { increment: 1 } } }),

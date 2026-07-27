@@ -93,6 +93,11 @@ export default function RulesPage() {
             and a pattern of it is reportable. Canceled matches carry no rating impact but are
             logged against the canceling player&apos;s account.
           </p>
+          <p>
+            Cancel only works before anything&apos;s happened in the set — once a game has a
+            decided winner, or either side has reported one, the match can no longer be canceled.
+            At that point, report the result or dispute it instead.
+          </p>
         </Section>
 
         <Section title="Character reporting">
@@ -111,10 +116,12 @@ export default function RulesPage() {
             hour.
           </p>
           <p>
-            Only a mod-confirmed report moves an account toward restriction — accumulating 3
-            confirmed reports suspends an account, and 5 bans it. Suspension blocks free battle
-            and filing new reports (so a suspended player can&apos;t retaliate) but ranked play
-            stays open. A ban blocks everything. See{" "}
+            Only a mod acting on a report moves an account toward restriction — filing one is
+            never enough by itself. A single report is enough for a mod to suspend or ban if it
+            warrants it (a mod can also act directly with no report at all). Suspension blocks
+            free battle and filing new reports (so a suspended player can&apos;t retaliate) but
+            ranked play stays open, and can be timed (auto-lifts) or indefinite. A ban blocks
+            everything. See{" "}
             <a href="/faq" className="underline">
               the Q&amp;A page
             </a>{" "}

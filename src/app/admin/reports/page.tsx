@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Flag } from "lucide-react";
 import { auth } from "@/auth";
-import { ACTION_THRESHOLDS, listOpenReports } from "@/lib/reports";
+import { listOpenReports } from "@/lib/reports";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -47,7 +47,6 @@ export default async function ReportsPage() {
         {reports.map((report) => {
           const totalReports = report.reportedUser._count.reportsReceived;
           const totalBlocks = report.reportedUser._count.blocksReceived;
-          const canSuspend = totalReports >= ACTION_THRESHOLDS.SUSPENDED;
           const isActive = report.reportedUser.status === "ACTIVE";
 
           return (
@@ -100,20 +99,12 @@ export default async function ReportsPage() {
                           </option>
                         ))}
                       </select>
-                      <label className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <input type="checkbox" name="insta" className="size-3.5 rounded border-border" />
-                        Insta
-                      </label>
                       <Button type="submit" variant="secondary" size="sm">
                         Suspend
                       </Button>
                     </form>
 
-                    <form action={banReportedUser.bind(null, report.id)} className="flex items-center gap-1.5">
-                      <label className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <input type="checkbox" name="insta" className="size-3.5 rounded border-border" />
-                        Insta
-                      </label>
+                    <form action={banReportedUser.bind(null, report.id)}>
                       <Button type="submit" variant="destructive" size="sm">
                         Ban
                       </Button>
@@ -125,13 +116,6 @@ export default async function ReportsPage() {
                           Reinstate
                         </Button>
                       </form>
-                    )}
-
-                    {!canSuspend && (
-                      <span className="text-xs text-muted-foreground">
-                        Needs {ACTION_THRESHOLDS.SUSPENDED - totalReports} more report
-                        {ACTION_THRESHOLDS.SUSPENDED - totalReports === 1 ? "" : "s"} to suspend, or check Insta
-                      </span>
                     )}
                   </div>
                 </CardContent>

@@ -24,6 +24,7 @@ import { AdminMatchOverride, ModerationStatusForm } from "@/components/moderatio
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { isBlockedByMe } from "@/lib/blocks";
+import { listReportsForUser } from "@/lib/reports";
 import {
   adminOverrideResultAction,
   blockUserAction,
@@ -52,6 +53,7 @@ export default async function PlayerProfilePage({
     session?.user?.id && !isOwnProfile ? isBlockedByMe(session.user.id, id) : Promise.resolve(false),
     getCharacterUsage(id),
   ]);
+  const reportHistory = isModerator ? await listReportsForUser(id) : [];
   const topCharacters = characterUsage.slice(0, 3).map((u) => u.character);
   const wins = history.filter((m) => m.won).length;
   const losses = history.length - wins;
@@ -296,7 +298,34 @@ export default async function PlayerProfilePage({
 
       {isModerator && !isOwnProfile && (
         <div className="mt-12 border-t border-border pt-6">
-          <ModerationStatusForm action={moderateUserAction.bind(null, id)} currentStatus={player.status} />
+          <p className="text-sm font-medium">
+            Report history <Badge variant="outline">{reportHistory.length}</Badge>
+          </p>
+          {reportHistory.length === 0 ? (
+            <p className="mt-2 text-sm text-muted-foreground">No reports filed against this player.</p>
+          ) : (
+            <ul className="mt-2 flex flex-col gap-2">
+              {reportHistory.map((r) => (
+                <li key={r.id} className="text-sm">
+                  <div className="flex items-center gap-1.5">
+                    <Badge
+                      variant={r.status === "ACTIONED" ? "destructive" : r.status === "DISMISSED" ? "outline" : "warning"}
+                    >
+                      {r.status.toLowerCase()}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">
+                      by {r.reporter.username} · {r.createdAt.toISOString().slice(0, 10)}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-muted-foreground">{r.reason}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <div className="mt-6">
+            <ModerationStatusForm action={moderateUserAction.bind(null, id)} currentStatus={player.status} />
+          </div>
         </div>
       )}
 

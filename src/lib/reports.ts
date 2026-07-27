@@ -63,6 +63,17 @@ export async function listOpenReports() {
   });
 }
 
+// Full history for a specific player — every status, not just OPEN — so a
+// mod deciding whether to act (especially now that a single report is
+// enough) can see the full pattern (or lack of one) first.
+export async function listReportsForUser(userId: string) {
+  return prisma.conductReport.findMany({
+    where: { reportedUserId: userId },
+    orderBy: { createdAt: "desc" },
+    include: { reporter: { select: { id: true, username: true } } },
+  });
+}
+
 export async function dismissReport(reportId: string) {
   await prisma.conductReport.update({
     where: { id: reportId },
@@ -77,12 +88,14 @@ const MISCONDUCT_POINTS: Record<"SUSPENDED" | "BANNED", number> = {
   BANNED: 5,
 };
 
-// A single report shouldn't be able to take someone's account down — require
-// a pattern (any status counts, so previously-dismissed reports still show
-// as part of a history) before a mod can actually suspend or ban.
+// A mod's own judgment on a single report is enough to act — the gate
+// exists to stop the button from being clickable with *zero* reports
+// against someone, not to require a pattern. Full report history (count and
+// each one's reason/status) stays visible on this page regardless, so a mod
+// can still see whether this is a one-off or a repeat case before deciding.
 export const ACTION_THRESHOLDS: Record<"SUSPENDED" | "BANNED", number> = {
-  SUSPENDED: 3,
-  BANNED: 5,
+  SUSPENDED: 1,
+  BANNED: 1,
 };
 
 const STATUS_RANK: Record<UserStatus, number> = {

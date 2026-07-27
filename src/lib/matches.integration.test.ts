@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import {
   adminOverrideMatchResult,
   applyEloAndConfirm,
+  cancelMatch,
   requestResultCorrection,
   resolveMatchCorrection,
 } from "@/lib/matches";
@@ -256,5 +257,64 @@ describe("adminOverrideMatchResult", () => {
     await createConfirmedMatch(p1.id, p3.id);
 
     await expect(adminOverrideMatchResult(match.id, p2.id)).rejects.toThrow(/newer match/i);
+  });
+});
+
+describe("cancelMatch", () => {
+  it("allows cancelling before anything has happened", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+
+    await cancelMatch(p1.id, match.id);
+
+    const updated = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(updated.status).toBe(MatchStatus.CANCELLED);
+  });
+
+  it("blocks cancelling once a game has been decided (the dodge-a-loss exploit)", async () => {
+    const winner = await createTestUser();
+    const loser = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: winner.id, player2Id: loser.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 1,
+        actorAId: winner.id,
+        actorAStrikes: 1,
+        actorBId: loser.id,
+        actorBStrikes: 2,
+        winnerId: winner.id,
+      },
+    });
+
+    await expect(cancelMatch(loser.id, match.id)).rejects.toThrow(/decided or reported/i);
+  });
+
+  it("blocks cancelling once a game has an unconfirmed report pending", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 1,
+        actorAId: p1.id,
+        actorAStrikes: 1,
+        actorBId: p2.id,
+        actorBStrikes: 2,
+        reportedWinnerId: p1.id,
+        reportedById: p2.id,
+        reportedAt: new Date(),
+      },
+    });
+
+    await expect(cancelMatch(p2.id, match.id)).rejects.toThrow(/decided or reported/i);
   });
 });
