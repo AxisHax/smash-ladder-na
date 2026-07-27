@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { prisma } from "@/lib/db";
-import { listDisputedGames, listLiveMatches, resolveDisputedGame } from "@/lib/disputes";
+import { listDisputedGames, listLiveMatches, requestDisputeResolution, resolveDisputedGame } from "@/lib/disputes";
 import { MatchStatus } from "@/generated/prisma/enums";
 import { createTestUser } from "@/test/factories";
 
@@ -105,6 +105,127 @@ describe("disputes", () => {
 
     const updatedMatch = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
     expect(updatedMatch.status).toBe(MatchStatus.PENDING_REPORT);
+  });
+});
+
+describe("requestDisputeResolution", () => {
+  it("records the first vote without resolving anything", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+    await createDisputedGame(match.id, p1.id, p2.id);
+
+    const result = await requestDisputeResolution(p1.id, match.id, 1, p1.id);
+    expect(result).toEqual({ resolved: false });
+
+    const game = await prisma.matchGame.findUniqueOrThrow({
+      where: { matchId_gameNumber: { matchId: match.id, gameNumber: 1 } },
+    });
+    expect(game.winnerId).toBeNull();
+    expect(game.disputeResolutionWinnerId).toBe(p1.id);
+    expect(game.disputeResolutionById).toBe(p1.id);
+  });
+
+  it("resolves the game immediately once both sides agree", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+    await createDisputedGame(match.id, p1.id, p2.id);
+
+    await requestDisputeResolution(p1.id, match.id, 1, p1.id);
+    const result = await requestDisputeResolution(p2.id, match.id, 1, p1.id);
+
+    expect(result.resolved).toBe(true);
+    const game = await prisma.matchGame.findUniqueOrThrow({
+      where: { matchId_gameNumber: { matchId: match.id, gameNumber: 1 } },
+    });
+    expect(game.winnerId).toBe(p1.id);
+    expect(await listDisputedGames()).toHaveLength(0);
+  });
+
+  it("confirms the match and applies Elo when the resolved game decides the set", async () => {
+    const p1 = await createTestUser({ rating: 1500 });
+    const p2 = await createTestUser({ rating: 1500 });
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+    await createDecidedGame(match.id, 1, p1.id, p2.id);
+    await createDecidedGame(match.id, 2, p1.id, p2.id);
+    await createDisputedGame(match.id, p1.id, p2.id, 3);
+
+    await requestDisputeResolution(p1.id, match.id, 3, p1.id);
+    await requestDisputeResolution(p2.id, match.id, 3, p1.id);
+
+    const updatedMatch = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(updatedMatch.status).toBe(MatchStatus.CONFIRMED);
+    expect(updatedMatch.confirmationMethod).toBe("MUTUALLY_RESOLVED");
+  });
+
+  it("resets both votes when the second vote disagrees, leaving it disputed", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+    await createDisputedGame(match.id, p1.id, p2.id);
+
+    await requestDisputeResolution(p1.id, match.id, 1, p1.id);
+    const result = await requestDisputeResolution(p2.id, match.id, 1, p2.id);
+
+    expect(result).toEqual({ resolved: false, stillDisputed: true });
+    const game = await prisma.matchGame.findUniqueOrThrow({
+      where: { matchId_gameNumber: { matchId: match.id, gameNumber: 1 } },
+    });
+    expect(game.winnerId).toBeNull();
+    expect(game.disputeResolutionWinnerId).toBeNull();
+    expect(game.disputeResolutionById).toBeNull();
+    expect(await listDisputedGames()).toHaveLength(1);
+  });
+
+  it("lets the same player revise their own pending vote", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+    await createDisputedGame(match.id, p1.id, p2.id);
+
+    await requestDisputeResolution(p1.id, match.id, 1, p1.id);
+    await requestDisputeResolution(p1.id, match.id, 1, p2.id);
+
+    const game = await prisma.matchGame.findUniqueOrThrow({
+      where: { matchId_gameNumber: { matchId: match.id, gameNumber: 1 } },
+    });
+    expect(game.disputeResolutionWinnerId).toBe(p2.id);
+  });
+
+  it("rejects a non-participant", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const outsider = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+    await createDisputedGame(match.id, p1.id, p2.id);
+
+    await expect(requestDisputeResolution(outsider.id, match.id, 1, p1.id)).rejects.toThrow(
+      /not a participant/i,
+    );
+  });
+
+  it("rejects a game that isn't actually disputed", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+    await createDecidedGame(match.id, 1, p1.id, p2.id);
+
+    await expect(requestDisputeResolution(p1.id, match.id, 1, p2.id)).rejects.toThrow(/already decided/i);
   });
 });
 

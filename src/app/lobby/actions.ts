@@ -23,6 +23,7 @@ import {
 } from "@/lib/match-games";
 import { postMatchComment } from "@/lib/match-comments";
 import { cancelMatch } from "@/lib/matches";
+import { requestDisputeResolution } from "@/lib/disputes";
 import { fileConnectionReport, fileMatchReport } from "@/lib/reports";
 import { reportOpponentCharacter } from "@/lib/character-stats";
 import { prisma } from "@/lib/db";
@@ -143,6 +144,38 @@ export async function reportGame(matchId: string, gameNumber: number, won: boole
   await requireNotBanned(userId); // must still be able to close out ranked matches at Level-1
   await reportGameResult(userId, matchId, gameNumber, won);
   revalidatePath("/lobby");
+}
+
+export type DisputeResolutionState = { error: string | null; message: string | null };
+
+// (matchId, gameNumber, prevState, formData) shape so useActionState can
+// drive it — a plain thrown error (e.g. the other side already reset the
+// vote) would otherwise crash to Next's generic error overlay instead of
+// showing an inline message.
+export async function requestDisputeResolutionAction(
+  matchId: string,
+  gameNumber: number,
+  _prevState: DisputeResolutionState,
+  formData: FormData,
+): Promise<DisputeResolutionState> {
+  const userId = await requireUserId();
+  const winnerId = String(formData.get("winnerId") ?? "");
+  try {
+    const result = await requestDisputeResolution(userId, matchId, gameNumber, winnerId);
+    revalidatePath("/lobby");
+    if (result.resolved) {
+      return { error: null, message: "You both agreed — the game is resolved." };
+    }
+    if (result.stillDisputed) {
+      return {
+        error: null,
+        message: "That doesn't match what your opponent picked — still waiting on a mod.",
+      };
+    }
+    return { error: null, message: "Submitted — waiting for your opponent to agree." };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Something went wrong — try again.", message: null };
+  }
 }
 
 export async function sendMatchComment(matchId: string, body: string) {

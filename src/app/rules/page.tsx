@@ -70,8 +70,11 @@ export default function RulesPage() {
         <Section title="Reporting results">
           <p>
             Both players report the winner after the set. Matching reports confirm the result
-            immediately. If reports disagree, the match is flagged as disputed for a mod to
-            resolve.
+            immediately. If reports on a single game disagree, that game is flagged as disputed —
+            the rest of the set isn&apos;t blocked while it waits. Either player can then agree with
+            their opponent on who actually won straight from the Lobby, which resolves it
+            immediately without a mod; if you still don&apos;t agree, it stays queued for one to
+            rule on.
           </p>
           <p>
             If only one player reports and the other never responds, the lone report is accepted

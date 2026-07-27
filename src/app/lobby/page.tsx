@@ -29,6 +29,7 @@ import { JoinLobbyForm } from "@/components/join-lobby-button";
 import { CancelMatchButton } from "@/components/cancel-match-button";
 import { VictoryCelebration } from "@/components/victory-celebration";
 import { ReportCharacterForm } from "@/components/report-character-form";
+import { DisputeResolutionForm } from "@/components/dispute-resolution-form";
 import { MatchSettingsForm, type MatchSettingsState } from "@/components/match-settings-form";
 import {
   beginFirstGame,
@@ -41,6 +42,7 @@ import {
   reportConnection,
   reportGame,
   reportOpponentCharacterAction,
+  requestDisputeResolutionAction,
   sendMatchComment,
   strikeStage,
   submitRoomCode,
@@ -443,6 +445,12 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
             ⚠️ Game {g.gameNumber}&apos;s result is disputed and awaiting mod review — this
             doesn&apos;t block the rest of the set.
           </p>
+          <DisputeResolutionForm
+            action={requestDisputeResolutionAction.bind(null, match.id, g.gameNumber)}
+            myId={userId}
+            opponentId={opponent.id}
+            opponentUsername={opponent.username}
+          />
         </CardContent>
       ))}
 
