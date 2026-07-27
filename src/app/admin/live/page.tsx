@@ -5,7 +5,8 @@ import { listMatchCommentsAsMod } from "@/lib/match-comments";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { postLiveMatchComment } from "./actions";
+import { ForceConfirmMatchForm } from "@/components/force-confirm-match-form";
+import { forceConfirmMatchAction, postLiveMatchComment } from "./actions";
 
 export default async function LiveMatchesPage() {
   const session = await auth();
@@ -32,7 +33,9 @@ export default async function LiveMatchesPage() {
         <h1 className="text-2xl font-semibold tracking-tight">Live matches</h1>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
-        Sets currently being played. This page doesn&apos;t auto-refresh — reload to see updates.
+        Sets currently being played, plus recently-expired ones nobody reported — use &quot;Force
+        result&quot; to close out a set stuck with no report from either side. This page
+        doesn&apos;t auto-refresh — reload to see updates.
       </p>
 
       {matches.length === 0 && (
@@ -58,7 +61,11 @@ export default async function LiveMatchesPage() {
                       <Badge variant="outline" className="tabular-nums">
                         {wins.p1}-{wins.p2}
                       </Badge>
-                      <Badge variant={match.status === "DISPUTED" ? "warning" : "outline"}>
+                      <Badge
+                        variant={
+                          match.status === "DISPUTED" || match.status === "EXPIRED" ? "warning" : "outline"
+                        }
+                      >
                         {match.status.toLowerCase()}
                       </Badge>
                     </div>
@@ -66,6 +73,13 @@ export default async function LiveMatchesPage() {
                   {match.roomCode && (
                     <p className="mt-1 text-xs text-muted-foreground">Room code: {match.roomCode}</p>
                   )}
+
+                  <ForceConfirmMatchForm
+                    player1Username={match.player1.username}
+                    player2Username={match.player2.username}
+                    actionForPlayer1={forceConfirmMatchAction.bind(null, match.id, match.player1.id)}
+                    actionForPlayer2={forceConfirmMatchAction.bind(null, match.id, match.player2.id)}
+                  />
 
                   <details className="mt-3 text-xs">
                     <summary className="cursor-pointer text-muted-foreground hover:text-foreground">

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { prisma } from "@/lib/db";
 import {
+  adminForceConfirmMatch,
   adminOverrideMatchResult,
   applyEloAndConfirm,
   cancelMatch,
@@ -316,5 +317,64 @@ describe("cancelMatch", () => {
     });
 
     await expect(cancelMatch(p2.id, match.id)).rejects.toThrow(/decided or reported/i);
+  });
+});
+
+describe("adminForceConfirmMatch", () => {
+  it("closes out a match with no game data at all and applies Elo", async () => {
+    const p1 = await createTestUser({ rating: 1500 });
+    const p2 = await createTestUser({ rating: 1500 });
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+
+    await adminForceConfirmMatch(match.id, p1.id);
+
+    const updated = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(updated.status).toBe(MatchStatus.CONFIRMED);
+    expect(updated.confirmationMethod).toBe(ConfirmationMethod.ADMIN_RESOLVED);
+    expect(updated.player1RatingAfter).toBeGreaterThan(updated.player1RatingBefore!);
+  });
+
+  it("closes out a match that already expired with no report from either side", async () => {
+    const p1 = await createTestUser({ rating: 1500 });
+    const p2 = await createTestUser({ rating: 1500 });
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.EXPIRED, expiresAt: new Date() },
+    });
+
+    await adminForceConfirmMatch(match.id, p2.id);
+
+    const updated = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(updated.status).toBe(MatchStatus.CONFIRMED);
+  });
+
+  it("rejects a match that's already confirmed", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createConfirmedMatch(p1.id, p2.id);
+
+    await expect(adminForceConfirmMatch(match.id, p2.id)).rejects.toThrow(/already closed out/i);
+  });
+
+  it("rejects a cancelled match", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.CANCELLED, expiresAt: new Date() },
+    });
+
+    await expect(adminForceConfirmMatch(match.id, p1.id)).rejects.toThrow(/already closed out/i);
+  });
+
+  it("rejects a winnerId that isn't one of the two players", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const outsider = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+
+    await expect(adminForceConfirmMatch(match.id, outsider.id)).rejects.toThrow(/one of the two players/i);
   });
 });

@@ -351,6 +351,28 @@ export async function adminOverrideMatchResult(matchId: string, winnerId: string
   });
 }
 
+// Escape hatch for the common "purgatory" case: a set actually finished but
+// nobody ever clicked through the site's per-game report flow (or only one
+// side did and the other ghosted entirely), so no "hanging report" exists
+// for the 24h cron to auto-confirm — the match just sits there, or expires
+// with no rating impact for either side. A mod can pick the winner directly
+// and close it out, independent of whatever (if any) game data exists.
+// Deliberately doesn't touch MatchGame rows — this is about the set result,
+// not reconstructing exactly how each game went.
+export async function adminForceConfirmMatch(matchId: string, winnerId: string) {
+  await prisma.$transaction(async (tx) => {
+    const match = await tx.ratingMatch.findUnique({ where: { id: matchId } });
+    if (!match) throw new Error("Match not found");
+    if (match.status === MatchStatus.CONFIRMED || match.status === MatchStatus.CANCELLED) {
+      throw new Error("This match is already closed out");
+    }
+    if (winnerId !== match.player1Id && winnerId !== match.player2Id) {
+      throw new Error("Winner must be one of the two players");
+    }
+    await applyEloAndConfirm(tx, match, winnerId, ConfirmationMethod.ADMIN_RESOLVED, null);
+  });
+}
+
 export async function listDisputedCorrections() {
   return prisma.ratingMatch.findMany({
     where: { correctionDisputed: true },

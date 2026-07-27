@@ -243,4 +243,36 @@ describe("listLiveMatches", () => {
     const results = await listLiveMatches();
     expect(results.map((m) => m.id)).toEqual([live.id]);
   });
+
+  it("includes a recently-expired match nobody reported, so a mod can force-confirm it", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const recentlyExpired = await prisma.ratingMatch.create({
+      data: {
+        player1Id: p1.id,
+        player2Id: p2.id,
+        status: MatchStatus.EXPIRED,
+        expiresAt: new Date(Date.now() - 60 * 60 * 1000), // 1 hour ago
+      },
+    });
+
+    const results = await listLiveMatches();
+    expect(results.map((m) => m.id)).toContain(recentlyExpired.id);
+  });
+
+  it("excludes an expired match outside the recent window", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    await prisma.ratingMatch.create({
+      data: {
+        player1Id: p1.id,
+        player2Id: p2.id,
+        status: MatchStatus.EXPIRED,
+        expiresAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
+      },
+    });
+
+    const results = await listLiveMatches();
+    expect(results).toEqual([]);
+  });
 });

@@ -180,9 +180,25 @@ export async function requestDisputeResolution(
 // Matches actively being played right now — not yet CONFIRMED/CANCELLED/
 // EXPIRED — for the mod-facing "Live matches" view. REPORTED is legacy
 // (nothing writes it anymore) but old rows can still carry it.
+const RECENTLY_EXPIRED_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+// Includes recently-EXPIRED matches too (not just still-in-progress ones):
+// if nobody ever clicked through the per-game report flow, the 24h cron
+// just expires the match with no rating impact for either side, leaving
+// the actual winner stuck with nothing — a mod needs to be able to find
+// and force-confirm those, not just ones still technically "live". Capped
+// to a recent window so this doesn't accumulate ancient history forever.
 export async function listLiveMatches() {
   return prisma.ratingMatch.findMany({
-    where: { status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED, MatchStatus.DISPUTED] } },
+    where: {
+      OR: [
+        { status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED, MatchStatus.DISPUTED] } },
+        {
+          status: MatchStatus.EXPIRED,
+          expiresAt: { gt: new Date(Date.now() - RECENTLY_EXPIRED_WINDOW_MS) },
+        },
+      ],
+    },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
