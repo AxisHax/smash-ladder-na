@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { UserStatus } from "@/generated/prisma/enums";
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
 
 export interface LeaderboardFilters {
@@ -15,6 +16,10 @@ export async function getLeaderboardPlayers(
 ) {
   const where = {
     gamesPlayed: { gte: LEADERBOARD_MIN_GAMES },
+    // A banned account (e.g. one of JerBear's disposable alts, which show up
+    // as "Deleted User") still has its old rating on record, but it has no
+    // business showing up on the public leaderboard anymore.
+    status: { not: UserStatus.BANNED },
     ...(filters.character ? { mainCharacter: filters.character } : {}),
     ...(filters.query ? { username: { contains: filters.query, mode: "insensitive" as const } } : {}),
     ...(filters.region ? { region: filters.region } : {}),

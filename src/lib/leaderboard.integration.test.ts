@@ -37,4 +37,14 @@ describe("getLeaderboardPlayers", () => {
     const { totalCount } = await getLeaderboardPlayers({});
     expect(totalCount).toBeGreaterThanOrEqual(2);
   });
+
+  it("excludes banned accounts", async () => {
+    const target = await createTestUser({ gamesPlayed: 5, username: `NotBanned${Date.now()}` });
+    const banned = await createTestUser({ gamesPlayed: 5, status: "BANNED", username: "Deleted User" });
+
+    const { players } = await getLeaderboardPlayers({});
+    const ids = players.map((p) => p.id);
+    expect(ids).toContain(target.id);
+    expect(ids).not.toContain(banned.id);
+  });
 });
