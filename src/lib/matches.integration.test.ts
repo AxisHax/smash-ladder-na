@@ -107,6 +107,71 @@ describe("applyEloAndConfirm", () => {
     expect(winnerGain).toBeGreaterThan(loserLoss);
   });
 
+  it("updates practiceRating instead of rating for a practicing side, and never touches the opponent's main rating twice", async () => {
+    const practicing = await createTestUser({ rating: 1500, gamesPlayed: 20, practiceRating: 1400, practiceGamesPlayed: 3 });
+    const normal = await createTestUser({ rating: 1500, gamesPlayed: 20 });
+    const match = await prisma.ratingMatch.create({
+      data: {
+        player1Id: practicing.id,
+        player2Id: normal.id,
+        status: MatchStatus.PENDING_REPORT,
+        expiresAt: new Date(),
+        player1IsPracticing: true,
+      },
+    });
+
+    await prisma.$transaction((tx) =>
+      applyEloAndConfirm(tx, match, practicing.id, ConfirmationMethod.SELF_CONFIRMED, {
+        winnerId: practicing.id,
+        reporterId: practicing.id,
+      }),
+    );
+
+    const updatedMatch = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(updatedMatch.player1RatingBefore).toBe(1400); // practiceRating, not rating
+
+    const [updatedPracticing, updatedNormal] = await Promise.all([
+      prisma.user.findUniqueOrThrow({ where: { id: practicing.id } }),
+      prisma.user.findUniqueOrThrow({ where: { id: normal.id } }),
+    ]);
+    expect(updatedPracticing.rating).toBe(1500); // untouched
+    expect(updatedPracticing.gamesPlayed).toBe(20); // untouched
+    expect(updatedPracticing.practiceRating).toBe(updatedMatch.player1RatingAfter);
+    expect(updatedPracticing.practiceGamesPlayed).toBe(4);
+    expect(updatedNormal.rating).toBe(updatedMatch.player2RatingAfter);
+    expect(updatedNormal.gamesPlayed).toBe(21);
+
+    // Only the non-practicing side gets a RatingHistory row — that table
+    // backs the main rating-over-time chart, which a practice result has no
+    // business appearing in.
+    const history = await prisma.ratingHistory.findMany({ where: { matchId: match.id } });
+    expect(history).toHaveLength(1);
+    expect(history[0].userId).toBe(normal.id);
+  });
+
+  it("doesn't alert mods for self-boost signals when either side is practicing", async () => {
+    vi.mocked(sendDiscordDM).mockClear();
+    await createTestUser({ role: "MOD" });
+    const p1 = await createTestUser({ lastKnownIp: "9.9.9.9" });
+    const p2 = await createTestUser({ lastKnownIp: "9.9.9.9" }); // same IP — would normally trigger
+    const match = await prisma.ratingMatch.create({
+      data: {
+        player1Id: p1.id,
+        player2Id: p2.id,
+        status: MatchStatus.PENDING_REPORT,
+        expiresAt: new Date(),
+        player1IsPracticing: true,
+      },
+    });
+
+    await prisma.$transaction((tx) =>
+      applyEloAndConfirm(tx, match, p1.id, ConfirmationMethod.SELF_CONFIRMED, { winnerId: p1.id, reporterId: p1.id }),
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(sendDiscordDM).not.toHaveBeenCalled();
+  });
+
   it("alerts mods when both accounts share a last-known IP", async () => {
     vi.mocked(sendDiscordDM).mockClear();
     const mod = await createTestUser({ role: "MOD" });
