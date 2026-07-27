@@ -35,7 +35,16 @@ export function RatingChart({ points }: { points: Point[] }) {
   const plotW = WIDTH - PAD_X * 2;
   const plotH = HEIGHT - PAD_TOP - PAD_BOTTOM;
 
-  const x = (i: number) => PAD_X + (i / (points.length - 1)) * plotW;
+  // Positioned by real elapsed time, not by index — so a burst of same-day
+  // matches clusters together instead of spreading evenly across the chart.
+  // Points sharing a calendar day are pre-condensed by condenseByDay, so a
+  // degenerate all-same-timestamp case can't reach here once length >= 2.
+  const times = points.map((p) => new Date(p.date).getTime());
+  const minTime = times[0];
+  const maxTime = times[times.length - 1];
+  const timeSpan = Math.max(maxTime - minTime, 1);
+
+  const x = (i: number) => PAD_X + ((times[i] - minTime) / timeSpan) * plotW;
   const y = (rating: number) => PAD_TOP + (1 - (rating - yMin) / (yMax - yMin)) * plotH;
 
   const linePath = points.map((p, i) => `${i === 0 ? "M" : "L"}${x(i)},${y(p.rating)}`).join(" ");
@@ -47,8 +56,18 @@ export function RatingChart({ points }: { points: Point[] }) {
   function handleMove(e: React.MouseEvent<SVGSVGElement>) {
     const rect = e.currentTarget.getBoundingClientRect();
     const relX = ((e.clientX - rect.left) / rect.width) * WIDTH;
-    const ratio = Math.min(1, Math.max(0, (relX - PAD_X) / plotW));
-    setHoverIndex(Math.round(ratio * (points.length - 1)));
+    // Points aren't evenly spaced (x reflects real elapsed time), so find
+    // the nearest one by position rather than inferring an index by ratio.
+    let nearest = 0;
+    let nearestDist = Infinity;
+    for (let i = 0; i < points.length; i++) {
+      const dist = Math.abs(x(i) - relX);
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearest = i;
+      }
+    }
+    setHoverIndex(nearest);
   }
 
   return (

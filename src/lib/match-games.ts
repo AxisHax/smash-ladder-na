@@ -32,6 +32,26 @@ export const STRIKE_TIMEOUT_MS = 60 * 1000;
 // for a live in-session timer): checked on every read, same idea as
 // liftExpiredSuspension in account.ts. Picks a uniformly random stage from
 // whatever's left rather than favoring either side.
+// Auto-resolving a stale strike/pick used to skip straight to the stage
+// logic, bypassing the hasLockedOwnCharacter gate that strikeGameStage/
+// pickGameStage enforce on the manual path — a player could just stall out
+// every one of their turns and never lock a character, leaving actorA/
+// BCharacter permanently null on a game that still gets won and confirmed.
+// Backfilling a random character here before acting keeps the two in sync
+// no matter which path (manual or timed-out) resolves the turn.
+async function autoLockStaleCharacter(
+  game: { id: string; actorAId: string; actorACharacter: string | null; actorBCharacter: string | null },
+  actorId: string,
+) {
+  if (hasLockedOwnCharacter(game, actorId)) return;
+  const character = SMASH_CHARACTERS[Math.floor(Math.random() * SMASH_CHARACTERS.length)];
+  const isActorA = actorId === game.actorAId;
+  await prisma.matchGame.updateMany({
+    where: { id: game.id, ...(isActorA ? { actorACharacter: null } : { actorBCharacter: null }) },
+    data: isActorA ? { actorACharacter: character } : { actorBCharacter: character },
+  });
+}
+
 async function autoResolveStaleTurn(matchId: string) {
   const game = await prisma.matchGame.findFirst({
     where: { matchId, winnerId: null, finalStage: null },
@@ -42,6 +62,7 @@ async function autoResolveStaleTurn(matchId: string) {
 
   const striker = actorForStrike(game);
   if (striker) {
+    await autoLockStaleCharacter(game, striker);
     const stage = game.stagesRemaining[Math.floor(Math.random() * game.stagesRemaining.length)];
     if (!stage) return;
     await prisma.matchGame.updateMany({
@@ -55,6 +76,7 @@ async function autoResolveStaleTurn(matchId: string) {
     return;
   }
 
+  await autoLockStaleCharacter(game, picker(game));
   const stage = game.stagesRemaining[Math.floor(Math.random() * game.stagesRemaining.length)];
   if (!stage) return;
   await prisma.matchGame.updateMany({ where: { id: game.id, finalStage: null }, data: { finalStage: stage } });
