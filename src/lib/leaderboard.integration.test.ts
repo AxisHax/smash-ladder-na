@@ -47,4 +47,17 @@ describe("getLeaderboardPlayers", () => {
     expect(ids).toContain(target.id);
     expect(ids).not.toContain(banned.id);
   });
+
+  it("matches a secondary character, not just mainCharacter", async () => {
+    const target = await createTestUser({
+      gamesPlayed: 5,
+      mainCharacter: "Inkling",
+      secondaryCharacters: ["Cloud"],
+      username: `Secondary${Date.now()}`,
+    });
+
+    const { players, totalCount } = await getLeaderboardPlayers({ character: "Cloud" });
+    expect(totalCount).toBe(1);
+    expect(players[0].id).toBe(target.id);
+  });
 });

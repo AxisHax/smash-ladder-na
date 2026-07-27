@@ -20,7 +20,12 @@ export async function getLeaderboardPlayers(
     // as "Deleted User") still has its old rating on record, but it has no
     // business showing up on the public leaderboard anymore.
     status: { not: UserStatus.BANNED },
-    ...(filters.character ? { mainCharacter: filters.character } : {}),
+    // Matches either the peer-reported main character or any accumulated
+    // secondary — otherwise a player who mains two characters only ever
+    // shows up under whichever one an opponent happened to report first.
+    ...(filters.character
+      ? { OR: [{ mainCharacter: filters.character }, { secondaryCharacters: { has: filters.character } }] }
+      : {}),
     ...(filters.query ? { username: { contains: filters.query, mode: "insensitive" as const } } : {}),
     ...(filters.region ? { region: filters.region } : {}),
   };
@@ -29,7 +34,14 @@ export async function getLeaderboardPlayers(
     prisma.user.findMany({
       where,
       orderBy: { rating: "desc" },
-      select: { id: true, username: true, rating: true, gamesPlayed: true, mainCharacter: true },
+      select: {
+        id: true,
+        username: true,
+        rating: true,
+        gamesPlayed: true,
+        mainCharacter: true,
+        secondaryCharacters: true,
+      },
       skip: pagination.skip,
       take: pagination.take,
     }),
