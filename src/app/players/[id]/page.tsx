@@ -17,6 +17,7 @@ import { CharacterIcon } from "@/components/character-icon";
 import { CharacterUsageCard } from "@/components/character-usage-card";
 import { RankBadge } from "@/components/rank-badge";
 import { RatingChart } from "@/components/rating-chart";
+import { LocalTime } from "@/components/local-time";
 import { DeleteAccountButton } from "@/components/delete-account-button";
 import { BlockUserButton } from "@/components/block-user-button";
 import { RequestCorrectionForm } from "@/components/request-correction-form";
@@ -281,15 +282,7 @@ export default async function PlayerProfilePage({
                 </div>
                 <div className="mt-0.5 flex items-center justify-between text-xs text-muted-foreground">
                   <span>{match.characters.length > 0 ? match.characters.join(", ") : "—"}</span>
-                  {match.confirmedAt && (
-                    <span>
-                      {match.confirmedAt.toLocaleString("en-US", {
-                        timeZone: "UTC",
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                      })}
-                    </span>
-                  )}
+                  {match.confirmedAt && <LocalTime iso={match.confirmedAt.toISOString()} />}
                 </div>
                 {isOwnProfile && i === 0 && (
                   <RequestCorrectionForm
