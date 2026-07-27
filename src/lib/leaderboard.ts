@@ -16,17 +16,26 @@ export async function getLeaderboardPlayers(
 ) {
   const where = {
     gamesPlayed: { gte: LEADERBOARD_MIN_GAMES },
-    // A banned account (e.g. one of JerBear's disposable alts, which show up
-    // as "Deleted User") still has its old rating on record, but it has no
+    // A banned account still has its old rating on record, but it has no
     // business showing up on the public leaderboard anymore.
     status: { not: UserStatus.BANNED },
+    // Discord username shows as this literal string once someone deletes
+    // their Discord account — happens independently of any ban, so an
+    // otherwise-ACTIVE account can still be stuck showing this. Nothing
+    // useful to link to at that point either way. Combined into one filter
+    // object with the search query below — a second `username` key here
+    // would just silently clobber this exclusion whenever a search term is
+    // also present, since object spread overwrites same-name keys.
+    username: {
+      not: "Deleted User",
+      ...(filters.query ? { contains: filters.query, mode: "insensitive" as const } : {}),
+    },
     // Matches either the peer-reported main character or any accumulated
     // secondary — otherwise a player who mains two characters only ever
     // shows up under whichever one an opponent happened to report first.
     ...(filters.character
       ? { OR: [{ mainCharacter: filters.character }, { secondaryCharacters: { has: filters.character } }] }
       : {}),
-    ...(filters.query ? { username: { contains: filters.query, mode: "insensitive" as const } } : {}),
     ...(filters.region ? { region: filters.region } : {}),
   };
   const [totalCount, players] = await Promise.all([

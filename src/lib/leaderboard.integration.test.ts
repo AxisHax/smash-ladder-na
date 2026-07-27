@@ -60,4 +60,24 @@ describe("getLeaderboardPlayers", () => {
     expect(totalCount).toBe(1);
     expect(players[0].id).toBe(target.id);
   });
+
+  it("excludes an ACTIVE account still named 'Deleted User' (Discord self-deletion, not a ban)", async () => {
+    const target = await createTestUser({ gamesPlayed: 5, username: `StillActive${Date.now()}` });
+    const selfDeleted = await createTestUser({ gamesPlayed: 5, status: "ACTIVE", username: "Deleted User" });
+
+    const { players } = await getLeaderboardPlayers({});
+    const ids = players.map((p) => p.id);
+    expect(ids).toContain(target.id);
+    expect(ids).not.toContain(selfDeleted.id);
+  });
+
+  it("still excludes 'Deleted User' when combined with a search query", async () => {
+    await createTestUser({ gamesPlayed: 5, username: "Deleted User" });
+    const target = await createTestUser({ gamesPlayed: 5, username: `DeletedSomething${Date.now()}` });
+
+    const { players } = await getLeaderboardPlayers({ query: "Deleted" });
+    const ids = players.map((p) => p.id);
+    expect(ids).toContain(target.id);
+    expect(players.every((p) => p.username !== "Deleted User")).toBe(true);
+  });
 });
