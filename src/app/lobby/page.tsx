@@ -7,9 +7,11 @@ import { getActiveLobbyEntry, getLobbyActivityStats } from "@/lib/lobby";
 import { getTopCharacters } from "@/lib/players";
 import {
   STRIKE_TIMEOUT_MS,
+  CHARACTER_PICK_TIMEOUT_MS,
   characterPickState,
   getMatchGames,
   gameTurnState,
+  hasLockedOwnCharacter,
   secondsUntil,
 } from "@/lib/match-games";
 import { listMatchComments } from "@/lib/match-comments";
@@ -610,7 +612,12 @@ function GameSection({
       ? `${verb} ${remainingStrikes} stage${remainingStrikes === 1 ? "" : "s"}`
       : `${verb} a stage`;
 
-  const secondsLeft = secondsUntil(new Date(current.turnStartedAt.getTime() + STRIKE_TIMEOUT_MS));
+  // Whoever's turn it is gets the longer character-pick grace period until
+  // they've actually locked one in — showing the 60s stage-strike deadline
+  // here too would misleadingly read as "0s left" while they still have
+  // real time to decide their character.
+  const actingTimeoutMs = hasLockedOwnCharacter(current, turn.actorId!) ? STRIKE_TIMEOUT_MS : CHARACTER_PICK_TIMEOUT_MS;
+  const secondsLeft = secondsUntil(new Date(current.turnStartedAt.getTime() + actingTimeoutMs));
 
   const lastStrikeIndex = current.struckStages.length - 1;
   const canUndoLastStrike =
