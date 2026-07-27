@@ -8,6 +8,7 @@ import {
   pickGameCharacter,
   getCurrentGame,
   getMatchGames,
+  reportGameResult,
   CHARACTER_TIMEOUT_MS,
 } from "@/lib/match-games";
 import { GAME_ONE_STAGES } from "@/lib/stages";
@@ -187,5 +188,58 @@ describe("character lock-in gates stage striking", () => {
       where: { matchId_gameNumber: { matchId: match.id, gameNumber: 2 } },
     });
     expect(updated?.finalStage).toBe("Final Destination");
+  });
+});
+
+describe("progressSet tolerates an already-existing next game", () => {
+  // Reproduces a real incident: a mod clearing an earlier game's winner via
+  // adminSetGameWinner (e.g. to let a disputed game replay) doesn't delete
+  // whatever later game already got created off the old outcome. Deciding
+  // that earlier game again then used to crash on the [matchId, gameNumber]
+  // unique constraint when trying to recreate the next game — this locked a
+  // player out of ever confirming their own win.
+  it("doesn't crash confirming a game when the next one already exists", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 1,
+        actorAId: p1.id,
+        actorAStrikes: 1,
+        actorBId: p2.id,
+        actorBStrikes: 2,
+        finalStage: "Battlefield",
+        reportedWinnerId: p1.id,
+        reportedById: p1.id,
+        reportedAt: new Date(),
+      },
+    });
+    // Simulates the orphaned state: game 2 already exists even though game 1
+    // was never actually decided (winnerId still null).
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 2,
+        actorAId: p1.id,
+        actorAStrikes: 3,
+        actorBId: p2.id,
+        actorBStrikes: 0,
+        stagesRemaining: ["Final Destination"],
+      },
+    });
+
+    await expect(reportGameResult(p2.id, match.id, 1, false)).resolves.not.toThrow();
+
+    const game1 = await prisma.matchGame.findUnique({
+      where: { matchId_gameNumber: { matchId: match.id, gameNumber: 1 } },
+    });
+    expect(game1?.winnerId).toBe(p1.id);
+
+    const game2 = await prisma.matchGame.findUnique({
+      where: { matchId_gameNumber: { matchId: match.id, gameNumber: 2 } },
+    });
+    expect(game2).not.toBeNull(); // untouched, not duplicated or errored on
   });
 });
