@@ -5,8 +5,11 @@ vi.mock("@/generated/prisma/enums", () => ({ UserStatus: {} }));
 
 import {
   isWiredClaimUntrustworthy,
+  isWiredClaimDisputedByOpponents,
   WIRED_TRUST_MIN_CANCELS,
   WIRED_TRUST_MAX_CANCEL_RATIO,
+  WIRED_TRUST_MIN_CONNECTION_REPORTS,
+  WIRED_TRUST_MAX_CONNECTION_REPORT_RATIO,
 } from "./account";
 
 describe("isWiredClaimUntrustworthy", () => {
@@ -51,5 +54,40 @@ describe("trust constants", () => {
 
   it("max cancel ratio is 0.25", () => {
     expect(WIRED_TRUST_MAX_CANCEL_RATIO).toBe(0.25);
+  });
+});
+
+describe("isWiredClaimDisputedByOpponents", () => {
+  it("trusts players below the minimum report count", () => {
+    expect(isWiredClaimDisputedByOpponents(0, 0)).toBe(false);
+    expect(isWiredClaimDisputedByOpponents(2, 0)).toBe(false);
+    expect(isWiredClaimDisputedByOpponents(WIRED_TRUST_MIN_CONNECTION_REPORTS - 1, 0)).toBe(false);
+  });
+
+  it("flags players at the min report count with a high ratio", () => {
+    expect(isWiredClaimDisputedByOpponents(3, 0)).toBe(true);
+  });
+
+  it("trusts players at the min report count with enough games", () => {
+    expect(isWiredClaimDisputedByOpponents(3, 20)).toBe(false);
+  });
+
+  it("flags exactly past the boundary ratio", () => {
+    expect(isWiredClaimDisputedByOpponents(3, 9)).toBe(false);
+    expect(isWiredClaimDisputedByOpponents(3, 8)).toBe(true);
+  });
+
+  it("trusts long-time players with a handful of reports", () => {
+    expect(isWiredClaimDisputedByOpponents(5, 200)).toBe(false);
+  });
+});
+
+describe("connection report trust constants", () => {
+  it("min reports is 3", () => {
+    expect(WIRED_TRUST_MIN_CONNECTION_REPORTS).toBe(3);
+  });
+
+  it("max report ratio is 0.25", () => {
+    expect(WIRED_TRUST_MAX_CONNECTION_REPORT_RATIO).toBe(0.25);
   });
 });

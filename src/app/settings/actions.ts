@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { setAvoidPracticeOpponents, setRematchCooldown, setUsername } from "@/lib/account";
 import { setArenaPassword } from "@/lib/arena";
+import { setOwnCharacters } from "@/lib/character-stats";
 import { disconnectStartggAccount } from "@/lib/startgg-oauth";
 
 async function requireUserId() {
@@ -51,6 +52,32 @@ export async function updateArenaPassword(
   }
   revalidatePath("/settings");
   revalidatePath("/lobby");
+  return { error: null };
+}
+
+export type OwnCharactersState = { error: string | null };
+
+// (prevState, formData) shape so useActionState can drive it — the cap and
+// main/secondary-overlap checks in setOwnCharacters throw, and a plain
+// thrown error would otherwise crash to Next's generic error overlay.
+export async function updateOwnCharacters(
+  _prevState: OwnCharactersState,
+  formData: FormData,
+): Promise<OwnCharactersState> {
+  const userId = await requireUserId();
+  const mainCharacter = String(formData.get("mainCharacter") ?? "").trim() || null;
+  const secondaryCharacters = formData
+    .getAll("secondaryCharacters")
+    .map((v) => String(v).trim())
+    .filter(Boolean);
+  try {
+    await setOwnCharacters(userId, mainCharacter, secondaryCharacters);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+  }
+  revalidatePath("/settings");
+  revalidatePath(`/players/${userId}`);
+  revalidatePath("/leaderboard");
   return { error: null };
 }
 

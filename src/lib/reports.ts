@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { ReportStatus, UserStatus } from "@/generated/prisma/enums";
+import { isWiredClaimDisputedByOpponents } from "@/lib/account";
 
 export async function fileMatchReport(
   reporterId: string,
@@ -37,6 +38,20 @@ export async function fileConnectionReport(reporterId: string, matchId: string) 
     update: {},
     create: { matchId, reporterId, reportedUserId },
   });
+
+  // A self-declared wired connection stops being credible once enough of a
+  // player's actual opponents dispute it — same reasoning as cancelMatch
+  // auto-clearing the flag once cancels pile up (see isWiredClaimUntrustworthy).
+  const reported = await prisma.user.findUnique({
+    where: { id: reportedUserId },
+    select: { wiredConnection: true, gamesPlayed: true, _count: { select: { connectionReportsReceived: true } } },
+  });
+  if (
+    reported?.wiredConnection &&
+    isWiredClaimDisputedByOpponents(reported._count.connectionReportsReceived, reported.gamesPlayed)
+  ) {
+    await prisma.user.update({ where: { id: reportedUserId }, data: { wiredConnection: false } });
+  }
 }
 
 export async function listOpenReports() {

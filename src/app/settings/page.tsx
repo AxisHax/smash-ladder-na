@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArenaPasswordForm } from "@/components/arena-password-form";
+import { OwnCharactersForm } from "@/components/own-characters-form";
 import { listBlockedUsers } from "@/lib/blocks";
 import { REMATCH_COOLDOWN_PRESETS } from "@/lib/rematch-cooldown";
 import { DEFAULT_ARENA_PASSWORD } from "@/lib/arena";
@@ -13,6 +14,7 @@ import {
   disconnectStartggAction,
   updateArenaPassword,
   updateAvoidPracticeOpponentsSetting,
+  updateOwnCharacters,
   updateRematchCooldownSetting,
   updateUsername,
 } from "./actions";
@@ -49,6 +51,9 @@ export default async function SettingsPage({
         rematchCooldownHours: true,
         arenaPassword: true,
         avoidPracticeOpponents: true,
+        mainCharacter: true,
+        secondaryCharacters: true,
+        charactersSelfDeclared: true,
       },
     }),
     listBlockedUsers(session.user.id),
@@ -87,6 +92,17 @@ export default async function SettingsPage({
       <Card className="mt-4">
         <CardContent className="pt-4">
           <AvoidPracticeOpponentsForm defaultValue={me?.avoidPracticeOpponents ?? false} />
+        </CardContent>
+      </Card>
+
+      <Card className="mt-4">
+        <CardContent className="pt-4">
+          <OwnCharactersForm
+            action={updateOwnCharacters}
+            defaultMainCharacter={me?.mainCharacter ?? ""}
+            defaultSecondaryCharacters={me?.secondaryCharacters ?? []}
+            selfDeclared={me?.charactersSelfDeclared ?? false}
+          />
         </CardContent>
       </Card>
 

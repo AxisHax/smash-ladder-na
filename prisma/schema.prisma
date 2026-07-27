@@ -141,8 +141,9 @@ model User {
   misconductScore      Int        @default(0) // bumped only when a mod actions a ConductReport, not on filing
   suspendedUntil       DateTime? // set only for a timed SUSPENDED; null means indefinite (or n/a if not suspended). Past-due is lazily lifted back to ACTIVE on next access.
   lastKnownIp          String? // captured from x-forwarded-for at sign-in — lets a mod banning an account also ban the IP it was last seen using (see BannedIp)
-  mainCharacter        String? // peer-reported (not self-declared — see reportOpponentCharacter), first character an opponent ever reported; drives the character leaderboard filter
-  secondaryCharacters  String[]   @default([]) // peer-reported characters seen since, distinct from mainCharacter — same anti-gaming rationale, just accumulated instead of overwritten
+  mainCharacter        String? // peer-reported by default (see reportOpponentCharacter), but a player can self-declare via setOwnCharacters — once they do, charactersSelfDeclared locks out further peer reports for this profile
+  secondaryCharacters  String[]   @default([]) // same source as mainCharacter — peer-reported (accumulated) until self-declared, then player-controlled
+  charactersSelfDeclared Boolean  @default(false) // once true, reportOpponentCharacter no-ops — players complained peer reports kept landing on the wrong main, so self-declaration (once made) is authoritative
   region               String? // self-declared match region; drives distance-based matchmaking
   maxMatchDistanceKm   Int?       @default(5000) // self-declared match radius; null means worldwide. Matching requires BOTH sides' radius to cover the actual distance.
   maxRatingGap         Int? // self-declared rating-gap tolerance; null means any rating (the default, to not shrink an already-small pool). Matching requires BOTH sides' gap to cover the actual difference.

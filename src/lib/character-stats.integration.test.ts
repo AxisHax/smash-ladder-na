@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { prisma } from "@/lib/db";
-import { getCharacterLeaderboard, reportOpponentCharacter } from "@/lib/character-stats";
+import { getCharacterLeaderboard, reportOpponentCharacter, setOwnCharacters } from "@/lib/character-stats";
 import { createTestUser } from "@/test/factories";
 
 async function createMatch(p1: string, p2: string) {
@@ -74,6 +74,72 @@ describe("reportOpponentCharacter", () => {
     const match = await createMatch(reporter.id, opponent.id);
 
     await expect(reportOpponentCharacter(reporter.id, match.id, "Not A Real Fighter")).rejects.toThrow(
+      /not a recognized character/i,
+    );
+  });
+
+  it("no-ops once the opponent has self-declared their characters", async () => {
+    const reporter = await createTestUser();
+    const opponent = await createTestUser({
+      mainCharacter: "Fox",
+      secondaryCharacters: ["Falco"],
+      charactersSelfDeclared: true,
+    });
+    const match = await createMatch(reporter.id, opponent.id);
+
+    await reportOpponentCharacter(reporter.id, match.id, "Pikachu");
+
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: opponent.id } });
+    expect(updated.mainCharacter).toBe("Fox");
+    expect(updated.secondaryCharacters).toEqual(["Falco"]);
+  });
+});
+
+describe("setOwnCharacters", () => {
+  it("sets mainCharacter, secondaries, and the self-declared flag", async () => {
+    const player = await createTestUser({ mainCharacter: "Pikachu" }); // pre-existing peer-reported value
+
+    await setOwnCharacters(player.id, "Inkling", ["Cloud", "Roy"]);
+
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: player.id } });
+    expect(updated.mainCharacter).toBe("Inkling");
+    expect(updated.secondaryCharacters).toEqual(["Cloud", "Roy"]);
+    expect(updated.charactersSelfDeclared).toBe(true);
+  });
+
+  it("allows clearing mainCharacter back to null", async () => {
+    const player = await createTestUser({ mainCharacter: "Fox" });
+
+    await setOwnCharacters(player.id, null, []);
+
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: player.id } });
+    expect(updated.mainCharacter).toBeNull();
+  });
+
+  it("dedupes repeated secondary characters", async () => {
+    const player = await createTestUser();
+
+    await setOwnCharacters(player.id, "Fox", ["Falco", "Falco"]);
+
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: player.id } });
+    expect(updated.secondaryCharacters).toEqual(["Falco"]);
+  });
+
+  it("rejects the same character as both main and secondary", async () => {
+    const player = await createTestUser();
+    await expect(setOwnCharacters(player.id, "Fox", ["Fox"])).rejects.toThrow(/both your main and a secondary/i);
+  });
+
+  it("rejects more secondaries than the cap", async () => {
+    const player = await createTestUser();
+    await expect(
+      setOwnCharacters(player.id, "Fox", ["Falco", "Marth", "Cloud", "Roy", "Ike", "Pikachu"]),
+    ).rejects.toThrow(/at most 5/i);
+  });
+
+  it("rejects an unrecognized character", async () => {
+    const player = await createTestUser();
+    await expect(setOwnCharacters(player.id, "Not A Real Fighter", [])).rejects.toThrow(
       /not a recognized character/i,
     );
   });

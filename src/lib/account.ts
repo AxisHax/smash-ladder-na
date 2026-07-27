@@ -152,15 +152,33 @@ export function isWiredClaimUntrustworthy(cancelCount: number, gamesPlayed: numb
   return ratio > WIRED_TRUST_MAX_CANCEL_RATIO;
 }
 
+// Same idea as the cancel-based check above, but for opponents filing a
+// connection report against this player — a "wired" claim ringing false to
+// enough of the people who actually played them is just as strong a signal
+// as their own cancel history. Same min-sample gate and ratio threshold.
+export const WIRED_TRUST_MIN_CONNECTION_REPORTS = 3;
+export const WIRED_TRUST_MAX_CONNECTION_REPORT_RATIO = 0.25;
+
+export function isWiredClaimDisputedByOpponents(connectionReportsReceived: number, gamesPlayed: number) {
+  if (connectionReportsReceived < WIRED_TRUST_MIN_CONNECTION_REPORTS) return false;
+  const ratio = connectionReportsReceived / (connectionReportsReceived + gamesPlayed);
+  return ratio > WIRED_TRUST_MAX_CONNECTION_REPORT_RATIO;
+}
+
 export async function setWiredConnection(userId: string, wired: boolean) {
   if (wired) {
     const user = await prisma.user.findUniqueOrThrow({
       where: { id: userId },
-      select: { cancelCount: true, gamesPlayed: true },
+      select: { cancelCount: true, gamesPlayed: true, _count: { select: { connectionReportsReceived: true } } },
     });
     if (isWiredClaimUntrustworthy(user.cancelCount, user.gamesPlayed)) {
       throw new Error(
         `Too many cancelled matches relative to games played (${user.cancelCount} cancelled, ${user.gamesPlayed} played) to self-declare a wired connection.`,
+      );
+    }
+    if (isWiredClaimDisputedByOpponents(user._count.connectionReportsReceived, user.gamesPlayed)) {
+      throw new Error(
+        `Too many opponents have reported connection issues with you (${user._count.connectionReportsReceived} reports, ${user.gamesPlayed} games played) to self-declare a wired connection.`,
       );
     }
   }

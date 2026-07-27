@@ -44,6 +44,39 @@ describe("fileConnectionReport", () => {
 
     await expect(fileConnectionReport(outsider.id, match.id)).rejects.toThrow(/not a participant/i);
   });
+
+  it("auto-clears wiredConnection once enough opponents dispute it", async () => {
+    // 2 prior reports + 0 games played already sits right at the "not yet
+    // disputed" boundary (2 < WIRED_TRUST_MIN_CONNECTION_REPORTS) — this
+    // third one is what tips it over.
+    const reported = await createTestUser({ wiredConnection: true, gamesPlayed: 0 });
+    const priorMatch1 = await createMatch(reported.id, (await createTestUser()).id);
+    const priorMatch2 = await createMatch(reported.id, (await createTestUser()).id);
+    await prisma.connectionReport.createMany({
+      data: [
+        { matchId: priorMatch1.id, reporterId: priorMatch1.player2Id, reportedUserId: reported.id },
+        { matchId: priorMatch2.id, reporterId: priorMatch2.player2Id, reportedUserId: reported.id },
+      ],
+    });
+    const reporter = await createTestUser();
+    const match = await createMatch(reporter.id, reported.id);
+
+    await fileConnectionReport(reporter.id, match.id);
+
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: reported.id } });
+    expect(updated.wiredConnection).toBe(false);
+  });
+
+  it("doesn't touch wiredConnection while still under the dispute threshold", async () => {
+    const reported = await createTestUser({ wiredConnection: true, gamesPlayed: 100 });
+    const reporter = await createTestUser();
+    const match = await createMatch(reporter.id, reported.id);
+
+    await fileConnectionReport(reporter.id, match.id);
+
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: reported.id } });
+    expect(updated.wiredConnection).toBe(true);
+  });
 });
 
 describe("moderateUserDirectly", () => {
