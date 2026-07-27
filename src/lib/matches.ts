@@ -1,9 +1,10 @@
 import { prisma, TX_OPTIONS, withTransientRetry } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
-import { MatchStatus, ConfirmationMethod, PairingMethod } from "@/generated/prisma/enums";
+import { MatchStatus, ConfirmationMethod, PairingMethod, UserRole } from "@/generated/prisma/enums";
 import { isWiredClaimUntrustworthy } from "@/lib/account";
 import { getBlockedEitherWayIds } from "@/lib/blocks";
 import { createDirectMatch } from "@/lib/lobby";
+import { sendDiscordDM } from "@/lib/discord-bot";
 
 export const matchWithPlayers = {
   player1: { select: { id: true, username: true, avatarUrl: true, rating: true, arenaPassword: true } },
@@ -162,6 +163,54 @@ function expectedScore(ratingSelf: number, ratingOpp: number) {
   return 1 / (1 + 10 ** ((ratingOpp - ratingSelf) / 400));
 }
 
+// How recently an account must have been created (relative to the match
+// starting) — combined with almost no other match history — to read as a
+// disposable alt rather than a real new player. 24h comfortably covers
+// "signed up specifically for this", while not flagging every genuine
+// newcomer who happens to play their first match same-day.
+const SELF_BOOST_NEW_ACCOUNT_WINDOW_MS = 24 * 60 * 60 * 1000;
+const SELF_BOOST_LOW_HISTORY_GAMES = 1;
+
+// Best-effort heuristic for the JerBear-style abuse pattern (a player
+// creates a disposable alt account and matches/plays against themselves for
+// free rating) — same two signals that actually caught that incident: the
+// two accounts sharing a last-known IP, or one side being a barely-used
+// account created right before this match. Never blocks anything, only
+// alerts — same-IP roommates/LAN setups are a real false positive here, so
+// this is a lead for a mod to check, not an automatic verdict.
+async function flagPossibleSelfBoost(
+  tx: Prisma.TransactionClient,
+  match: { id: string; createdAt: Date },
+  p1: { id: string; username: string; lastKnownIp: string | null; gamesPlayed: number; createdAt: Date },
+  p2: { id: string; username: string; lastKnownIp: string | null; gamesPlayed: number; createdAt: Date },
+) {
+  const reasons: string[] = [];
+  if (p1.lastKnownIp && p1.lastKnownIp === p2.lastKnownIp) {
+    reasons.push("both accounts share the same last-known IP");
+  }
+  for (const [fresh] of [[p1], [p2]] as const) {
+    const accountAgeMs = match.createdAt.getTime() - fresh.createdAt.getTime();
+    if (
+      accountAgeMs >= 0 &&
+      accountAgeMs < SELF_BOOST_NEW_ACCOUNT_WINDOW_MS &&
+      fresh.gamesPlayed <= SELF_BOOST_LOW_HISTORY_GAMES
+    ) {
+      reasons.push(`${fresh.username}'s account was created shortly before this match and has almost no other match history`);
+    }
+  }
+  if (reasons.length === 0) return;
+
+  // Uses tx (not the module-level prisma client) since this is still called
+  // from inside the surrounding transaction — a separate connection here
+  // would otherwise contend with it for no reason.
+  const mods = await tx.user.findMany({
+    where: { role: { in: [UserRole.MOD, UserRole.ADMIN] } },
+    select: { discordId: true },
+  });
+  const message = `🕵️ Possible self-boost: ${p1.username} vs ${p2.username} (match ${match.id}) — ${reasons.join("; ")}. Review at /admin/live or the players' profiles.`;
+  await Promise.all(mods.map((mod) => sendDiscordDM(mod.discordId, message)));
+}
+
 // Applies the Elo update, marks the match CONFIRMED, and records rating history.
 // Shared by self-confirmation (both players agree) and the cron finalizer's
 // auto-timeout path (only one player reported before the match expired).
@@ -172,10 +221,11 @@ export async function applyEloAndConfirm(
   confirmationMethod: ConfirmationMethod,
   secondReport: { winnerId: string; reporterId: string } | null,
 ) {
-  const [p1, p2, season] = await Promise.all([
+  const [p1, p2, season, matchRow] = await Promise.all([
     tx.user.findUniqueOrThrow({ where: { id: match.player1Id } }),
     tx.user.findUniqueOrThrow({ where: { id: match.player2Id } }),
     tx.season.findFirst({ where: { endsAt: null }, orderBy: { startsAt: "desc" } }),
+    tx.ratingMatch.findUniqueOrThrow({ where: { id: match.id }, select: { createdAt: true } }),
   ]);
   // Stamped at confirm time (not creation), since that's when the result
   // actually counts — falls back to creating Season 1 if none exists yet.
@@ -236,6 +286,8 @@ export async function applyEloAndConfirm(
       },
     ],
   });
+
+  await flagPossibleSelfBoost(tx, { id: match.id, createdAt: matchRow.createdAt }, p1, p2);
 }
 
 // Only reachable while `match` is still each player's most recent CONFIRMED
