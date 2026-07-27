@@ -178,8 +178,14 @@ const SELF_BOOST_LOW_HISTORY_GAMES = 1;
 // account created right before this match. Never blocks anything, only
 // alerts — same-IP roommates/LAN setups are a real false positive here, so
 // this is a lead for a mod to check, not an automatic verdict.
+//
+// Deliberately NOT awaited by its caller (see below applyEloAndConfirm) and
+// uses the module-level prisma client rather than the surrounding tx: this
+// runs its own queries and Discord sends after the interactive transaction
+// that confirmed the match may have already committed. Awaiting Discord's
+// API from inside that transaction once blew its 5s timeout in production
+// (P2028) and rolled back an otherwise-fine confirmation — never again.
 async function flagPossibleSelfBoost(
-  tx: Prisma.TransactionClient,
   match: { id: string; createdAt: Date },
   p1: { id: string; username: string; lastKnownIp: string | null; gamesPlayed: number; createdAt: Date },
   p2: { id: string; username: string; lastKnownIp: string | null; gamesPlayed: number; createdAt: Date },
@@ -200,10 +206,7 @@ async function flagPossibleSelfBoost(
   }
   if (reasons.length === 0) return;
 
-  // Uses tx (not the module-level prisma client) since this is still called
-  // from inside the surrounding transaction — a separate connection here
-  // would otherwise contend with it for no reason.
-  const mods = await tx.user.findMany({
+  const mods = await prisma.user.findMany({
     where: { role: { in: [UserRole.MOD, UserRole.ADMIN] } },
     select: { discordId: true },
   });
@@ -287,7 +290,9 @@ export async function applyEloAndConfirm(
     ],
   });
 
-  await flagPossibleSelfBoost(tx, { id: match.id, createdAt: matchRow.createdAt }, p1, p2);
+  // Fire-and-forget — see the comment on flagPossibleSelfBoost for why this
+  // must never be awaited from inside this transaction.
+  flagPossibleSelfBoost({ id: match.id, createdAt: matchRow.createdAt }, p1, p2).catch(() => {});
 }
 
 // Only reachable while `match` is still each player's most recent CONFIRMED

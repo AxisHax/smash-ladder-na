@@ -120,9 +120,11 @@ describe("applyEloAndConfirm", () => {
       applyEloAndConfirm(tx, match, p1.id, ConfirmationMethod.SELF_CONFIRMED, { winnerId: p1.id, reporterId: p1.id }),
     );
 
-    expect(sendDiscordDM).toHaveBeenCalledWith(
-      mod.discordId,
-      expect.stringContaining("same last-known IP"),
+    // flagPossibleSelfBoost is deliberately fire-and-forget (not awaited by
+    // applyEloAndConfirm — see its comment), so it may still be in flight
+    // right after the transaction resolves.
+    await vi.waitFor(() =>
+      expect(sendDiscordDM).toHaveBeenCalledWith(mod.discordId, expect.stringContaining("same last-known IP")),
     );
   });
 
@@ -142,9 +144,11 @@ describe("applyEloAndConfirm", () => {
       }),
     );
 
-    expect(sendDiscordDM).toHaveBeenCalledWith(
-      mod.discordId,
-      expect.stringContaining("created shortly before this match"),
+    await vi.waitFor(() =>
+      expect(sendDiscordDM).toHaveBeenCalledWith(
+        mod.discordId,
+        expect.stringContaining("created shortly before this match"),
+      ),
     );
   });
 
@@ -161,6 +165,9 @@ describe("applyEloAndConfirm", () => {
       applyEloAndConfirm(tx, match, p1.id, ConfirmationMethod.SELF_CONFIRMED, { winnerId: p1.id, reporterId: p1.id }),
     );
 
+    // No positive condition to poll for here — just give the (fire-and-forget)
+    // detector a moment to run before asserting it stayed quiet.
+    await new Promise((resolve) => setTimeout(resolve, 50));
     expect(sendDiscordDM).not.toHaveBeenCalled();
   });
 });
