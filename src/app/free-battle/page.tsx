@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { Users } from "lucide-react";
 import { auth } from "@/auth";
 import { getOwnActivePost, getUserBrief, listOpenPosts } from "@/lib/free-battle";
@@ -32,8 +33,27 @@ export default async function FreeBattlePage() {
     <main className="mx-auto max-w-2xl px-6 py-16">
       <PageTitle />
       <p className="mt-1 text-sm text-muted-foreground">
-        Casual, unranked friendlies — post what you&apos;re looking for or join someone else&apos;s.
+        A bulletin board for casual, unranked friendlies — no rating on the line, and no
+        auto-matching. It&apos;s the opposite of the{" "}
+        <Link href="/lobby" className="underline hover:text-foreground">
+          Lobby
+        </Link>
+        &apos;s ranked queue: here, you post what you want and pick who to play, instead of being
+        paired automatically.
       </p>
+      <ul className="mt-3 flex flex-col gap-1 text-xs text-muted-foreground">
+        <li>1. Post a comment saying what you&apos;re looking for (matchup, availability, etc).</li>
+        <li>
+          2. Anyone can browse open posts and hit &quot;I&apos;m in&quot; to claim yours — you&apos;ll
+          get a Discord DM the moment someone does.
+        </li>
+        <li>
+          3. Once matched, coordinate the actual game yourselves (room code, timing) — Free Battle
+          just makes the introduction, it doesn&apos;t track games or affect your rating like
+          ranked matches do.
+        </li>
+        <li>4. Posts auto-expire after 24 hours; close and repost anytime.</li>
+      </ul>
 
       {ownPost ? <OwnPostCard post={ownPost} /> : <PostForm />}
 
@@ -166,6 +186,10 @@ async function OwnPostCard({
             <p className="text-sm font-medium">{matchedWith.username}</p>
           </div>
         )}
+        <p className="mt-2 text-xs text-muted-foreground">
+          Reach out to them on Discord to set up your room code — Free Battle doesn&apos;t track
+          the game itself.
+        </p>
         <form action={closeFreeBattlePost.bind(null, post.id)} className="mt-3">
           <Button type="submit" variant="outline" size="sm">
             Done — post again
