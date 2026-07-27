@@ -17,6 +17,7 @@ export async function getPlayerProfile(userId: string) {
       startggUrl: true,
       noShowCount: true,
       cancelCount: true,
+      status: true,
       _count: { select: { connectionReportsReceived: true } },
     },
   });

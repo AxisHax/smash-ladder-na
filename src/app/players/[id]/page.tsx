@@ -20,10 +20,17 @@ import { RatingChart } from "@/components/rating-chart";
 import { DeleteAccountButton } from "@/components/delete-account-button";
 import { BlockUserButton } from "@/components/block-user-button";
 import { RequestCorrectionForm } from "@/components/request-correction-form";
+import { AdminMatchOverride, ModerationStatusForm } from "@/components/moderation-tools";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { isBlockedByMe } from "@/lib/blocks";
-import { blockUserAction, deleteAccountAction, requestCorrectionAction } from "../actions";
+import {
+  adminOverrideResultAction,
+  blockUserAction,
+  deleteAccountAction,
+  moderateUserAction,
+  requestCorrectionAction,
+} from "../actions";
 
 export default async function PlayerProfilePage({
   params,
@@ -33,6 +40,7 @@ export default async function PlayerProfilePage({
   const { id } = await params;
   const session = await auth();
   const isOwnProfile = session?.user?.id === id;
+  const isModerator = session?.user?.role === "MOD" || session?.user?.role === "ADMIN";
   const player = await getPlayerProfile(id);
   if (!player) notFound();
 
@@ -271,11 +279,26 @@ export default async function PlayerProfilePage({
                     opponentUsername={match.opponent.username}
                   />
                 )}
+                {isModerator && !isOwnProfile && i === 0 && (
+                  <AdminMatchOverride
+                    player1Id={id}
+                    player1Username={player.username}
+                    player2Id={match.opponent.id}
+                    player2Username={match.opponent.username}
+                    actionFor={(winnerId) => adminOverrideResultAction.bind(null, match.id, id, winnerId)}
+                  />
+                )}
               </div>
             ))}
           </Card>
         )}
       </div>
+
+      {isModerator && !isOwnProfile && (
+        <div className="mt-12 border-t border-border pt-6">
+          <ModerationStatusForm action={moderateUserAction.bind(null, id)} currentStatus={player.status} />
+        </div>
+      )}
 
       {isOwnProfile && (
         <div className="mt-12 border-t border-border pt-6">

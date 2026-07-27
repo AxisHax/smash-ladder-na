@@ -137,6 +137,7 @@ model User {
   noShowCount   Int        @default(0)
   cancelCount   Int        @default(0)
   misconductScore Int      @default(0) // bumped only when a mod actions a ConductReport, not on filing
+  suspendedUntil  DateTime? // set only for a timed SUSPENDED; null means indefinite (or n/a if not suspended). Past-due is lazily lifted back to ACTIVE on next access.
   mainCharacter String? // self-declared; drives the character leaderboard filter
   region        String? // self-declared match region; drives distance-based matchmaking
   maxMatchDistanceKm Int? @default(5000) // self-declared match radius; null means worldwide. Matching requires BOTH sides' radius to cover the actual distance.

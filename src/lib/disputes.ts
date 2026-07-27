@@ -94,6 +94,25 @@ export async function resolveDisputedGame(matchId: string, gameNumber: number, w
   if (p2) await sendDiscordDM(p2.discordId, message);
 }
 
+// Matches actively being played right now — not yet CONFIRMED/CANCELLED/
+// EXPIRED — for the mod-facing "Live matches" view. REPORTED is legacy
+// (nothing writes it anymore) but old rows can still carry it.
+export async function listLiveMatches() {
+  return prisma.ratingMatch.findMany({
+    where: { status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED, MatchStatus.DISPUTED] } },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      status: true,
+      roomCode: true,
+      createdAt: true,
+      player1: { select: { id: true, username: true } },
+      player2: { select: { id: true, username: true } },
+      games: { select: { gameNumber: true, winnerId: true, finalStage: true } },
+    },
+  });
+}
+
 // A mod can still cancel the whole match outright (e.g. an unsalvageable
 // dispute, or bad-faith reporting) regardless of its current status — the
 // self-service cancelMatch is deliberately narrower (PENDING_REPORT/

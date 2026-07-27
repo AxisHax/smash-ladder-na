@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { prisma } from "@/lib/db";
-import { applyEloAndConfirm, requestResultCorrection, resolveMatchCorrection } from "@/lib/matches";
+import {
+  adminOverrideMatchResult,
+  applyEloAndConfirm,
+  requestResultCorrection,
+  resolveMatchCorrection,
+} from "@/lib/matches";
 import { endActiveSeasonAndStartNext } from "@/lib/seasons";
 import { ConfirmationMethod, MatchStatus } from "@/generated/prisma/enums";
 import { createTestUser } from "@/test/factories";
@@ -209,5 +214,47 @@ describe("resolveMatchCorrection", () => {
     const resolved = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
     expect(resolved.correctionDisputed).toBe(false);
     expect(resolved.reportedWinnerId).toBe(p2.id);
+  });
+});
+
+describe("adminOverrideMatchResult", () => {
+  it("changes the winner and reapplies Elo without needing a prior dispute", async () => {
+    const p1 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
+    const p2 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
+    const match = await createConfirmedMatch(p1.id, p2.id); // p1 confirmed as winner
+
+    await adminOverrideMatchResult(match.id, p2.id);
+
+    const overridden = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(overridden.reportedWinnerId).toBe(p2.id);
+    expect(overridden.confirmationMethod).toBe("CORRECTED");
+    expect(overridden.player2RatingAfter).toBe(match.player1RatingAfter);
+
+    const [updatedP1, updatedP2] = await Promise.all([
+      prisma.user.findUniqueOrThrow({ where: { id: p1.id } }),
+      prisma.user.findUniqueOrThrow({ where: { id: p2.id } }),
+    ]);
+    expect(updatedP1.gamesPlayed).toBe(21);
+    expect(updatedP2.gamesPlayed).toBe(21);
+  });
+
+  it("rejects a non-confirmed match", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+
+    await expect(adminOverrideMatchResult(match.id, p2.id)).rejects.toThrow(/only a confirmed match/i);
+  });
+
+  it("rejects it once a newer match has been confirmed for either player, same as a self-service correction", async () => {
+    const p1 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
+    const p2 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
+    const p3 = await createTestUser({ rating: 1500, gamesPlayed: 20 });
+    const match = await createConfirmedMatch(p1.id, p2.id);
+    await createConfirmedMatch(p1.id, p3.id);
+
+    await expect(adminOverrideMatchResult(match.id, p2.id)).rejects.toThrow(/newer match/i);
   });
 });

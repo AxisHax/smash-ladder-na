@@ -5,7 +5,15 @@ import { ACTION_THRESHOLDS, listOpenReports } from "@/lib/reports";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { banReportedUser, dismiss, suspendReportedUser } from "./actions";
+import { banReportedUser, dismiss, reinstateUser, suspendReportedUser } from "./actions";
+
+const SUSPENSION_DURATION_OPTIONS = [
+  { label: "1 day", value: "24" },
+  { label: "3 days", value: "72" },
+  { label: "7 days", value: "168" },
+  { label: "30 days", value: "720" },
+  { label: "Indefinite", value: "indefinite" },
+] as const;
 
 export default async function ReportsPage() {
   const session = await auth();
@@ -40,7 +48,7 @@ export default async function ReportsPage() {
           const totalReports = report.reportedUser._count.reportsReceived;
           const totalBlocks = report.reportedUser._count.blocksReceived;
           const canSuspend = totalReports >= ACTION_THRESHOLDS.SUSPENDED;
-          const canBan = totalReports >= ACTION_THRESHOLDS.BANNED;
+          const isActive = report.reportedUser.status === "ACTIVE";
 
           return (
             <li key={report.id}>
@@ -79,20 +87,50 @@ export default async function ReportsPage() {
                         Dismiss
                       </Button>
                     </form>
-                    <form action={suspendReportedUser.bind(null, report.id)}>
-                      <Button type="submit" variant="secondary" size="sm" disabled={!canSuspend}>
+
+                    <form action={suspendReportedUser.bind(null, report.id)} className="flex items-center gap-1.5">
+                      <select
+                        name="suspensionHours"
+                        defaultValue="indefinite"
+                        className="h-7 rounded-lg border border-border bg-background px-1.5 text-xs text-foreground outline-none focus-visible:border-ring"
+                      >
+                        {SUSPENSION_DURATION_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                      <label className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <input type="checkbox" name="insta" className="size-3.5 rounded border-border" />
+                        Insta
+                      </label>
+                      <Button type="submit" variant="secondary" size="sm">
                         Suspend
                       </Button>
                     </form>
-                    <form action={banReportedUser.bind(null, report.id)}>
-                      <Button type="submit" variant="destructive" size="sm" disabled={!canBan}>
+
+                    <form action={banReportedUser.bind(null, report.id)} className="flex items-center gap-1.5">
+                      <label className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <input type="checkbox" name="insta" className="size-3.5 rounded border-border" />
+                        Insta
+                      </label>
+                      <Button type="submit" variant="destructive" size="sm">
                         Ban
                       </Button>
                     </form>
+
+                    {!isActive && (
+                      <form action={reinstateUser.bind(null, report.reportedUser.id)}>
+                        <Button type="submit" variant="outline" size="sm">
+                          Reinstate
+                        </Button>
+                      </form>
+                    )}
+
                     {!canSuspend && (
                       <span className="text-xs text-muted-foreground">
                         Needs {ACTION_THRESHOLDS.SUSPENDED - totalReports} more report
-                        {ACTION_THRESHOLDS.SUSPENDED - totalReports === 1 ? "" : "s"} to suspend
+                        {ACTION_THRESHOLDS.SUSPENDED - totalReports === 1 ? "" : "s"} to suspend, or check Insta
                       </span>
                     )}
                   </div>

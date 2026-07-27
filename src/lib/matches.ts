@@ -255,20 +255,13 @@ export async function requestResultCorrection(userId: string, matchId: string, w
     if (match.player1Id !== userId && match.player2Id !== userId) {
       throw new Error("Not a participant in this match");
     }
-    if (winnerId !== match.player1Id && winnerId !== match.player2Id) {
-      throw new Error("Winner must be one of the two players");
-    }
     if (match.status !== MatchStatus.CONFIRMED) {
       throw new Error("Only a confirmed match's result can be corrected");
     }
     if (match.correctionDisputed) {
       throw new Error("This match's correction is already disputed and awaiting a mod");
     }
-    if (!(await isMostRecentConfirmedMatch(tx, match))) {
-      throw new Error(
-        "Can't correct this match — either a newer match has been confirmed since, or the season has ended.",
-      );
-    }
+    await assertCorrectable(tx, match, winnerId);
 
     if (!match.correctionReportedById || match.correctionReportedById === userId) {
       // First request, or this same player revising their own pending one.
@@ -297,6 +290,21 @@ export async function requestResultCorrection(userId: string, matchId: string, w
   });
 }
 
+async function assertCorrectable(
+  tx: Prisma.TransactionClient,
+  match: { id: string; player1Id: string; player2Id: string; confirmedAt: Date | null; seasonId: string | null },
+  winnerId: string,
+) {
+  if (winnerId !== match.player1Id && winnerId !== match.player2Id) {
+    throw new Error("Winner must be one of the two players");
+  }
+  if (!(await isMostRecentConfirmedMatch(tx, match))) {
+    throw new Error(
+      "Can't change this match — either a newer match has been confirmed since, or the season has ended.",
+    );
+  }
+}
+
 // Mod-only path for a disputed correction (the two sides' correction
 // requests disagreed) — same isMostRecentConfirmedMatch guard, since time
 // can still pass while it sits in the mod queue.
@@ -304,15 +312,25 @@ export async function resolveMatchCorrection(matchId: string, winnerId: string) 
   await prisma.$transaction(async (tx) => {
     const match = await tx.ratingMatch.findUnique({ where: { id: matchId } });
     if (!match) throw new Error("Match not found");
-    if (winnerId !== match.player1Id && winnerId !== match.player2Id) {
-      throw new Error("Winner must be one of the two players");
-    }
     if (!match.correctionDisputed) throw new Error("This match has no disputed correction");
-    if (!(await isMostRecentConfirmedMatch(tx, match))) {
-      throw new Error(
-        "Can't correct this match — either a newer match has been confirmed since, or the season has ended.",
-      );
+    await assertCorrectable(tx, match, winnerId);
+    await applyCorrection(tx, match, winnerId);
+  });
+}
+
+// Unconditional mod override — unlike resolveMatchCorrection, doesn't
+// require correctionDisputed or either player to have requested anything.
+// Same Elo-safety guard applies regardless of who's asking: reversing and
+// reapplying only stays correct while this is still the most recent
+// CONFIRMED match for both players in an still-active season.
+export async function adminOverrideMatchResult(matchId: string, winnerId: string) {
+  await prisma.$transaction(async (tx) => {
+    const match = await tx.ratingMatch.findUnique({ where: { id: matchId } });
+    if (!match) throw new Error("Match not found");
+    if (match.status !== MatchStatus.CONFIRMED) {
+      throw new Error("Only a confirmed match's result can be changed this way");
     }
+    await assertCorrectable(tx, match, winnerId);
     await applyCorrection(tx, match, winnerId);
   });
 }

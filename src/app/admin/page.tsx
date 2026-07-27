@@ -5,6 +5,7 @@ import {
   Flag,
   Gauge,
   Medal,
+  Radio,
   Shield,
   Swords,
   Users,
@@ -97,6 +98,12 @@ export default async function AdminOverviewPage() {
           href="/lobby"
         />
         <StatCard
+          icon={Radio}
+          label="Matches in progress"
+          value={stats.lobbyPaired}
+          href="/admin/live"
+        />
+        <StatCard
           icon={Shield}
           label="Open disputes"
           value={stats.openDisputes}
@@ -125,6 +132,9 @@ export default async function AdminOverviewPage() {
       </div>
 
       <div className="mt-10 flex flex-col gap-2 text-sm">
+        <Link href="/admin/live" className="text-muted-foreground hover:text-foreground hover:underline">
+          Go to Live matches →
+        </Link>
         <Link href="/admin/disputes" className="text-muted-foreground hover:text-foreground hover:underline">
           Go to Disputes →
         </Link>

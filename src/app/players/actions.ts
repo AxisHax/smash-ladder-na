@@ -4,7 +4,23 @@ import { revalidatePath } from "next/cache";
 import { auth, signOut } from "@/auth";
 import { deleteMyAccount } from "@/lib/account";
 import { blockUser } from "@/lib/blocks";
-import { requestResultCorrection } from "@/lib/matches";
+import { adminOverrideMatchResult, requestResultCorrection } from "@/lib/matches";
+import { moderateUserDirectly } from "@/lib/reports";
+
+async function requireModerator() {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Not signed in");
+  if (session.user.role !== "MOD" && session.user.role !== "ADMIN") {
+    throw new Error("Not authorized");
+  }
+  return session.user.id;
+}
+
+function parseSuspensionHours(raw: FormDataEntryValue | null) {
+  if (raw === "indefinite" || raw === null) return null;
+  const hours = Number(raw);
+  return Number.isFinite(hours) ? hours : null;
+}
 
 export async function deleteAccountAction() {
   const session = await auth();
@@ -63,4 +79,47 @@ export async function requestCorrectionAction(
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Something went wrong — try again.", message: null };
   }
+}
+
+export type ModerationState = { error: string | null };
+
+// Mod-only, no report or threshold required — the "insta" direct tool.
+export async function moderateUserAction(
+  targetUserId: string,
+  _prevState: ModerationState,
+  formData: FormData,
+): Promise<ModerationState> {
+  const modId = await requireModerator();
+  const action = String(formData.get("action") ?? "") as "SUSPEND" | "BAN" | "REINSTATE";
+  const suspensionHours = parseSuspensionHours(formData.get("suspensionHours"));
+  const reason = String(formData.get("reason") ?? "");
+  try {
+    await moderateUserDirectly(modId, targetUserId, action, { suspensionHours, reason });
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+  }
+  revalidatePath(`/players/${targetUserId}`);
+  return { error: null };
+}
+
+export type AdminOverrideState = { error: string | null };
+
+// Unconditional mod override of a confirmed match's winner — see
+// adminOverrideMatchResult for the eligibility guard (still each player's
+// most recent confirmed match, season still active).
+export async function adminOverrideResultAction(
+  matchId: string,
+  viewedPlayerId: string,
+  winnerId: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- required by useActionState's call signature
+  _prevState: AdminOverrideState,
+): Promise<AdminOverrideState> {
+  await requireModerator();
+  try {
+    await adminOverrideMatchResult(matchId, winnerId);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+  }
+  revalidatePath(`/players/${viewedPlayerId}`);
+  return { error: null };
 }

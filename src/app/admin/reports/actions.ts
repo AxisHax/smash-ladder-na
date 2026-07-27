@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
-import { actionReport, dismissReport } from "@/lib/reports";
+import { actionReport, dismissReport, moderateUserDirectly } from "@/lib/reports";
 
 async function requireModerator() {
   const session = await auth();
@@ -10,6 +10,7 @@ async function requireModerator() {
   if (session.user.role !== "MOD" && session.user.role !== "ADMIN") {
     throw new Error("Not authorized");
   }
+  return session.user.id;
 }
 
 export async function dismiss(reportId: string) {
@@ -18,14 +19,29 @@ export async function dismiss(reportId: string) {
   revalidatePath("/admin/reports");
 }
 
-export async function suspendReportedUser(reportId: string) {
+export async function suspendReportedUser(reportId: string, formData: FormData) {
   await requireModerator();
-  await actionReport(reportId, "SUSPENDED");
+  const suspensionHours = parseSuspensionHours(formData.get("suspensionHours"));
+  const skipThreshold = formData.get("insta") === "on";
+  await actionReport(reportId, "SUSPENDED", { suspensionHours, skipThreshold });
   revalidatePath("/admin/reports");
 }
 
-export async function banReportedUser(reportId: string) {
+export async function banReportedUser(reportId: string, formData: FormData) {
   await requireModerator();
-  await actionReport(reportId, "BANNED");
+  const skipThreshold = formData.get("insta") === "on";
+  await actionReport(reportId, "BANNED", { skipThreshold });
+  revalidatePath("/admin/reports");
+}
+
+function parseSuspensionHours(raw: FormDataEntryValue | null) {
+  if (raw === "indefinite" || raw === null) return null;
+  const hours = Number(raw);
+  return Number.isFinite(hours) ? hours : null;
+}
+
+export async function reinstateUser(userId: string) {
+  const modId = await requireModerator();
+  await moderateUserDirectly(modId, userId, "REINSTATE");
   revalidatePath("/admin/reports");
 }

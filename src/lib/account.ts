@@ -18,6 +18,21 @@ function requireRegionUnlocked(region: string | null) {
   }
 }
 
+// A timed SUSPENDED (suspendedUntil in the past) lifts itself back to
+// ACTIVE the next time anything checks status, rather than needing a cron —
+// same lazy-read pattern used elsewhere (e.g. free battle/match expiry).
+// Returns the up-to-date status.
+async function liftExpiredSuspension(userId: string, user: { status: string; suspendedUntil: Date | null }) {
+  if (user.status !== UserStatus.SUSPENDED || !user.suspendedUntil || user.suspendedUntil > new Date()) {
+    return user.status;
+  }
+  await prisma.user.update({
+    where: { id: userId },
+    data: { status: UserStatus.ACTIVE, suspendedUntil: null },
+  });
+  return UserStatus.ACTIVE;
+}
+
 // Two graduated restriction levels (mirrors Smashmate's manner-violation
 // tiers): a BANNED user (Level 2) loses everything. A SUSPENDED user
 // (Level 1) keeps playing ranked — that's the core activity, and disputes
@@ -29,7 +44,7 @@ function requireRegionUnlocked(region: string | null) {
 export async function requireNotBanned(userId: string) {
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
-    select: { status: true, region: true },
+    select: { status: true, region: true, suspendedUntil: true },
   });
   if (user.status === UserStatus.BANNED) {
     throw new Error("Your account has been banned.");
@@ -40,12 +55,13 @@ export async function requireNotBanned(userId: string) {
 export async function requireActiveUser(userId: string) {
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
-    select: { status: true, region: true },
+    select: { status: true, region: true, suspendedUntil: true },
   });
   if (user.status === UserStatus.BANNED) {
     throw new Error("Your account has been banned.");
   }
-  if (user.status === UserStatus.SUSPENDED) {
+  const status = await liftExpiredSuspension(userId, user);
+  if (status === UserStatus.SUSPENDED) {
     throw new Error(
       "Your account is suspended — free battle and reporting are unavailable, but ranked play still works.",
     );

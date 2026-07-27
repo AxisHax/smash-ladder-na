@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { prisma } from "@/lib/db";
-import { listDisputedGames, resolveDisputedGame } from "@/lib/disputes";
+import { listDisputedGames, listLiveMatches, resolveDisputedGame } from "@/lib/disputes";
 import { MatchStatus } from "@/generated/prisma/enums";
 import { createTestUser } from "@/test/factories";
 
@@ -105,5 +105,21 @@ describe("disputes", () => {
 
     const updatedMatch = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
     expect(updatedMatch.status).toBe(MatchStatus.PENDING_REPORT);
+  });
+});
+
+describe("listLiveMatches", () => {
+  it("includes matches still being played, not confirmed/cancelled ones", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const live = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+    await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.CANCELLED, expiresAt: new Date() },
+    });
+
+    const results = await listLiveMatches();
+    expect(results.map((m) => m.id)).toEqual([live.id]);
   });
 });
