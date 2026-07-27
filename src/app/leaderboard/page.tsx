@@ -13,24 +13,36 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
+const PAGE_SIZE = 50;
 
 export default async function LeaderboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ character?: string }>;
+  searchParams: Promise<{ character?: string; page?: string }>;
 }) {
-  const { character } = await searchParams;
+  const { character, page: pageParam } = await searchParams;
   const isValidCharacter = character && (SMASH_CHARACTERS as readonly string[]).includes(character);
 
+  const requestedPage = Number(pageParam);
+  const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+
   const season = await ensureActiveSeason();
-  const players = await prisma.user.findMany({
-    where: {
-      gamesPlayed: { gte: LEADERBOARD_MIN_GAMES },
-      ...(isValidCharacter ? { mainCharacter: character } : {}),
-    },
-    orderBy: { rating: "desc" },
-    select: { id: true, username: true, rating: true, gamesPlayed: true, mainCharacter: true },
-  });
+  const where = {
+    gamesPlayed: { gte: LEADERBOARD_MIN_GAMES },
+    ...(isValidCharacter ? { mainCharacter: character } : {}),
+  };
+  const [totalCount, players] = await Promise.all([
+    prisma.user.count({ where }),
+    prisma.user.findMany({
+      where,
+      orderBy: { rating: "desc" },
+      select: { id: true, username: true, rating: true, gamesPlayed: true, mainCharacter: true },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+    }),
+  ]);
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const rankOffset = (page - 1) * PAGE_SIZE;
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
@@ -91,39 +103,42 @@ export default async function LeaderboardPage({
             </tr>
           </thead>
           <tbody>
-            {players.map((player, index) => (
-              <tr
-                key={player.id}
-                className={`border-b border-border/60 last:border-0 ${
-                  index < 3 ? "bg-primary/[0.04]" : ""
-                }`}
-              >
-                <td className="py-2 pl-4 tabular-nums text-muted-foreground">
-                  {MEDALS[index] ?? index + 1}
-                </td>
-                <td className="py-2">
-                  <Link
-                    href={`/players/${player.id}`}
-                    className="flex items-center gap-2 hover:underline"
-                  >
-                    {player.mainCharacter && <CharacterIcon name={player.mainCharacter} size={20} />}
-                    {player.username}
-                  </Link>
-                </td>
-                <td className="py-2">
-                  <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} />
-                </td>
-                <td className="py-2 text-right font-medium tabular-nums">{player.rating}</td>
-                <td className="py-2 text-right tabular-nums text-muted-foreground">
-                  {player.gamesPlayed}
-                </td>
-                {!isValidCharacter && (
-                  <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">
-                    {prizeForPlace(index + 1) !== null ? `$${prizeForPlace(index + 1)} USD` : "—"}
+            {players.map((player, index) => {
+              const rank = rankOffset + index;
+              return (
+                <tr
+                  key={player.id}
+                  className={`border-b border-border/60 last:border-0 ${
+                    rank < 3 ? "bg-primary/[0.04]" : ""
+                  }`}
+                >
+                  <td className="py-2 pl-4 tabular-nums text-muted-foreground">
+                    {MEDALS[rank] ?? rank + 1}
                   </td>
-                )}
-              </tr>
-            ))}
+                  <td className="py-2">
+                    <Link
+                      href={`/players/${player.id}`}
+                      className="flex items-center gap-2 hover:underline"
+                    >
+                      {player.mainCharacter && <CharacterIcon name={player.mainCharacter} size={20} />}
+                      {player.username}
+                    </Link>
+                  </td>
+                  <td className="py-2">
+                    <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} />
+                  </td>
+                  <td className="py-2 text-right font-medium tabular-nums">{player.rating}</td>
+                  <td className="py-2 text-right tabular-nums text-muted-foreground">
+                    {player.gamesPlayed}
+                  </td>
+                  {!isValidCharacter && (
+                    <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">
+                      {prizeForPlace(rank + 1) !== null ? `$${prizeForPlace(rank + 1)} USD` : "—"}
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
 
@@ -132,13 +147,56 @@ export default async function LeaderboardPage({
         )}
       </Card>
 
-      {players.length > 0 && (
-        <Badge variant="outline" className="mt-4">
-          {players.length} ranked player{players.length === 1 ? "" : "s"}
-        </Badge>
+      {totalCount > 0 && (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <Badge variant="outline">
+            {totalCount} ranked player{totalCount === 1 ? "" : "s"}
+          </Badge>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-2 text-sm">
+              <PageLink page={page - 1} character={isValidCharacter ? character : undefined} disabled={page <= 1}>
+                ← Previous
+              </PageLink>
+              <span className="text-muted-foreground tabular-nums">
+                Page {page} of {totalPages}
+              </span>
+              <PageLink
+                page={page + 1}
+                character={isValidCharacter ? character : undefined}
+                disabled={page >= totalPages}
+              >
+                Next →
+              </PageLink>
+            </div>
+          )}
+        </div>
       )}
 
       <AdSlot slot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_LEADERBOARD} />
     </main>
+  );
+}
+
+function PageLink({
+  page,
+  character,
+  disabled,
+  children,
+}: {
+  page: number;
+  character?: string;
+  disabled: boolean;
+  children: React.ReactNode;
+}) {
+  if (disabled) {
+    return <span className="text-muted-foreground/40">{children}</span>;
+  }
+  const params = new URLSearchParams();
+  if (character) params.set("character", character);
+  params.set("page", String(page));
+  return (
+    <Link href={`/leaderboard?${params.toString()}`} className="hover:underline">
+      {children}
+    </Link>
   );
 }
