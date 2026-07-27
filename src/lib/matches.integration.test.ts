@@ -334,6 +334,10 @@ describe("adminForceConfirmMatch", () => {
     expect(updated.status).toBe(MatchStatus.CONFIRMED);
     expect(updated.confirmationMethod).toBe(ConfirmationMethod.ADMIN_RESOLVED);
     expect(updated.player1RatingAfter).toBeGreaterThan(updated.player1RatingBefore!);
+    // getPlayerMatchHistory's win/loss badge and rivals record key off this —
+    // a real production bug had the rating apply correctly while this stayed
+    // null, showing the winner as a loss on their own profile.
+    expect(updated.reportedWinnerId).toBe(p1.id);
   });
 
   it("closes out a match that already expired with no report from either side", async () => {

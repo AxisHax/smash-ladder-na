@@ -369,6 +369,15 @@ export async function adminForceConfirmMatch(matchId: string, winnerId: string) 
     if (winnerId !== match.player1Id && winnerId !== match.player2Id) {
       throw new Error("Winner must be one of the two players");
     }
+    // reportedWinnerId is what getPlayerMatchHistory's win/loss badge and
+    // rivals record key off — applyEloAndConfirm itself doesn't set it
+    // (every other caller sets it first), so leaving this out silently
+    // showed the winner as a loss on their own profile despite the rating
+    // gain going through correctly.
+    await tx.ratingMatch.update({
+      where: { id: matchId },
+      data: { reportedWinnerId: winnerId, reportedById: winnerId, reportedAt: new Date() },
+    });
     await applyEloAndConfirm(tx, match, winnerId, ConfirmationMethod.ADMIN_RESOLVED, null);
   });
 }
