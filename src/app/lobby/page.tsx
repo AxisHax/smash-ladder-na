@@ -17,6 +17,7 @@ import { MATCH_DISTANCE_PRESETS, MATCH_REGIONS, REGION_REFERENCE_CITY } from "@/
 import { SMASH_CHARACTERS } from "@/lib/characters";
 import { MATCH_RATING_GAP_PRESETS, didTierUp, getRankTier } from "@/lib/rank-tier";
 import { REMATCH_COOLDOWN_PRESETS } from "@/lib/rematch-cooldown";
+import { effectiveArenaPassword } from "@/lib/arena";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -429,6 +430,8 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
           initialValue={match.roomCode ?? ""}
           readOnly={!!match.roomCodeSetById && match.roomCodeSetById !== userId}
           setByOpponent={match.roomCodeSetById === opponent.id}
+          myArenaPassword={effectiveArenaPassword(match.player1Id === userId ? match.player1 : match.player2)}
+          opponentArenaPassword={effectiveArenaPassword(opponent)}
         />
       </CardContent>
 
@@ -901,17 +904,26 @@ function RoomCodeForm({
   initialValue,
   readOnly,
   setByOpponent,
+  myArenaPassword,
+  opponentArenaPassword,
 }: {
   matchId: string;
   initialValue: string;
   readOnly: boolean;
   setByOpponent: boolean;
+  myArenaPassword: string;
+  opponentArenaPassword: string;
 }) {
   async function action(formData: FormData) {
     "use server";
     const roomCode = String(formData.get("roomCode") ?? "");
     await submitRoomCode(matchId, roomCode);
   }
+
+  // Whoever actually ends up hosting is whoever's code stuck (locked in via
+  // setMatchRoomCode) — before that, either side could still become the
+  // host, so each just sees their own password until it's decided.
+  const hostArenaPassword = setByOpponent ? opponentArenaPassword : myArenaPassword;
 
   if (readOnly) {
     return (
@@ -922,7 +934,8 @@ function RoomCodeForm({
           <p className="text-xs text-muted-foreground">Set by your opponent — join with this.</p>
         )}
         <p className="text-xs text-muted-foreground">
-          Set the in-game room password to <span className="font-medium text-foreground">1122</span>.
+          Set the in-game room password to{" "}
+          <span className="font-medium text-foreground">{hostArenaPassword}</span>.
         </p>
       </div>
     );
@@ -945,7 +958,8 @@ function RoomCodeForm({
         </Button>
       </form>
       <p className="text-xs text-muted-foreground">
-        Set the in-game room password to <span className="font-medium text-foreground">1122</span>.
+        Set the in-game room password to{" "}
+        <span className="font-medium text-foreground">{hostArenaPassword}</span>.
       </p>
     </div>
   );
