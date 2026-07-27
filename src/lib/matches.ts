@@ -6,6 +6,9 @@ import { getBlockedEitherWayIds } from "@/lib/blocks";
 import { createDirectMatch } from "@/lib/lobby";
 import { sendDiscordDM } from "@/lib/discord-bot";
 
+// Used as `include`, which already returns every scalar column (leftAt,
+// rematchRequestedAt, etc.) by default — no need to list them here, and
+// doing so breaks the query since `include` only accepts relation fields.
 export const matchWithPlayers = {
   player1: { select: { id: true, username: true, avatarUrl: true, rating: true, arenaPassword: true } },
   player2: { select: { id: true, username: true, avatarUrl: true, rating: true, arenaPassword: true } },
