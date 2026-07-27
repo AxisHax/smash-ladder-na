@@ -7,7 +7,6 @@ import {
   Gamepad2,
   Gauge,
   LogOut,
-  Medal,
   Settings,
   Shield,
   Swords,
@@ -143,14 +142,6 @@ export async function SiteHeader() {
             >
               <Gamepad2 className="size-3.5" />
               Characters
-            </Link>
-            <Link
-              href="/tournaments"
-              prefetch={false}
-              className="flex items-center gap-1.5 hover:text-foreground"
-            >
-              <Medal className="size-3.5" />
-              Tournaments
             </Link>
             {(user?.role === "MOD" || user?.role === "ADMIN") && (
               <Link
