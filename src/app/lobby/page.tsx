@@ -30,6 +30,8 @@ import { CancelMatchButton } from "@/components/cancel-match-button";
 import { VictoryCelebration } from "@/components/victory-celebration";
 import { ReportCharacterForm } from "@/components/report-character-form";
 import { DisputeResolutionForm } from "@/components/dispute-resolution-form";
+import { CommentForm } from "@/components/comment-form";
+import { ReportConductForm } from "@/components/report-conduct-form";
 import { MatchSettingsForm, type MatchSettingsState } from "@/components/match-settings-form";
 import {
   beginFirstGame,
@@ -38,12 +40,12 @@ import {
   joinLobby,
   pickCharacter,
   pickStage,
-  reportConduct,
+  reportConductAction,
   reportConnection,
   reportGame,
   reportOpponentCharacterAction,
   requestDisputeResolutionAction,
-  sendMatchComment,
+  sendMatchCommentAction,
   strikeStage,
   submitRoomCode,
   unstrikeStage,
@@ -474,12 +476,6 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
 }
 
 function MatchFooterActions({ match }: { match: Match }) {
-  async function report(formData: FormData) {
-    "use server";
-    const reason = String(formData.get("reason") ?? "");
-    if (reason.trim()) await reportConduct(match.id, reason);
-  }
-
   return (
     <CardContent className="flex flex-col gap-3 border-t border-border pt-4">
       <div className="flex items-center justify-between gap-2">
@@ -490,24 +486,7 @@ function MatchFooterActions({ match }: { match: Match }) {
           <CancelMatchButton action={cancelMatchInProgress.bind(null, match.id)} />
         )}
       </div>
-      <details className="text-xs">
-        <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-          Report a problem
-        </summary>
-        <form action={report} className="mt-2 flex items-end gap-2">
-          <textarea
-            name="reason"
-            required
-            rows={2}
-            placeholder="What happened?"
-            maxLength={1000}
-            className="w-full resize-none rounded-lg border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring"
-          />
-          <Button type="submit" size="sm" variant="outline">
-            Submit
-          </Button>
-        </form>
-      </details>
+      <ReportConductForm action={reportConductAction.bind(null, match.id)} />
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-muted-foreground">
           Laggy, rollback-heavy, or disconnected during this match?
@@ -880,12 +859,6 @@ function TerminatedSection({ status }: { status: "CANCELLED" | "EXPIRED" }) {
 async function CommentsSection({ userId, match }: { userId: string; match: Match }) {
   const comments = await listMatchComments(userId, match.id);
 
-  async function action(formData: FormData) {
-    "use server";
-    const body = String(formData.get("body") ?? "");
-    if (body.trim()) await sendMatchComment(match.id, body);
-  }
-
   return (
     <CardContent className="border-t border-border pt-4">
       <p className="text-sm text-muted-foreground">Comments</p>
@@ -899,17 +872,7 @@ async function CommentsSection({ userId, match }: { userId: string; match: Match
           </li>
         ))}
       </ul>
-      <form action={action} className="mt-3 flex gap-2">
-        <input
-          name="body"
-          placeholder="Say something…"
-          maxLength={500}
-          className="h-8 flex-1 rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
-        />
-        <Button type="submit" size="sm">
-          Send
-        </Button>
-      </form>
+      <CommentForm action={sendMatchCommentAction.bind(null, match.id)} />
     </CardContent>
   );
 }

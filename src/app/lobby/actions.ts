@@ -178,16 +178,34 @@ export async function requestDisputeResolutionAction(
   }
 }
 
-export async function sendMatchComment(matchId: string, body: string) {
+export type SendCommentState = { error: string | null };
+
+// (matchId, prevState, formData) shape so useActionState can drive it —
+// hitting the rate limit (or the sender no longer being a participant)
+// used to crash the whole match card to Next's generic error overlay
+// instead of showing an inline message. Seen in production: two players
+// chatting quickly through a close set can hit 15 messages/minute.
+export async function sendMatchCommentAction(
+  matchId: string,
+  _prevState: SendCommentState,
+  formData: FormData,
+): Promise<SendCommentState> {
   const userId = await requireUserId();
-  await enforceRateLimit({
-    count: () =>
-      prisma.matchComment.count({ where: { authorId: userId, createdAt: { gt: minutesAgo(1) } } }),
-    limit: 15,
-    windowLabel: "minute",
-  });
-  await postMatchComment(userId, matchId, body);
+  const body = String(formData.get("body") ?? "").trim();
+  if (!body) return { error: null };
+  try {
+    await enforceRateLimit({
+      count: () =>
+        prisma.matchComment.count({ where: { authorId: userId, createdAt: { gt: minutesAgo(1) } } }),
+      limit: 15,
+      windowLabel: "minute",
+    });
+    await postMatchComment(userId, matchId, body);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+  }
   revalidatePath("/lobby");
+  return { error: null };
 }
 
 export type CancelMatchState = { error: string | null };
@@ -213,17 +231,36 @@ export async function cancelMatchInProgress(
   return { error: null };
 }
 
-export async function reportConduct(matchId: string, reason: string) {
+export type ReportConductState = { error: string | null; message: string | null };
+
+// (matchId, prevState, formData) shape so useActionState can drive it —
+// same rate-limit crash risk as sendMatchCommentAction, just a much wider
+// window (5/hour instead of 15/minute) so it's rarer in practice.
+export async function reportConductAction(
+  matchId: string,
+  _prevState: ReportConductState,
+  formData: FormData,
+): Promise<ReportConductState> {
   const userId = await requireUserId();
-  await requireActiveUser(userId); // Level-1 (SUSPENDED) can't file new reports — no retaliation
-  await enforceRateLimit({
-    count: () =>
-      prisma.conductReport.count({ where: { reporterId: userId, createdAt: { gt: minutesAgo(60) } } }),
-    limit: 5,
-    windowLabel: "hour",
-  });
-  await fileMatchReport(userId, matchId, reason);
+  const reason = String(formData.get("reason") ?? "").trim();
+  if (!reason) return { error: null, message: null };
+  try {
+    await requireActiveUser(userId); // Level-1 (SUSPENDED) can't file new reports — no retaliation
+    await enforceRateLimit({
+      count: () =>
+        prisma.conductReport.count({ where: { reporterId: userId, createdAt: { gt: minutesAgo(60) } } }),
+      limit: 5,
+      windowLabel: "hour",
+    });
+    await fileMatchReport(userId, matchId, reason);
+  } catch (err) {
+    return {
+      error: err instanceof Error ? err.message : "Something went wrong — try again.",
+      message: null,
+    };
+  }
   revalidatePath("/lobby");
+  return { error: null, message: "Reported — a mod will review it." };
 }
 
 export async function reportConnection(matchId: string) {
