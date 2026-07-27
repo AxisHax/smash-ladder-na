@@ -6,7 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ForceConfirmMatchForm } from "@/components/force-confirm-match-form";
-import { forceConfirmMatchAction, postLiveMatchComment } from "./actions";
+import { EditGameScoreForm } from "@/components/edit-game-score-form";
+import {
+  forceConfirmMatchAction,
+  postLiveMatchComment,
+  setGameWinnerAction,
+  resetMatchAction,
+} from "./actions";
 
 export default async function LiveMatchesPage() {
   const session = await auth();
@@ -79,6 +85,24 @@ export default async function LiveMatchesPage() {
                     player2Username={match.player2.username}
                     actionForPlayer1={forceConfirmMatchAction.bind(null, match.id, match.player1.id)}
                     actionForPlayer2={forceConfirmMatchAction.bind(null, match.id, match.player2.id)}
+                  />
+
+                  <EditGameScoreForm
+                    player1Username={match.player1.username}
+                    player2Username={match.player2.username}
+                    games={match.games.map((g) => ({
+                      gameNumber: g.gameNumber,
+                      winnerUsername:
+                        g.winnerId === match.player1.id
+                          ? match.player1.username
+                          : g.winnerId === match.player2.id
+                            ? match.player2.username
+                            : null,
+                      setPlayer1Action: setGameWinnerAction.bind(null, match.id, g.gameNumber, match.player1.id),
+                      clearAction: setGameWinnerAction.bind(null, match.id, g.gameNumber, null),
+                      setPlayer2Action: setGameWinnerAction.bind(null, match.id, g.gameNumber, match.player2.id),
+                    }))}
+                    resetAction={resetMatchAction.bind(null, match.id)}
                   />
 
                   <details className="mt-3 text-xs">
