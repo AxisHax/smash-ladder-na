@@ -6,7 +6,6 @@ import { prisma } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArenaPasswordForm } from "@/components/arena-password-form";
-import { OwnCharactersForm } from "@/components/own-characters-form";
 import { UsernameForm } from "@/components/username-form";
 import { listBlockedUsers } from "@/lib/blocks";
 import { REMATCH_COOLDOWN_PRESETS } from "@/lib/rematch-cooldown";
@@ -17,7 +16,6 @@ import {
   disconnectTwitchAction,
   updateArenaPassword,
   updateAvoidPracticeOpponentsSetting,
-  updateOwnCharacters,
   updateRematchCooldownSetting,
   updateUsernameAction,
 } from "./actions";
@@ -124,16 +122,17 @@ export default async function SettingsPage({
         </CardContent>
       </Card>
 
-      <Card className="mt-4">
-        <CardContent className="pt-4">
+      {/* "Your characters" self-declaration form hidden for now — mainCharacter/
+          secondaryCharacters are auto-recomputed from actual play since the
+          recomputeCharacterUsage rollout, and self-declaring here opts a
+          player out of that (charactersSelfDeclared). Restore by re-adding
+          the OwnCharactersForm import and this block:
           <OwnCharactersForm
             action={updateOwnCharacters}
             defaultMainCharacter={me?.mainCharacter ?? ""}
             defaultSecondaryCharacters={me?.secondaryCharacters ?? []}
             selfDeclared={me?.charactersSelfDeclared ?? false}
-          />
-        </CardContent>
-      </Card>
+          /> */}
 
       <Card className="mt-4">
         <CardContent className="pt-4">
