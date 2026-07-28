@@ -13,6 +13,7 @@ import {
   characterPickState,
   getMatchGames,
   gameTurnState,
+  lastUsedCharacter,
   secondsUntil,
 } from "@/lib/match-games";
 import { listMatchComments, isOpponentTyping } from "@/lib/match-comments";
@@ -661,6 +662,8 @@ function GameSection({
   const bannedCharacter = isPracticing
     ? (userId === match.player1Id ? match.player1.mainCharacter : match.player2.mainCharacter)
     : null;
+  const priorCharacter = lastUsedCharacter(games, userId);
+  const defaultCharacter = priorCharacter === bannedCharacter ? null : priorCharacter;
   const characterSection = (
     <CharacterPickSection
       userId={userId}
@@ -668,6 +671,7 @@ function GameSection({
       game={current}
       opponentName={opponentName}
       bannedCharacter={bannedCharacter}
+      defaultCharacter={defaultCharacter}
     />
   );
 
@@ -756,6 +760,7 @@ function CharacterPickSection({
   game,
   opponentName,
   bannedCharacter,
+  defaultCharacter,
 }: {
   userId: string;
   matchId: string;
@@ -768,6 +773,7 @@ function CharacterPickSection({
     createdAt: Date;
   };
   opponentName: string;
+  defaultCharacter: string | null;
   bannedCharacter: string | null;
 }) {
   const { yourCharacter, opponentCharacter, canPickNow } = characterPickState(game, userId);
@@ -840,8 +846,9 @@ function CharacterPickSection({
       )}
       <form action={pickCharacter.bind(null, matchId, game.gameNumber)} className="mt-3 flex items-end gap-2">
         <CharacterSelect
+          key={game.gameNumber}
           name="character"
-          defaultValue=""
+          defaultValue={defaultCharacter ?? ""}
           placeholder="Select character"
           excludeCharacter={bannedCharacter}
         />
