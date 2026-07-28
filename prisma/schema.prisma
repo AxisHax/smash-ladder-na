@@ -139,6 +139,9 @@ model User {
   gamesPlayed          Int        @default(0) // drives isProvisional + K-factor tier
   noShowCount          Int        @default(0)
   cancelCount          Int        @default(0)
+  queueCooldownUntil   DateTime? // set on an AFK/no-show forfeit (see applyTimeoutCooldown) — blocks joinLobbyAndTryPair until this passes
+  recentTimeoutCount   Int        @default(0) // escalates the next cooldown; reset to 0 if lastTimeoutAt is older than the reset window
+  lastTimeoutAt        DateTime? // when recentTimeoutCount was last bumped — determines whether the next timeout resets or escalates it
   misconductScore      Int        @default(0) // bumped only when a mod actions a ConductReport, not on filing
   suspendedUntil       DateTime? // set only for a timed SUSPENDED; null means indefinite (or n/a if not suspended). Past-due is lazily lifted back to ACTIVE on next access.
   lastKnownIp          String? // captured from x-forwarded-for at sign-in — lets a mod banning an account also ban the IP it was last seen using (see BannedIp)

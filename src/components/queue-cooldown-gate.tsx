@@ -1,0 +1,48 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+function msRemaining(deadlineMs: number) {
+  return Math.max(0, deadlineMs - Date.now());
+}
+
+// Wraps the "Search new opponent" button: while a timeout cooldown is
+// still active, shows a live countdown instead of the button (children).
+// Ticks down locally rather than waiting on the next server poll — the
+// server enforces the real deadline regardless (joinLobbyAndTryPair), this
+// is purely so the button reappears the moment the wait is actually over.
+export function QueueCooldownGate({
+  cooldownUntil,
+  children,
+}: {
+  cooldownUntil: string | null;
+  children: React.ReactNode;
+}) {
+  const deadlineMs = cooldownUntil ? new Date(cooldownUntil).getTime() : 0;
+  const [remainingMs, setRemainingMs] = useState(() => msRemaining(deadlineMs));
+
+  // Deliberately not also setting state synchronously here for the
+  // deadlineMs-changed case — the interval below catches up within a
+  // second regardless, same as Countdown.
+  useEffect(() => {
+    if (!cooldownUntil) return;
+    const id = setInterval(() => setRemainingMs(msRemaining(deadlineMs)), 1000);
+    return () => clearInterval(id);
+  }, [cooldownUntil, deadlineMs]);
+
+  if (!cooldownUntil || remainingMs <= 0) return <>{children}</>;
+
+  const totalSeconds = Math.ceil(remainingMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  return (
+    <p className="text-sm text-muted-foreground">
+      You timed out of your last match — you can queue again in{" "}
+      <span className="font-medium tabular-nums" suppressHydrationWarning>
+        {minutes}:{seconds.toString().padStart(2, "0")}
+      </span>
+      .
+    </p>
+  );
+}

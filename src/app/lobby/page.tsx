@@ -36,6 +36,7 @@ import { FlashOnChange } from "@/components/flash-on-change";
 import { Countdown } from "@/components/countdown";
 import { LobbyPoller } from "@/components/lobby-poller";
 import { JoinLobbyForm } from "@/components/join-lobby-button";
+import { QueueCooldownGate } from "@/components/queue-cooldown-gate";
 import { CancelMatchButton } from "@/components/cancel-match-button";
 import { VictoryCelebration } from "@/components/victory-celebration";
 import { ReportCharacterForm } from "@/components/report-character-form";
@@ -95,6 +96,11 @@ export default async function LobbyPage() {
   }
 
   const entry = await getActiveLobbyEntry(session.user.id);
+  const me = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { queueCooldownUntil: true },
+  });
+  const queueCooldownUntil = me?.queueCooldownUntil?.toISOString() ?? null;
   const isInActiveMatch =
     entry?.status === "PAIRED" &&
     entry.match &&
@@ -138,7 +144,9 @@ export default async function LobbyPage() {
             <p className="mt-1 text-xs text-muted-foreground">
               This starts a brand new search — it&apos;s not related to the match below.
             </p>
-            <JoinLobbyForm action={joinLobby} className="mt-3" />
+            <QueueCooldownGate cooldownUntil={queueCooldownUntil}>
+              <JoinLobbyForm action={joinLobby} className="mt-3" />
+            </QueueCooldownGate>
           </CardContent>
         </Card>
       )}
@@ -163,7 +171,9 @@ export default async function LobbyPage() {
         <Card className="mt-4">
           <CardContent className="pt-4">
             <p className="text-sm text-muted-foreground">You&apos;re not in the queue.</p>
-            <JoinLobbyForm action={joinLobby} className="mt-4" />
+            <QueueCooldownGate cooldownUntil={queueCooldownUntil}>
+              <JoinLobbyForm action={joinLobby} className="mt-4" />
+            </QueueCooldownGate>
           </CardContent>
         </Card>
       )}

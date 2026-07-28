@@ -18,6 +18,28 @@ async function createPastMatch(p1: string, p2: string, createdAt: Date) {
 }
 
 describe("joinLobbyAndTryPair", () => {
+  it("rejects joining while a timeout cooldown is still active", async () => {
+    const a = await createTestUser({
+      region: "USA East",
+      queueCooldownUntil: new Date(Date.now() + 5 * 60 * 1000),
+    });
+
+    await expect(joinLobbyAndTryPair(a.id)).rejects.toThrow(/timed out/i);
+
+    const entries = await prisma.ratingLobbyEntry.count({ where: { userId: a.id } });
+    expect(entries).toBe(0);
+  });
+
+  it("allows joining once the timeout cooldown has passed", async () => {
+    const a = await createTestUser({
+      region: "USA East",
+      queueCooldownUntil: new Date(Date.now() - 1000),
+    });
+
+    const entry = await joinLobbyAndTryPair(a.id);
+    expect(entry?.status).toBe("WAITING");
+  });
+
   it("pairs two compatible waiting players", async () => {
     const a = await createTestUser({ region: "USA East" });
     const b = await createTestUser({ region: "USA East" });

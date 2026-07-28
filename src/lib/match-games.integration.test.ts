@@ -57,6 +57,34 @@ describe("auto-forfeit for a stale character pick", () => {
       where: { id: game.actorAId === p1.id ? p2.id : p1.id },
     });
     expect(opponent.noShowCount).toBe(1);
+    expect(opponent.recentTimeoutCount).toBe(1);
+    expect(opponent.queueCooldownUntil).not.toBeNull();
+    expect(opponent.queueCooldownUntil!.getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it("escalates the cooldown on a second timeout", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser({
+      recentTimeoutCount: 1,
+      lastTimeoutAt: new Date(Date.now() - 60 * 60 * 1000), // 1 hour ago — still within the reset window
+    });
+    const match = await createMatch(p1.id, p2.id);
+    await startFirstGame(p2.id, match.id);
+    const game = await getCurrentGame(match.id);
+    if (!game) throw new Error("expected game 1 to exist");
+    // p1 (the non-ghost) locks in; p2 stays a no-show.
+    const nonGhostId = game.actorAId === p2.id ? game.actorBId : game.actorAId;
+    await pickGameCharacter(nonGhostId, match.id, 1, "Mario");
+    await prisma.matchGame.update({
+      where: { id: game.id },
+      data: { createdAt: new Date(Date.now() - CHARACTER_TIMEOUT_MS - 1000) },
+    });
+
+    await getMatchGames(match.id);
+
+    const ghost = await prisma.user.findUniqueOrThrow({ where: { id: p2.id } });
+    expect(ghost.recentTimeoutCount).toBe(2);
+    expect(ghost.noShowCount).toBe(1);
   });
 
   it("does nothing when neither side has locked in yet, even past the timeout", async () => {
