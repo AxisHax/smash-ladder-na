@@ -142,6 +142,7 @@ model User {
   misconductScore      Int        @default(0) // bumped only when a mod actions a ConductReport, not on filing
   suspendedUntil       DateTime? // set only for a timed SUSPENDED; null means indefinite (or n/a if not suspended). Past-due is lazily lifted back to ACTIVE on next access.
   lastKnownIp          String? // captured from x-forwarded-for at sign-in — lets a mod banning an account also ban the IP it was last seen using (see BannedIp)
+  lastSignInAt         DateTime? // set only in auth.ts's signIn callback — unlike updatedAt (bumped by any write: rating changes, admin backfills, etc.), this is the one field that only ever reflects an actual sign-in, so it's what "Active in last 24h" on the admin overview keys off of
   mainCharacter        String? // peer-reported by default (see reportOpponentCharacter), but a player can self-declare via setOwnCharacters — once they do, charactersSelfDeclared locks out further peer reports for this profile
   secondaryCharacters  String[]   @default([]) // same source as mainCharacter — peer-reported (accumulated) until self-declared, then player-controlled
   charactersSelfDeclared Boolean  @default(false) // once true, reportOpponentCharacter no-ops — players complained peer reports kept landing on the wrong main, so self-declaration (once made) is authoritative

@@ -15,9 +15,13 @@ export async function getAdminOverview() {
     openReports,
     lobbyWaiting,
     matchesInProgress,
-    openTournaments,
   ] = await Promise.all([
-    prisma.user.count({ where: { updatedAt: { gte: dayAgo } } }),
+    // lastSignInAt, not updatedAt — updatedAt is bumped by any write to the
+    // row at all (a rating change, an admin backfill, anything), so it was
+    // wildly overcounting "active" for anyone touched by something other
+    // than actually signing in. lastSignInAt only ever moves in auth.ts's
+    // signIn callback.
+    prisma.user.count({ where: { lastSignInAt: { gte: dayAgo } } }),
     prisma.user.count(),
     prisma.user.count({ where: { status: UserStatus.SUSPENDED } }),
     prisma.user.count({ where: { status: UserStatus.BANNED } }),
@@ -53,7 +57,6 @@ export async function getAdminOverview() {
     prisma.ratingMatch.count({
       where: { status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED, MatchStatus.DISPUTED] } },
     }),
-    prisma.tournament.count({ where: { status: { in: ["SIGNUPS", "IN_PROGRESS"] } } }),
   ]);
 
   const openDisputes = disputedGameCandidates.filter(
@@ -71,6 +74,5 @@ export async function getAdminOverview() {
     openReports,
     lobbyWaiting,
     matchesInProgress,
-    openTournaments,
   };
 }

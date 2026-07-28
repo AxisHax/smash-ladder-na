@@ -4,7 +4,6 @@ import {
   Ban,
   Flag,
   Gauge,
-  Medal,
   Radio,
   Shield,
   Swords,
@@ -91,7 +90,6 @@ export default async function AdminOverviewPage() {
         <StatCard icon={Users} label="Total players" value={stats.totalUsers} />
         <StatCard icon={Swords} label="Matches today" value={stats.matchesToday} />
         <StatCard icon={Swords} label="Matches total" value={stats.matchesTotal} />
-        <StatCard icon={Medal} label="Open tournaments" value={stats.openTournaments} />
         <StatCard
           icon={Users}
           label="Lobby waiting / paired"

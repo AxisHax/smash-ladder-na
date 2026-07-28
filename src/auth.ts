@@ -34,8 +34,8 @@ const devCredentials = Credentials({
     const discordId = `dev-${username.toLowerCase().replace(/\s+/g, "-")}`;
     const user = await prisma.user.upsert({
       where: { discordId },
-      update: {},
-      create: { discordId, username },
+      update: { lastSignInAt: new Date() },
+      create: { discordId, username, lastSignInAt: new Date() },
     });
     return { id: user.id, name: user.username };
   },
@@ -86,6 +86,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           discordUsername,
           avatarUrl: discordProfile.image_url,
           lastKnownIp: ip ?? undefined,
+          lastSignInAt: new Date(),
         },
         create: {
           discordId: discordProfile.id,
@@ -94,6 +95,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           avatarUrl: discordProfile.image_url,
           email: discordProfile.email ?? undefined,
           lastKnownIp: ip ?? undefined,
+          lastSignInAt: new Date(),
         },
       });
 
