@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 
-export const MAX_BLOCKS_PER_USER = 10;
+export const MAX_BLOCKS_PER_USER = 5;
 
 export async function blockUser(blockerId: string, blockedId: string) {
   if (blockerId === blockedId) throw new Error("You can't block yourself");
