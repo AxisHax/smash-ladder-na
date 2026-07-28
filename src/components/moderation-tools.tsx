@@ -1,7 +1,9 @@
 "use client";
 
+import { useRef } from "react";
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/confirm-dialog";
 
 type ModerationState = { error: string | null };
 
@@ -75,15 +77,25 @@ export function BanIpButton({
   ip: string;
 }) {
   const [state, formAction, isPending] = useActionState(action, { error: null, message: null });
+  const [confirm, confirmDialog] = useConfirm();
+  const confirmReadyRef = useRef(false);
 
   return (
     <div className="flex flex-col gap-1">
       <form
         action={formAction}
         onSubmit={(e) => {
-          if (!confirm(`Ban IP ${ip}? This blocks sign-in from this address, not just this account.`)) {
-            e.preventDefault();
+          if (confirmReadyRef.current) {
+            confirmReadyRef.current = false;
+            return;
           }
+          e.preventDefault();
+          confirm(`Ban IP ${ip}? This blocks sign-in from this address, not just this account.`).then((ok) => {
+            if (ok) {
+              confirmReadyRef.current = true;
+              e.currentTarget.requestSubmit();
+            }
+          });
         }}
       >
         <Button type="submit" size="sm" variant="destructive" disabled={isPending}>
@@ -92,6 +104,7 @@ export function BanIpButton({
       </form>
       {state.error && <p className="text-xs text-destructive">{state.error}</p>}
       {state.message && <p className="text-xs text-muted-foreground">{state.message}</p>}
+      {confirmDialog}
     </div>
   );
 }

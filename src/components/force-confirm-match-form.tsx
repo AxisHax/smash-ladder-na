@@ -1,7 +1,9 @@
 "use client";
 
+import { useRef } from "react";
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/confirm-dialog";
 
 type ForceConfirmState = { error: string | null };
 
@@ -24,11 +26,21 @@ export function ForceConfirmMatchForm({
   const [state2, formAction2, isPending2] = useActionState(actionForPlayer2, { error: null });
   const error = state1.error ?? state2.error;
   const pending = isPending1 || isPending2;
+  const [confirm, confirmDialog] = useConfirm();
+  const confirmReadyRef = useRef(false);
 
   function confirmAndSubmit(e: React.FormEvent<HTMLFormElement>, winnerUsername: string) {
-    if (!confirm(`Close out this set with ${winnerUsername} as the winner? This applies rating immediately.`)) {
-      e.preventDefault();
+    if (confirmReadyRef.current) {
+      confirmReadyRef.current = false;
+      return;
     }
+    e.preventDefault();
+    confirm(`Close out this set with ${winnerUsername} as the winner? This applies rating immediately.`).then((ok) => {
+      if (ok) {
+        confirmReadyRef.current = true;
+        e.currentTarget.requestSubmit();
+      }
+    });
   }
 
   return (
@@ -51,6 +63,7 @@ export function ForceConfirmMatchForm({
         </div>
         {error && <p className="text-destructive">{error}</p>}
       </div>
+      {confirmDialog}
     </details>
   );
 }
