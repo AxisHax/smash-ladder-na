@@ -5,6 +5,7 @@ import { auth, signOut } from "@/auth";
 import { deleteMyAccount } from "@/lib/account";
 import { blockUser } from "@/lib/blocks";
 import { adminOverrideMatchResult, requestResultCorrection } from "@/lib/matches";
+import { adminCancelMatch } from "@/lib/disputes";
 import { moderateUserDirectly } from "@/lib/reports";
 import { banIp } from "@/lib/ip-bans";
 
@@ -140,6 +141,27 @@ export async function adminOverrideResultAction(
   await requireModerator();
   try {
     await adminOverrideMatchResult(matchId, winnerId);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+  }
+  revalidatePath(`/players/${viewedPlayerId}`);
+  return { error: null };
+}
+
+// Fully undoes a confirmed match — e.g. one side got auto-forfeited by the
+// AFK/no-show timer by accident. Reverts both players' rating back to what
+// it was right before this match and cancels it outright, rather than just
+// flipping the winner — see adminCancelMatch for the eligibility guard
+// (still each player's most recent confirmed match, season still active).
+export async function adminUndoMatchAction(
+  matchId: string,
+  viewedPlayerId: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- required by useActionState's call signature
+  _prevState: AdminOverrideState,
+): Promise<AdminOverrideState> {
+  await requireModerator();
+  try {
+    await adminCancelMatch(matchId);
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
   }

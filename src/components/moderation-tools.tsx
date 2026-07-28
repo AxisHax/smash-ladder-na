@@ -105,6 +105,7 @@ export function AdminMatchOverride({
   player2Username,
   actionForPlayer1,
   actionForPlayer2,
+  undoAction,
 }: {
   player1Username: string;
   player2Username: string;
@@ -113,10 +114,13 @@ export function AdminMatchOverride({
   // Action itself and can't be passed as a prop to this Client Component.
   actionForPlayer1: AdminOverrideAction;
   actionForPlayer2: AdminOverrideAction;
+  undoAction: AdminOverrideAction;
 }) {
   const [state1, formAction1, isPending1] = useActionState(actionForPlayer1, { error: null });
   const [state2, formAction2, isPending2] = useActionState(actionForPlayer2, { error: null });
-  const error = state1.error ?? state2.error;
+  const [undoState, undoFormAction, isPendingUndo] = useActionState(undoAction, { error: null });
+  const error = state1.error ?? state2.error ?? undoState.error;
+  const anyPending = isPending1 || isPending2 || isPendingUndo;
 
   return (
     <details className="mt-1 text-xs">
@@ -126,16 +130,32 @@ export function AdminMatchOverride({
       <div className="mt-2 flex flex-col gap-1.5">
         <div className="flex gap-2">
           <form action={formAction1}>
-            <Button type="submit" size="sm" variant="outline" disabled={isPending1 || isPending2}>
+            <Button type="submit" size="sm" variant="outline" disabled={anyPending}>
               {player1Username} won
             </Button>
           </form>
           <form action={formAction2}>
-            <Button type="submit" size="sm" variant="outline" disabled={isPending1 || isPending2}>
+            <Button type="submit" size="sm" variant="outline" disabled={anyPending}>
               {player2Username} won
             </Button>
           </form>
         </div>
+        <form
+          action={undoFormAction}
+          onSubmit={(e) => {
+            if (
+              !confirm(
+                "Undo this match? Reverts both players' rating back to right before it and cancels it outright — can't be undone.",
+              )
+            ) {
+              e.preventDefault();
+            }
+          }}
+        >
+          <Button type="submit" size="sm" variant="destructive" disabled={anyPending}>
+            Undo match (refund Elo)
+          </Button>
+        </form>
         {error && <p className="text-destructive">{error}</p>}
       </div>
     </details>

@@ -33,6 +33,7 @@ import { startggProfileUrl } from "@/lib/startgg-oauth";
 import { listReportsForUser } from "@/lib/reports";
 import {
   adminOverrideResultAction,
+  adminUndoMatchAction,
   banPlayerIpAction,
   blockUserAction,
   deleteAccountAction,
@@ -328,6 +329,7 @@ export default async function PlayerProfilePage({
                     player2Username={match.opponent.username}
                     actionForPlayer1={adminOverrideResultAction.bind(null, match.id, id, id)}
                     actionForPlayer2={adminOverrideResultAction.bind(null, match.id, id, match.opponent.id)}
+                    undoAction={adminUndoMatchAction.bind(null, match.id, id)}
                   />
                 )}
               </div>
