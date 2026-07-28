@@ -132,6 +132,7 @@ export async function joinLobbyAndTryPair(userId: string, isPracticing = false) 
         wiredConnection: true,
         requireWiredOpponent: true,
         avoidPracticeOpponents: true,
+        queueCooldownUntil: true,
       },
     }),
     getBlockedEitherWayIds(userId),
@@ -140,6 +141,18 @@ export async function joinLobbyAndTryPair(userId: string, isPracticing = false) 
   // A resolved (CONFIRMED/DISPUTED) match no longer blocks requeueing, even
   // though its RatingLobbyEntry rows are still sitting there as PAIRED.
   if (waitingEntry || unresolvedMatch) return getActiveLobbyEntry(userId);
+
+  const now = new Date();
+
+  // Escalating penalty for getting auto-forfeited via AFK timeout (see
+  // applyTimeoutCooldown) — repeated no-shows shouldn't just cost the
+  // ghosted opponent's time with zero consequence for the one who dodged.
+  if (me.queueCooldownUntil && me.queueCooldownUntil > now) {
+    const minutesLeft = Math.ceil((me.queueCooldownUntil.getTime() - now.getTime()) / (60 * 1000));
+    throw new Error(
+      `You timed out of your last match — you can queue again in ${minutesLeft} minute${minutesLeft === 1 ? "" : "s"}.`,
+    );
+  }
 
   // Matching is same-or-nearby-region by default — a region has to be set
   // first so there's something to compare — but either side's own match
@@ -150,8 +163,6 @@ export async function joinLobbyAndTryPair(userId: string, isPracticing = false) 
       "Set your region before joining the queue — you'll only be matched with players within your chosen match distance.",
     );
   }
-
-  const now = new Date();
   const newEntry = await prisma.ratingLobbyEntry.create({
     data: { userId, isPracticing, expiresAt: new Date(now.getTime() + LOBBY_ENTRY_TTL_MS) },
   });

@@ -18,6 +18,7 @@ import {
   lastUsedCharacter,
   secondsUntil,
 } from "@/lib/match-games";
+import { stageImagePath, GAME_ONE_STAGES, COUNTERPICK_STAGES } from "@/lib/stages";
 import { listMatchComments, isOpponentTyping } from "@/lib/match-comments";
 import { MATCH_DISTANCE_PRESETS, MATCH_REGION_GROUPS, REGION_REFERENCE_CITY } from "@/lib/regions";
 import { MATCH_RATING_GAP_PRESETS, didTierUp, getRankTier } from "@/lib/rank-tier";
@@ -30,9 +31,12 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { CharacterIcon } from "@/components/character-icon";
 import { CharacterSelect } from "@/components/character-select";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { RoomCodeForm } from "@/components/room-code-form";
+import { FlashOnChange } from "@/components/flash-on-change";
 import { Countdown } from "@/components/countdown";
 import { LobbyPoller } from "@/components/lobby-poller";
 import { JoinLobbyForm } from "@/components/join-lobby-button";
+import { QueueCooldownGate } from "@/components/queue-cooldown-gate";
 import { CancelMatchButton } from "@/components/cancel-match-button";
 import { VictoryCelebration } from "@/components/victory-celebration";
 import { ReportCharacterForm } from "@/components/report-character-form";
@@ -92,6 +96,11 @@ export default async function LobbyPage() {
   }
 
   const entry = await getActiveLobbyEntry(session.user.id);
+  const me = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { queueCooldownUntil: true },
+  });
+  const queueCooldownUntil = me?.queueCooldownUntil?.toISOString() ?? null;
   const isInActiveMatch =
     entry?.status === "PAIRED" &&
     entry.match &&
@@ -135,7 +144,9 @@ export default async function LobbyPage() {
             <p className="mt-1 text-xs text-muted-foreground">
               This starts a brand new search — it&apos;s not related to the match below.
             </p>
-            <JoinLobbyForm action={joinLobby} className="mt-3" />
+            <QueueCooldownGate cooldownUntil={queueCooldownUntil}>
+              <JoinLobbyForm action={joinLobby} className="mt-3" />
+            </QueueCooldownGate>
           </CardContent>
         </Card>
       )}
@@ -160,7 +171,9 @@ export default async function LobbyPage() {
         <Card className="mt-4">
           <CardContent className="pt-4">
             <p className="text-sm text-muted-foreground">You&apos;re not in the queue.</p>
-            <JoinLobbyForm action={joinLobby} className="mt-4" />
+            <QueueCooldownGate cooldownUntil={queueCooldownUntil}>
+              <JoinLobbyForm action={joinLobby} className="mt-4" />
+            </QueueCooldownGate>
           </CardContent>
         </Card>
       )}
@@ -517,7 +530,7 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
         </CardContent>
 
         <CardContent>
-          <RoomCodeForm
+          <RoomCodeSection
             matchId={match.id}
             initialValue={match.roomCode ?? ""}
             readOnly={!!match.roomCodeSetById && match.roomCodeSetById !== userId}
@@ -705,7 +718,25 @@ function GameSection({
         {characterSection}
         <CardContent className="border-t border-border pt-4">
           <p className="text-sm text-muted-foreground">Game {current.gameNumber} stage</p>
-          <p className="mt-1 font-medium">{current.finalStage}</p>
+          {current.finalStage && (() => {
+            const imgPath = stageImagePath(current.finalStage!);
+            return (
+              <div className="relative mt-2 flex h-32 w-48 items-center justify-center overflow-hidden rounded-md border">
+                {imgPath && (
+                  <Image
+                    src={`/stages/${imgPath}`}
+                    alt={current.finalStage!}
+                    fill
+                    className="object-cover"
+                    sizes="192px"
+                  />
+                )}
+                <span className="relative z-10 rounded bg-background/80 px-2 py-1 text-sm font-medium">
+                  {current.finalStage!}
+                </span>
+              </div>
+            );
+          })()}
         </CardContent>
         <ReportGameSection userId={userId} match={match} game={current} opponentName={opponentName} />
       </>
@@ -796,13 +827,48 @@ function GameSection({
           </div>
         )}
         <div className="mt-3 flex flex-wrap gap-2">
-          {current.stagesRemaining.map((stage) => (
-            <form key={stage} action={action.bind(null, match.id, current.gameNumber, stage)}>
-              <Button type="submit" size="sm" variant="outline" disabled={!canAct}>
-                {stage}
-              </Button>
-            </form>
-          ))}
+          {(() => {
+            const pool: readonly string[] = current.gameNumber === 1 ? GAME_ONE_STAGES : COUNTERPICK_STAGES;
+            const allStages = [...new Set([...current.struckStages, ...current.stagesRemaining])];
+            return allStages.sort((a, b) => pool.indexOf(a) - pool.indexOf(b));
+          })().map((stage) => {
+            const isStruck = current.struckStages.includes(stage);
+            const imgPath = stageImagePath(stage);
+            return (
+              <form key={stage} action={action.bind(null, match.id, current.gameNumber, stage)}>
+                <Button
+                  type="submit"
+                  size="sm"
+                  variant="outline"
+                  disabled={!canAct || isStruck}
+                  className={`relative flex h-24 w-36 max-sm:h-20 max-sm:w-28 flex-col items-center justify-end gap-1 overflow-hidden p-2 ${isStruck ? "cursor-not-allowed opacity-60" : ""}`}
+                >
+                  {imgPath && (
+                    <Image
+                      src={`/stages/${imgPath}`}
+                      alt={stage}
+                      fill
+                      className="object-cover"
+                      sizes="128px"
+                    />
+                  )}
+                  <span className="relative z-10 rounded bg-background/80 px-1 text-xs max-sm:text-[10px] font-medium">
+                    {stage}
+                  </span>
+                  {isStruck && (
+                    <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+                      <span
+                        className="leading-none text-red-500 opacity-80 drop-shadow-[0_0_8px_rgba(0,0,0,0.95)]"
+                        style={{ fontSize: "5rem" }}
+                      >
+                        ✕
+                      </span>
+                    </div>
+                  )}
+                </Button>
+              </form>
+            );
+          })}
         </div>
         {canUndoLastStrike && (
           <form action={unstrikeStage.bind(null, match.id, current.gameNumber)} className="mt-2">
@@ -1174,7 +1240,7 @@ async function CommentsSection({
   );
 }
 
-function RoomCodeForm({
+function RoomCodeSection({
   matchId,
   initialValue,
   readOnly,
@@ -1189,12 +1255,6 @@ function RoomCodeForm({
   myArenaPassword: string;
   opponentArenaPassword: string;
 }) {
-  async function action(formData: FormData) {
-    "use server";
-    const roomCode = String(formData.get("roomCode") ?? "");
-    await submitRoomCode(matchId, roomCode);
-  }
-
   // Whoever actually ends up hosting is whoever's code stuck (locked in via
   // setMatchRoomCode) — before that, either side could still become the
   // host, so each just sees their own password until it's decided.
@@ -1204,7 +1264,9 @@ function RoomCodeForm({
     return (
       <div className="flex flex-col gap-1 text-sm">
         Room code
-        <p className="font-medium tabular-nums">{initialValue || "Not set yet"}</p>
+        <p className="font-medium tabular-nums">
+          <FlashOnChange value={initialValue}>{initialValue || "Not set yet"}</FlashOnChange>
+        </p>
         {setByOpponent && (
           <p className="text-xs text-muted-foreground">Set by your opponent — join with this.</p>
         )}
@@ -1218,20 +1280,7 @@ function RoomCodeForm({
 
   return (
     <div className="flex flex-col gap-1">
-      <form action={action} className="flex items-end gap-2">
-        <label className="flex flex-col gap-1 text-sm">
-          Room code
-          <input
-            name="roomCode"
-            defaultValue={initialValue}
-            placeholder="e.g. AB123"
-            className="h-8 w-40 rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
-          />
-        </label>
-        <Button type="submit" size="sm">
-          Save
-        </Button>
-      </form>
+      <RoomCodeForm initialValue={initialValue} action={submitRoomCode.bind(null, matchId)} />
       <p className="text-xs text-muted-foreground">
         Set the in-game room password to{" "}
         <span className="font-medium text-foreground">{hostArenaPassword}</span>.

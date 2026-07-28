@@ -622,4 +622,44 @@ describe("requestRematch", () => {
     });
     expect(newMatches).toBe(0);
   });
+
+  // Regression test: a player could request/accept a rematch on an old
+  // finished match while also having queued for and been paired with an
+  // unrelated third player in the meantime (e.g. via the general "Search
+  // new opponent" queue) — accepting the stale rematch would silently give
+  // them a second simultaneous live match, and getActiveLobbyEntry would
+  // start showing whichever one is newest, yanking them out of the other.
+  it("doesn't create a new match if the requester already has an unresolved match elsewhere", async () => {
+    const { player1, player2, match } = await createConfirmedMatch();
+    const stranger = await createTestUser();
+    await requestRematch(player1.id, match.id);
+
+    await prisma.ratingMatch.create({
+      data: { player1Id: player1.id, player2Id: stranger.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+
+    await requestRematch(player2.id, match.id);
+
+    const newMatches = await prisma.ratingMatch.count({
+      where: { player1Id: player1.id, player2Id: player2.id, id: { not: match.id } },
+    });
+    expect(newMatches).toBe(0);
+  });
+
+  it("doesn't create a new match if the accepter already has an unresolved match elsewhere", async () => {
+    const { player1, player2, match } = await createConfirmedMatch();
+    const stranger = await createTestUser();
+    await requestRematch(player1.id, match.id);
+
+    await prisma.ratingMatch.create({
+      data: { player1Id: player2.id, player2Id: stranger.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+
+    await requestRematch(player2.id, match.id);
+
+    const newMatches = await prisma.ratingMatch.count({
+      where: { player1Id: player1.id, player2Id: player2.id, id: { not: match.id } },
+    });
+    expect(newMatches).toBe(0);
+  });
 });

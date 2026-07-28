@@ -196,6 +196,27 @@ export async function requestRematch(userId: string, matchId: string) {
       const blockedIds = await getBlockedEitherWayIds(userId);
       if (blockedIds.includes(opponentId)) return;
 
+      // Either side could've queued for a new opponent in the meantime
+      // instead of waiting on this rematch — a stale request accepted now
+      // would otherwise silently create a second live match for whoever
+      // already moved on (see getActiveLobbyEntry: it just shows whichever
+      // match/lobby entry is newest, so that second match would yank them
+      // out of the one they're actually in with no warning). Bail the same
+      // way the checks above do rather than erroring, since from either
+      // player's side this just means the rematch quietly isn't happening.
+      const eitherAlreadyPlaying = await tx.ratingMatch.findFirst({
+        where: {
+          OR: [
+            { player1Id: match.player1Id },
+            { player2Id: match.player1Id },
+            { player1Id: match.player2Id },
+            { player2Id: match.player2Id },
+          ],
+          status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED] },
+        },
+      });
+      if (eitherAlreadyPlaying) return;
+
       await createDirectMatch(tx, match.player1Id, match.player2Id, PairingMethod.REMATCH);
     }, TX_OPTIONS),
   );

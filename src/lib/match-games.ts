@@ -5,6 +5,7 @@ import { applyEloAndConfirm } from "@/lib/matches";
 import { GAME_ONE_STAGES, COUNTERPICK_STAGES } from "@/lib/stages";
 import { SMASH_CHARACTERS } from "@/lib/characters";
 import { sendDiscordDM } from "@/lib/discord-bot";
+import { applyTimeoutCooldown } from "@/lib/queue-cooldown";
 
 export const GAMES_TO_WIN = 3; // best of 5
 const MAX_GAMES = 2 * GAMES_TO_WIN - 1;
@@ -117,7 +118,7 @@ async function autoResolveStaleCharacterPick(match: { id: string; player1Id: str
       });
       if (claim.count === 0) return false; // already resolved by a racing request
       await progressSet(tx, match, game.gameNumber, winnerId, ConfirmationMethod.AUTO_TIMEOUT);
-      await tx.user.update({ where: { id: ghostId }, data: { noShowCount: { increment: 1 } } });
+      await applyTimeoutCooldown(tx, ghostId);
       return true;
     }, TX_OPTIONS),
   );
@@ -683,10 +684,7 @@ export async function autoConfirmStaleGameReport(
         data: { expiresAt: new Date(now.getTime() + MATCH_TTL_MS) },
       });
       await progressSet(tx, match, hangingGame.gameNumber, reportedWinnerId, ConfirmationMethod.AUTO_TIMEOUT);
-      await tx.user.update({
-        where: { id: nonReporterId },
-        data: { noShowCount: { increment: 1 } },
-      });
+      await applyTimeoutCooldown(tx, nonReporterId, now);
     }, TX_OPTIONS),
   );
 

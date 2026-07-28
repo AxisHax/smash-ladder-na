@@ -1,7 +1,9 @@
 "use client";
 
+import { useRef } from "react";
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/confirm-dialog";
 
 type ActionState = { error: string | null };
 type BoundAction = (prevState: ActionState, formData: FormData) => Promise<ActionState>;
@@ -28,6 +30,8 @@ function GameRow({
   const [s3, a3, pending3] = useActionState(setPlayer2Action, { error: null });
   const error = s1.error ?? s2.error ?? s3.error;
   const pending = pending1 || pending2 || pending3;
+  const [confirm, confirmDialog] = useConfirm();
+  const confirmReadyRef = useRef(false);
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
@@ -41,13 +45,24 @@ function GameRow({
       <form
         action={a2}
         onSubmit={(e) => {
-          if (!confirm(`Clear game ${gameNumber}'s result?`)) e.preventDefault();
+          if (confirmReadyRef.current) {
+            confirmReadyRef.current = false;
+            return;
+          }
+          e.preventDefault();
+          confirm(`Clear game ${gameNumber}'s result?`).then((ok) => {
+            if (ok) {
+              confirmReadyRef.current = true;
+              e.currentTarget.requestSubmit();
+            }
+          });
         }}
       >
         <Button type="submit" size="sm" variant="ghost" disabled={pending}>
           Clear
         </Button>
       </form>
+      {confirmDialog}
       <form action={a3}>
         <Button type="submit" size="sm" variant="outline" disabled={pending}>
           {player2Username} won
@@ -85,6 +100,8 @@ export function EditGameScoreForm({
   editsRemaining?: number;
 }) {
   const [resetState, resetFormAction, resetPending] = useActionState(resetAction, { error: null });
+  const [confirm, confirmDialog] = useConfirm();
+  const resetReadyRef = useRef(false);
 
   return (
     <details className="mt-3 text-xs">
@@ -109,9 +126,17 @@ export function EditGameScoreForm({
           <form
             action={resetFormAction}
             onSubmit={(e) => {
-              if (!confirm("Wipe this set's games entirely and restart from 0-0? This can't be undone.")) {
-                e.preventDefault();
+              if (resetReadyRef.current) {
+                resetReadyRef.current = false;
+                return;
               }
+              e.preventDefault();
+              confirm("Wipe this set's games entirely and restart from 0-0? This can't be undone.").then((ok) => {
+                if (ok) {
+                  resetReadyRef.current = true;
+                  e.currentTarget.requestSubmit();
+                }
+              });
             }}
           >
             <Button type="submit" size="sm" variant="destructive" disabled={resetPending}>
@@ -121,6 +146,7 @@ export function EditGameScoreForm({
         )}
         {resetState.error && <p className="text-destructive">{resetState.error}</p>}
       </div>
+      {confirmDialog}
     </details>
   );
 }

@@ -69,6 +69,19 @@ export function playMatchFoundChime() {
   }
 }
 
+// A single short blip — for a value updating on screen (e.g. the room code
+// changing), not a celebratory moment like the chimes above.
+export function playUpdateBlip() {
+  const ctx = getContext();
+  if (!ctx) return;
+  try {
+    const now = ctx.currentTime;
+    playTone(ctx, 660, now, 0.08);
+  } catch {
+    // Autoplay restrictions, unsupported browser, etc. — silently skip.
+  }
+}
+
 export function playTierUpChime() {
   const ctx = getContext();
   if (!ctx) return;
