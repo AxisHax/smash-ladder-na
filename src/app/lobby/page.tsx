@@ -13,6 +13,7 @@ import {
   characterPickState,
   getMatchGames,
   gameTurnState,
+  lastSameBans,
   lastUsedCharacter,
   secondsUntil,
 } from "@/lib/match-games";
@@ -24,6 +25,7 @@ import { effectiveArenaPassword } from "@/lib/arena";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { CharacterIcon } from "@/components/character-icon";
 import { CharacterSelect } from "@/components/character-select";
 import { Countdown } from "@/components/countdown";
@@ -54,6 +56,7 @@ import {
   requestDisputeResolutionAction,
   requestMutualCancelAction,
   requestRematchAction,
+  sameBansStrike,
   sendMatchCommentAction,
   strikeStage,
   submitRoomCode,
@@ -726,6 +729,11 @@ function GameSection({
     lastStrikeIndex >= 0 &&
     (lastStrikeIndex < current.actorAStrikes ? current.actorAId : current.actorBId) === userId;
 
+  const sameBans =
+    turn.phase === "striking" && current.actorAId === userId && current.actorAStrikes === 3 && struckSoFar === 0
+      ? lastSameBans(games, userId)
+      : null;
+
   return (
     <>
       {characterSection}
@@ -744,6 +752,20 @@ function GameSection({
             </>
           )}
         </p>
+        {sameBans && (
+          <div className="mt-3">
+            <form action={sameBansStrike.bind(null, match.id, current.gameNumber)}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button type="submit" size="sm" variant="default" disabled={!canAct}>
+                    Same bans as Game {sameBans.gameNumber}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{sameBans.stages.join(", ")}</TooltipContent>
+              </Tooltip>
+            </form>
+          </div>
+        )}
         <div className="mt-3 flex flex-wrap gap-2">
           {current.stagesRemaining.map((stage) => (
             <form key={stage} action={action.bind(null, match.id, current.gameNumber, stage)}>

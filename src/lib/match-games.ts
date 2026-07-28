@@ -288,6 +288,24 @@ export function lastUsedCharacter(games: CharacterPickGame[], userId: string): s
   return null;
 }
 
+// Mirrors lastUsedCharacter, but for a player's 3-stage actorA strike turn
+// (games 2+, where the previous game's winner strikes 3 from the shared
+// COUNTERPICK_STAGES list) — powers the "Same Bans" shortcut. The
+// struckStages.length >= 3 check naturally excludes an in-progress current
+// turn, so callers don't need to filter that game out themselves.
+export function lastSameBans(
+  games: { gameNumber: number; actorAId: string; actorAStrikes: number; struckStages: string[] }[],
+  userId: string,
+): { gameNumber: number; stages: string[] } | null {
+  const sorted = [...games].sort((a, b) => b.gameNumber - a.gameNumber);
+  for (const game of sorted) {
+    if (game.actorAId === userId && game.actorAStrikes === 3 && game.struckStages.length >= 3) {
+      return { gameNumber: game.gameNumber, stages: game.struckStages.slice(0, 3) };
+    }
+  }
+  return null;
+}
+
 // A player queued with isPracticing bans their own self-declared
 // mainCharacter for the whole match — the point is practicing something
 // else, so their usual pick has to actually be off the table, not just
@@ -397,6 +415,39 @@ export async function unstrikeLastGameStage(userId: string, matchId: string, gam
     data: {
       struckStages: game.struckStages.slice(0, -1),
       stagesRemaining: [...game.stagesRemaining, lastStage],
+      turnStartedAt: new Date(),
+    },
+  });
+}
+
+// One-click repeat of the same 3 stages this player struck the last time
+// they were in this seat (see lastSameBans) — only usable at the very start
+// of the turn, before any manual strikes, so it's all-or-nothing rather
+// than a partial-fill.
+export async function strikeSameBans(userId: string, matchId: string, gameNumber: number) {
+  const game = await requireGame(matchId, gameNumber);
+  if (game.finalStage) throw new Error("Stage already decided");
+  const actor = actorForStrike(game);
+  if (!actor) throw new Error("Striking is done — waiting on a pick");
+  if (actor !== userId) throw new Error("Not your turn to strike");
+  if (!bothCharactersLocked(game)) throw new Error("Both players must lock in their character before striking a stage");
+  if (game.actorAId !== userId || game.actorAStrikes !== 3) {
+    throw new Error("Same Bans only applies to a 3-stage strike turn");
+  }
+  if (game.struckStages.length !== 0) throw new Error("Already struck this turn");
+
+  const allGames = await prisma.matchGame.findMany({ where: { matchId } });
+  const sameBans = lastSameBans(allGames, userId);
+  if (!sameBans) throw new Error("No prior bans to repeat");
+  if (!sameBans.stages.every((s) => game.stagesRemaining.includes(s))) {
+    throw new Error("Prior bans are no longer available");
+  }
+
+  await prisma.matchGame.updateMany({
+    where: { id: game.id, struckStages: { equals: game.struckStages } },
+    data: {
+      stagesRemaining: game.stagesRemaining.filter((s) => !sameBans.stages.includes(s)),
+      struckStages: [...game.struckStages, ...sameBans.stages],
       turnStartedAt: new Date(),
     },
   });

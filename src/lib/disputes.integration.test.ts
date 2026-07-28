@@ -512,6 +512,7 @@ describe("adminCancelMatch", () => {
     const seasonId = await activeSeasonId();
     const p1 = await createTestUser();
     const p2 = await createTestUser();
+    // No confirmedAt, so isMostRecentConfirmedMatch short-circuits to false.
     const match = await prisma.ratingMatch.create({
       data: {
         player1Id: p1.id,

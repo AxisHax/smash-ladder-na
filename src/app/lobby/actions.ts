@@ -20,6 +20,7 @@ import {
   reportGameResult,
   startFirstGame,
   strikeGameStage,
+  strikeSameBans,
   unstrikeLastGameStage,
 } from "@/lib/match-games";
 import { postMatchComment } from "@/lib/match-comments";
@@ -122,6 +123,13 @@ export async function unstrikeStage(matchId: string, gameNumber: number) {
   const userId = await requireUserId();
   await requireNotBanned(userId);
   await ignoringStaleGameRaces(() => unstrikeLastGameStage(userId, matchId, gameNumber));
+  revalidatePath("/lobby");
+}
+
+export async function sameBansStrike(matchId: string, gameNumber: number) {
+  const userId = await requireUserId();
+  await requireNotBanned(userId);
+  await ignoringStaleGameRaces(() => strikeSameBans(userId, matchId, gameNumber));
   revalidatePath("/lobby");
 }
 
