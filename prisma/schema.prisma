@@ -132,6 +132,7 @@ model User {
   id                   String     @id @default(cuid())
   discordId            String     @unique
   username             String
+  discordUsername      String? // Discord's current display name, re-synced on every sign-in — independent of `username` (self-editable on this site) so a player's original/current Discord identity stays visible even after renaming here. Null for dev-credentials accounts, which have no real Discord profile.
   avatarUrl            String?
   email                String?    @unique
   rating               Int        @default(1500)

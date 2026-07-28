@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
 import { MatchStatus } from "@/generated/prisma/enums";
 
 export async function getPlayerProfile(userId: string) {
@@ -7,6 +8,7 @@ export async function getPlayerProfile(userId: string) {
     select: {
       id: true,
       username: true,
+      discordUsername: true,
       avatarUrl: true,
       rating: true,
       gamesPlayed: true,
@@ -24,6 +26,23 @@ export async function getPlayerProfile(userId: string) {
       _count: { select: { connectionReportsReceived: true } },
     },
   });
+}
+
+// Lightweight existence check for the profile page's "currently playing"
+// badge — deliberately not reusing getUnresolvedMatchForUser (matches.ts),
+// which pulls the full match (players, room code, etc.) for actually
+// driving the live-match UI; this only ever needs a yes/no. REPORTED is
+// legacy (nothing writes it anymore) but old rows can still carry it, same
+// as everywhere else that checks match status.
+export async function isCurrentlyInMatch(userId: string) {
+  const match = await prisma.ratingMatch.findFirst({
+    where: {
+      OR: [{ player1Id: userId }, { player2Id: userId }],
+      status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED] },
+    },
+    select: { id: true },
+  });
+  return match !== null;
 }
 
 export async function getPlayerMatchHistory(userId: string, limit = 20) {
@@ -225,12 +244,19 @@ export interface CharacterUsage {
   usagePercent: number; // 0-100, rounded, share of this player's qualifying games
 }
 
-// Per-character breakdown for the profile page's "Character Usage" card.
-// Only counts games from confirmed matches with a recorded winner — same
-// filter tallySetWins in match-games.ts uses to skip disputed/void games.
-// Ordered by games played (usage) descending, ties broken alphabetically.
-export async function getCharacterUsage(userId: string): Promise<CharacterUsage[]> {
-  const games = await prisma.matchGame.findMany({
+// Per-character breakdown for the profile page's "Character Usage" card —
+// also the source of truth recomputeCharacterUsage (character-stats.ts)
+// derives mainCharacter/secondaryCharacters from. Only counts games from
+// confirmed matches with a recorded winner — same filter tallySetWins in
+// match-games.ts uses to skip disputed/void games. Ordered by games played
+// (usage) descending, ties broken alphabetically. Accepts a transaction
+// client so a recompute right after a match's own confirmation (still
+// in-flight in the same tx) sees that match's games too.
+export async function getCharacterUsage(
+  userId: string,
+  client: Prisma.TransactionClient | typeof prisma = prisma,
+): Promise<CharacterUsage[]> {
+  const games = await client.matchGame.findMany({
     where: {
       winnerId: { not: null },
       match: { status: MatchStatus.CONFIRMED, OR: notPracticingFor(userId) },

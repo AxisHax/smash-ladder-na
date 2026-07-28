@@ -26,6 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { CharacterIcon } from "@/components/character-icon";
 import { CharacterSelect } from "@/components/character-select";
+import { Countdown } from "@/components/countdown";
 import { LobbyPoller } from "@/components/lobby-poller";
 import { JoinLobbyForm } from "@/components/join-lobby-button";
 import { CancelMatchButton } from "@/components/cancel-match-button";
@@ -717,7 +718,7 @@ function GameSection({
   // Only shown once both characters are locked in (see the !bothLocked
   // branch below) — at that point turnStartedAt is purely a stage-strike
   // clock, so STRIKE_TIMEOUT_MS is the only deadline that applies here.
-  const secondsLeft = secondsUntil(new Date(current.turnStartedAt.getTime() + STRIKE_TIMEOUT_MS));
+  const deadline = new Date(current.turnStartedAt.getTime() + STRIKE_TIMEOUT_MS).toISOString();
 
   const lastStrikeIndex = current.struckStages.length - 1;
   const canUndoLastStrike =
@@ -731,11 +732,17 @@ function GameSection({
       <CardContent className="border-t border-border pt-4">
         <p className="text-sm text-muted-foreground">
           Game {current.gameNumber} —{" "}
-          {!bothLocked
-            ? "Stage selection will start once both characters are locked in."
-            : !myTurn
-              ? `Waiting for ${opponentName} to ${verb}… (${secondsLeft}s left)`
-              : `Your turn — ${turnDescription} (${secondsLeft}s left, or it auto-picks).`}
+          {!bothLocked ? (
+            "Stage selection will start once both characters are locked in."
+          ) : !myTurn ? (
+            <>
+              Waiting for {opponentName} to {verb}… (<Countdown deadline={deadline} />s left)
+            </>
+          ) : (
+            <>
+              Your turn — {turnDescription} (<Countdown deadline={deadline} />s left, or it auto-picks).
+            </>
+          )}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           {current.stagesRemaining.map((stage) => (
@@ -784,7 +791,9 @@ function CharacterPickSection({
   // Silent from the player's point of view otherwise — autoResolveStaleCharacterPick
   // forfeits the whole game to whoever's opponent never locked in within this
   // window, measured from the game's creation, so it needs to be visible here.
-  const secondsLeft = secondsUntil(new Date(game.createdAt.getTime() + CHARACTER_TIMEOUT_MS));
+  const pickDeadline = new Date(game.createdAt.getTime() + CHARACTER_TIMEOUT_MS);
+  const secondsLeft = secondsUntil(pickDeadline);
+  const deadline = pickDeadline.toISOString();
 
   if (yourCharacter && opponentCharacter) {
     return (
@@ -804,9 +813,13 @@ function CharacterPickSection({
           Game {game.gameNumber} — you locked in{" "}
           <span className="font-medium text-foreground">{yourCharacter}</span>. Waiting for{" "}
           {opponentName} to pick…{" "}
-          {secondsLeft > 0
-            ? `You win this game by forfeit if they don't in ${secondsLeft}s.`
-            : "They're past the deadline — this should resolve in your favor shortly."}
+          {secondsLeft > 0 ? (
+            <>
+              You win this game by forfeit if they don&apos;t in <Countdown deadline={deadline} />s.
+            </>
+          ) : (
+            "They're past the deadline — this should resolve in your favor shortly."
+          )}
         </p>
       </CardContent>
     );
@@ -833,7 +846,7 @@ function CharacterPickSection({
             : "pick your character — you're up first, this locks in before the opponent picks."}{" "}
         {secondsLeft > 0 ? (
           <span className="font-medium text-foreground">
-            Lock in within {secondsLeft}s or you forfeit this game.
+            Lock in within <Countdown deadline={deadline} />s or you forfeit this game.
           </span>
         ) : (
           <span className="font-medium text-destructive">
