@@ -257,6 +257,7 @@ describe("getPlayerMatchHistory", () => {
     const [entry] = await getPlayerMatchHistory(player.id);
     expect(entry.score).toEqual({ wins: 2, losses: 1 });
     expect(entry.characters).toEqual(["Terry", "Cloud"]);
+    expect(entry.opponentCharacters).toEqual(["Ken"]);
   });
 
   it("ignores games with no decided winner when computing score", async () => {
@@ -279,5 +280,6 @@ describe("getPlayerMatchHistory", () => {
     const [entry] = await getPlayerMatchHistory(player.id);
     expect(entry.score).toEqual({ wins: 0, losses: 0 });
     expect(entry.characters).toEqual([]);
+    expect(entry.opponentCharacters).toEqual([]);
   });
 });

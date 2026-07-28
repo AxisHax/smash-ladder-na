@@ -285,7 +285,12 @@ export default async function PlayerProfilePage({
                   </span>
                 </div>
                 <div className="mt-0.5 flex items-center justify-between text-xs text-muted-foreground">
-                  <span>{match.characters.length > 0 ? match.characters.join(", ") : "—"}</span>
+                  <span>
+                    {match.characters.length > 0 ? match.characters.join(", ") : "—"}
+                    {match.opponentCharacters.length > 0 && (
+                      <> vs {match.opponentCharacters.join(", ")}</>
+                    )}
+                  </span>
                   {match.confirmedAt && <LocalTime iso={match.confirmedAt.toISOString()} />}
                 </div>
                 {isOwnProfile && i === 0 && (

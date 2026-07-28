@@ -64,11 +64,16 @@ export async function getPlayerMatchHistory(userId: string, limit = 20) {
     let gamesWon = 0;
     let gamesLost = 0;
     const characters: string[] = [];
+    const opponentCharacters: string[] = [];
     for (const g of matchGames) {
       if (g.winnerId === userId) gamesWon++;
       else gamesLost++;
       const character = g.actorAId === userId ? g.actorACharacter : g.actorBCharacter;
       if (character && !characters.includes(character)) characters.push(character);
+      const opponentCharacter = g.actorAId === userId ? g.actorBCharacter : g.actorACharacter;
+      if (opponentCharacter && !opponentCharacters.includes(opponentCharacter)) {
+        opponentCharacters.push(opponentCharacter);
+      }
     }
 
     return {
@@ -81,6 +86,7 @@ export async function getPlayerMatchHistory(userId: string, limit = 20) {
       confirmedAt: match.confirmedAt,
       score: { wins: gamesWon, losses: gamesLost },
       characters,
+      opponentCharacters,
     };
   });
 }
