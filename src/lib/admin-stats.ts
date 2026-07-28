@@ -25,7 +25,14 @@ export async function getAdminOverview() {
     prisma.user.count(),
     prisma.user.count({ where: { status: UserStatus.SUSPENDED } }),
     prisma.user.count({ where: { status: UserStatus.BANNED } }),
-    prisma.ratingMatch.count({ where: { createdAt: { gte: dayAgo } } }),
+    // CONFIRMED + confirmedAt, not createdAt — matches getPublicStats's
+    // definition on the homepage. This used to count every match *created*
+    // in the window regardless of status (including still-in-progress or
+    // cancelled ones), which gave a different number than the public
+    // "matches today" stat for the same rolling 24h window.
+    prisma.ratingMatch.count({
+      where: { status: MatchStatus.CONFIRMED, confirmedAt: { gte: dayAgo } },
+    }),
     // Every match ever created, any status — includes CANCELLED/EXPIRED
     // ones too, unlike matchesToday's rolling window above.
     prisma.ratingMatch.count(),

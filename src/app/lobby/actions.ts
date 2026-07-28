@@ -101,11 +101,23 @@ export async function cancelLobby() {
   revalidatePath("/lobby");
 }
 
-export async function submitRoomCode(matchId: string, roomCode: string) {
+export type RoomCodeState = { error: string | null; savedValue: string | null };
+
+export async function submitRoomCode(
+  matchId: string,
+  _prevState: RoomCodeState,
+  formData: FormData,
+): Promise<RoomCodeState> {
   const userId = await requireUserId();
-  await requireNotBanned(userId); // still a ranked-lobby action, mid-match
-  await setMatchRoomCode(userId, matchId, roomCode.trim());
+  const roomCode = String(formData.get("roomCode") ?? "").trim();
+  try {
+    await requireNotBanned(userId); // still a ranked-lobby action, mid-match
+    await setMatchRoomCode(userId, matchId, roomCode);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Something went wrong — try again.", savedValue: null };
+  }
   revalidatePath("/lobby");
+  return { error: null, savedValue: roomCode };
 }
 
 export async function beginFirstGame(matchId: string) {
