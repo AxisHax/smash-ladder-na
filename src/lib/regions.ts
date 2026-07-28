@@ -285,3 +285,86 @@ export function getRegionsWithinDistance(region: string | null, maxKm: number | 
     return point !== undefined && distanceKm(origin, point) <= maxKm;
   });
 }
+
+// Which state/province falls under each legacy broad region, for the
+// leaderboard's region search — searching "USA East" should also surface
+// players who set a specific state (e.g. "New York") rather than only an
+// exact string match against the broad label itself. Predominant time
+// zone per state/province; a handful genuinely straddle two zones (Texas,
+// Kansas, Nebraska, Tennessee, Kentucky, Ontario, etc.) and are grouped by
+// whichever zone their capital/largest population center uses. Alaska,
+// Hawaii, and Nunavut don't cleanly fit any of the four broad buckets, so
+// they're only reachable by their own name.
+const USA_BROAD_TO_STATES: Record<string, readonly string[]> = {
+  "USA East": [
+    "Connecticut",
+    "Delaware",
+    "Florida",
+    "Georgia",
+    "Indiana",
+    "Kentucky",
+    "Maine",
+    "Maryland",
+    "Massachusetts",
+    "Michigan",
+    "New Hampshire",
+    "New Jersey",
+    "New York",
+    "North Carolina",
+    "Ohio",
+    "Pennsylvania",
+    "Rhode Island",
+    "South Carolina",
+    "Vermont",
+    "Virginia",
+    "Washington D.C.",
+    "West Virginia",
+  ],
+  "USA Central": [
+    "Alabama",
+    "Arkansas",
+    "Illinois",
+    "Iowa",
+    "Kansas",
+    "Louisiana",
+    "Minnesota",
+    "Mississippi",
+    "Missouri",
+    "Nebraska",
+    "North Dakota",
+    "Oklahoma",
+    "South Dakota",
+    "Tennessee",
+    "Texas",
+    "Wisconsin",
+  ],
+  "USA Mountain": ["Arizona", "Colorado", "Idaho", "Montana", "New Mexico", "Utah", "Wyoming"],
+  "USA Pacific": ["California", "Nevada", "Oregon", "Washington"],
+};
+
+const CANADA_BROAD_TO_PROVINCES: Record<string, readonly string[]> = {
+  "Canada East": [
+    "Ontario",
+    "Quebec",
+    "New Brunswick",
+    "Nova Scotia",
+    "Prince Edward Island",
+    "Newfoundland and Labrador",
+  ],
+  "Canada Central": ["Manitoba", "Saskatchewan"],
+  "Canada Mountain": ["Alberta", "Northwest Territories"],
+  "Canada Pacific": ["British Columbia", "Yukon"],
+};
+
+const BROAD_REGION_TO_SUBREGIONS: Record<string, readonly string[]> = {
+  ...USA_BROAD_TO_STATES,
+  ...CANADA_BROAD_TO_PROVINCES,
+};
+
+// Expands a broad region into itself plus every state/province grouped
+// under it (see BROAD_REGION_TO_SUBREGIONS above); a specific state/
+// province or "Elsewhere" region just returns itself unchanged.
+export function expandRegionForSearch(region: string): string[] {
+  const subregions = BROAD_REGION_TO_SUBREGIONS[region];
+  return subregions ? [region, ...subregions] : [region];
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getRegionsWithinDistance, MATCH_REGIONS, MATCH_REGION_GROUPS } from "./regions";
+import { expandRegionForSearch, getRegionsWithinDistance, MATCH_REGIONS, MATCH_REGION_GROUPS } from "./regions";
 
 describe("getRegionsWithinDistance", () => {
   it("returns empty array for null region", () => {
@@ -68,6 +68,39 @@ describe("getRegionsWithinDistance", () => {
     for (const [broad, granular] of pairs) {
       expect(getRegionsWithinDistance(broad, 0)).toContain(granular);
       expect(getRegionsWithinDistance(granular, 0)).toContain(broad);
+    }
+  });
+});
+
+describe("expandRegionForSearch", () => {
+  it("expands a broad USA region to itself plus its states", () => {
+    const result = expandRegionForSearch("USA East");
+    expect(result).toContain("USA East");
+    expect(result).toContain("New York");
+    expect(result).toContain("Florida");
+    expect(result).not.toContain("California");
+  });
+
+  it("expands a broad Canada region to itself plus its provinces", () => {
+    const result = expandRegionForSearch("Canada Pacific");
+    expect(result).toContain("Canada Pacific");
+    expect(result).toContain("British Columbia");
+    expect(result).not.toContain("Ontario");
+  });
+
+  it("returns just itself for a specific state (no further expansion)", () => {
+    expect(expandRegionForSearch("Texas")).toEqual(["Texas"]);
+  });
+
+  it("returns just itself for a region with no broad/granular split", () => {
+    expect(expandRegionForSearch("Other")).toEqual(["Other"]);
+  });
+
+  it("every state/province used in the expansion is a real MATCH_REGIONS entry", () => {
+    for (const region of MATCH_REGIONS) {
+      for (const expanded of expandRegionForSearch(region)) {
+        expect(MATCH_REGIONS as readonly string[]).toContain(expanded);
+      }
     }
   });
 });

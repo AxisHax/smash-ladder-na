@@ -38,6 +38,18 @@ describe("getLeaderboardPlayers", () => {
     expect(totalCount).toBeGreaterThanOrEqual(2);
   });
 
+  it("searching a broad region also finds players who set a specific state within it", async () => {
+    const broad = await createTestUser({ gamesPlayed: 5, region: "USA East" });
+    const granular = await createTestUser({ gamesPlayed: 5, region: "New York" });
+    const outside = await createTestUser({ gamesPlayed: 5, region: "California" });
+
+    const { players, totalCount } = await getLeaderboardPlayers({ region: "USA East" });
+    const ids = players.map((p) => p.id);
+    expect(totalCount).toBe(2);
+    expect(ids).toEqual(expect.arrayContaining([broad.id, granular.id]));
+    expect(ids).not.toContain(outside.id);
+  });
+
   it("excludes banned accounts", async () => {
     const target = await createTestUser({ gamesPlayed: 5, username: `NotBanned${Date.now()}` });
     const banned = await createTestUser({ gamesPlayed: 5, status: "BANNED", username: "Deleted User" });

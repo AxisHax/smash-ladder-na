@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { UserStatus } from "@/generated/prisma/enums";
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
 import { echoGroupMembers, type SmashCharacter } from "@/lib/characters";
+import { expandRegionForSearch } from "@/lib/regions";
 
 export interface LeaderboardFilters {
   character?: string | null;
@@ -45,7 +46,9 @@ export async function getLeaderboardPlayers(
           ]),
         }
       : {}),
-    ...(filters.region ? { region: filters.region } : {}),
+    // A broad region (e.g. "USA East") also matches players who set a
+    // specific state/province within it, not just an exact string match.
+    ...(filters.region ? { region: { in: expandRegionForSearch(filters.region) } } : {}),
   };
   const [totalCount, players] = await Promise.all([
     prisma.user.count({ where }),

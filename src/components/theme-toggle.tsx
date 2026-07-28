@@ -2,33 +2,13 @@
 
 import { Moon, Sun } from "lucide-react";
 import { useCallback, useLayoutEffect, useState } from "react";
-
-type Theme = "light" | "dark";
-
-// No more "system" option — only an explicit light/dark stays stored from
-// here on. A first-time visitor (nothing in localStorage yet) still gets the
-// OS preference as the initial pick, matching the inline anti-FOUC script in
-// layout.tsx, but the very first toggle click locks in an explicit choice.
-function getStored(): Theme {
-  if (typeof window === "undefined") return "light";
-  try {
-    const v = localStorage.getItem("theme");
-    if (v === "light" || v === "dark") return v;
-  } catch {
-    /* localStorage unavailable */
-  }
-  return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-}
-
-function applyTheme(theme: Theme) {
-  document.documentElement.classList.toggle("dark", theme === "dark");
-}
+import { applyTheme, getStoredTheme, type Theme } from "@/lib/theme";
 
 export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>(() => {
     // Read-only — no side effects during render.
     if (typeof window !== "undefined") {
-      return getStored();
+      return getStoredTheme();
     }
     return "light";
   });

@@ -6,6 +6,7 @@ import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { RegionSetupBanner } from "@/components/region-setup-banner";
 import { PreSeasonBanner } from "@/components/pre-season-banner";
+import { ThemeSync } from "@/components/theme-sync";
 import { ADSENSE_CLIENT_ID } from "@/components/ad-slot";
 import "./globals.css";
 
@@ -67,6 +68,7 @@ export default async function RootLayout({
             __html: `try{var t=localStorage.getItem('theme');if(t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.classList.add('dark')}catch(e){}`,
           }}
         />
+        <ThemeSync />
         {!isStreamOverlay && ADSENSE_CLIENT_ID && (
           <script
             async
