@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
 import { SMASH_CHARACTERS, type SmashCharacter } from "@/lib/characters";
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
+import { getCharacterUsage } from "@/lib/players";
 
 function assertValidCharacter(character: string): asserts character is SmashCharacter {
   if (!(SMASH_CHARACTERS as readonly string[]).includes(character)) {
@@ -96,5 +98,30 @@ export async function setOwnCharacters(
   await prisma.user.update({
     where: { id: userId },
     data: { mainCharacter, secondaryCharacters: deduped, charactersSelfDeclared: true },
+  });
+}
+
+// Keeps mainCharacter/secondaryCharacters in sync with what a player
+// actually plays, rather than freezing on whichever character an opponent
+// happened to report first (reportOpponentCharacter's old sole mechanism —
+// still runs, but its writes get overwritten by this on the very next
+// confirmed match either way, since this always derives fresh from real
+// game data). Called for both players every time a match confirms — see
+// applyEloAndConfirm. Skipped entirely once self-declared, same rule
+// reportOpponentCharacter follows.
+export async function recomputeCharacterUsage(userId: string, tx: Prisma.TransactionClient) {
+  const user = await tx.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: { charactersSelfDeclared: true },
+  });
+  if (user.charactersSelfDeclared) return;
+
+  const usage = await getCharacterUsage(userId, tx);
+  const mainCharacter = usage[0]?.character ?? null;
+  const secondaryCharacters = usage.slice(1, 1 + MAX_SECONDARY_CHARACTERS).map((u) => u.character);
+
+  await tx.user.update({
+    where: { id: userId },
+    data: { mainCharacter, secondaryCharacters },
   });
 }

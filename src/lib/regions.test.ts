@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getRegionsWithinDistance, MATCH_REGIONS } from "./regions";
+import { getRegionsWithinDistance, MATCH_REGIONS, MATCH_REGION_GROUPS } from "./regions";
 
 describe("getRegionsWithinDistance", () => {
   it("returns empty array for null region", () => {
@@ -14,9 +14,11 @@ describe("getRegionsWithinDistance", () => {
     expect(getRegionsWithinDistance("USA East", 0)).toContain("USA East");
   });
 
-  it("returns only the same region at distance 0", () => {
+  it("returns only regions sharing the exact same point at distance 0", () => {
+    // "Washington D.C." shares USA East's coordinates on purpose (same
+    // physical point, more specific name) — see regions.ts.
     const result = getRegionsWithinDistance("USA East", 0);
-    expect(result).toEqual(["USA East"]);
+    expect(result).toEqual(["USA East", "Washington D.C."]);
   });
 
   it("includes nearby regions within range", () => {
@@ -46,5 +48,35 @@ describe("getRegionsWithinDistance", () => {
     expect(result).toContain("USA Pacific");
     expect(result).toContain("Canada Pacific");
     expect(result).toContain("Mexico Central");
+  });
+
+  // Regression coverage for the state/province-level regions added
+  // alongside the original eight broad USA/Canada regions — a player who
+  // already has one of the old broad regions set must keep matching
+  // players who pick the new granular equivalent, and vice versa.
+  it("an old broad region and its new state/province equivalent are mutual matches at distance 0", () => {
+    const pairs: [string, string][] = [
+      ["USA East", "Washington D.C."],
+      ["USA Central", "Illinois"],
+      ["USA Mountain", "Colorado"],
+      ["USA Pacific", "California"],
+      ["Canada East", "Ontario"],
+      ["Canada Central", "Manitoba"],
+      ["Canada Mountain", "Alberta"],
+      ["Canada Pacific", "British Columbia"],
+    ];
+    for (const [broad, granular] of pairs) {
+      expect(getRegionsWithinDistance(broad, 0)).toContain(granular);
+      expect(getRegionsWithinDistance(granular, 0)).toContain(broad);
+    }
+  });
+});
+
+describe("MATCH_REGION_GROUPS", () => {
+  it("covers every region in MATCH_REGIONS exactly once", () => {
+    const grouped = MATCH_REGION_GROUPS.flatMap((g) => g.regions);
+    expect(grouped.length).toBe(MATCH_REGIONS.length);
+    expect(new Set(grouped).size).toBe(MATCH_REGIONS.length);
+    expect(new Set(grouped)).toEqual(new Set(MATCH_REGIONS));
   });
 });

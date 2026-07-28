@@ -1,11 +1,37 @@
 import { describe, it, expect } from "vitest";
 import { prisma } from "@/lib/db";
-import { getCharacterLeaderboard, reportOpponentCharacter, setOwnCharacters } from "@/lib/character-stats";
+import {
+  getCharacterLeaderboard,
+  recomputeCharacterUsage,
+  reportOpponentCharacter,
+  setOwnCharacters,
+} from "@/lib/character-stats";
+import { MatchStatus } from "@/generated/prisma/enums";
 import { createTestUser } from "@/test/factories";
 
 async function createMatch(p1: string, p2: string) {
   return prisma.ratingMatch.create({
     data: { player1Id: p1, player2Id: p2, expiresAt: new Date() },
+  });
+}
+
+async function createConfirmedMatch(p1: string, p2: string) {
+  return prisma.ratingMatch.create({
+    data: { player1Id: p1, player2Id: p2, status: MatchStatus.CONFIRMED, expiresAt: new Date() },
+  });
+}
+
+async function createGame(
+  matchId: string,
+  gameNumber: number,
+  actorAId: string,
+  actorACharacter: string | null,
+  actorBId: string,
+  actorBCharacter: string | null,
+  winnerId: string | null,
+) {
+  return prisma.matchGame.create({
+    data: { matchId, gameNumber, actorAId, actorAStrikes: 1, actorACharacter, actorBId, actorBStrikes: 2, actorBCharacter, winnerId },
   });
 }
 
@@ -142,6 +168,71 @@ describe("setOwnCharacters", () => {
     await expect(setOwnCharacters(player.id, "Not A Real Fighter", [])).rejects.toThrow(
       /not a recognized character/i,
     );
+  });
+});
+
+describe("recomputeCharacterUsage", () => {
+  it("sets mainCharacter to whichever character was actually played the most", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const match = await createConfirmedMatch(player.id, opponent.id);
+    await createGame(match.id, 1, player.id, "Fox", opponent.id, "Marth", player.id);
+    await createGame(match.id, 2, player.id, "Fox", opponent.id, "Marth", opponent.id);
+    await createGame(match.id, 3, player.id, "Falco", opponent.id, "Marth", player.id);
+
+    await prisma.$transaction((tx) => recomputeCharacterUsage(player.id, tx));
+
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: player.id } });
+    expect(updated.mainCharacter).toBe("Fox");
+    expect(updated.secondaryCharacters).toEqual(["Falco"]);
+  });
+
+  // The actual bug report this fixes: reportOpponentCharacter only ever
+  // assigns mainCharacter once (the first report) and never revisits it, so
+  // a player who started on one character and later mostly plays another
+  // stayed stuck showing the first one forever.
+  it("promotes a newly-dominant character over a stale peer-reported main", async () => {
+    const player = await createTestUser({ mainCharacter: "Fox", secondaryCharacters: [] });
+    const opponent = await createTestUser();
+    const match = await createConfirmedMatch(player.id, opponent.id);
+    await createGame(match.id, 1, player.id, "Fox", opponent.id, "Marth", player.id);
+    await createGame(match.id, 2, player.id, "Falco", opponent.id, "Marth", player.id);
+    await createGame(match.id, 3, player.id, "Falco", opponent.id, "Marth", player.id);
+    await createGame(match.id, 4, player.id, "Falco", opponent.id, "Marth", opponent.id);
+
+    await prisma.$transaction((tx) => recomputeCharacterUsage(player.id, tx));
+
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: player.id } });
+    expect(updated.mainCharacter).toBe("Falco");
+    expect(updated.secondaryCharacters).toEqual(["Fox"]);
+  });
+
+  it("does nothing once the player has self-declared their characters", async () => {
+    const player = await createTestUser({
+      mainCharacter: "Pikachu",
+      secondaryCharacters: ["Fox"],
+      charactersSelfDeclared: true,
+    });
+    const opponent = await createTestUser();
+    const match = await createConfirmedMatch(player.id, opponent.id);
+    await createGame(match.id, 1, player.id, "Falco", opponent.id, "Marth", player.id);
+    await createGame(match.id, 2, player.id, "Falco", opponent.id, "Marth", player.id);
+
+    await prisma.$transaction((tx) => recomputeCharacterUsage(player.id, tx));
+
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: player.id } });
+    expect(updated.mainCharacter).toBe("Pikachu");
+    expect(updated.secondaryCharacters).toEqual(["Fox"]);
+  });
+
+  it("clears mainCharacter to null when there's no qualifying game history", async () => {
+    const player = await createTestUser({ mainCharacter: "Fox" });
+
+    await prisma.$transaction((tx) => recomputeCharacterUsage(player.id, tx));
+
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: player.id } });
+    expect(updated.mainCharacter).toBeNull();
+    expect(updated.secondaryCharacters).toEqual([]);
   });
 });
 

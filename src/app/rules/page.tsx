@@ -174,8 +174,10 @@ export default function RulesPage() {
         <Section title="Matchmaking">
           <p>
             Matchmaking is open worldwide. Set a match region on the Lobby page for the closest
-            connection — pick whichever region is physically nearest to you (each option shows
-            its reference city), not necessarily your own country — and a match distance — Same
+            connection — pick whichever region is physically nearest to you, not necessarily your
+            own country. US and Canada can be set down to the state/province level; the broader
+            regions (some shown with a reference city) still work too, and everyone else gets a
+            broader region — and a match distance — Same
             region only, Nearby (~1,250 mi), Extended (~3,100 mi, the default), Long-range
             (~6,200 mi), or Worldwide. You can also set a
             rating gap — Strict (within 50), Close (within 100), Moderate (within 150), Wide

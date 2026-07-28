@@ -1,12 +1,83 @@
-export const MATCH_REGIONS = [
-  "USA East",
-  "USA Central",
-  "USA Mountain",
-  "USA Pacific",
-  "Canada East",
-  "Canada Central",
-  "Canada Mountain",
-  "Canada Pacific",
+// USA/Canada broad regions predate state/province-level granularity below —
+// kept in place rather than removed because ~680 of ~785 existing players
+// already have one of these eight set, and removing them would silently
+// strand those players' matchmaking (getRegionsWithinDistance can only ever
+// return regions still in MATCH_REGIONS). New players get finer-grained
+// options; nobody's existing setting breaks.
+const USA_BROAD = ["USA East", "USA Central", "USA Mountain", "USA Pacific"] as const;
+const CANADA_BROAD = ["Canada East", "Canada Central", "Canada Mountain", "Canada Pacific"] as const;
+
+const USA_STATES = [
+  "Alabama",
+  "Alaska",
+  "Arizona",
+  "Arkansas",
+  "California",
+  "Colorado",
+  "Connecticut",
+  "Delaware",
+  "Florida",
+  "Georgia",
+  "Hawaii",
+  "Idaho",
+  "Illinois",
+  "Indiana",
+  "Iowa",
+  "Kansas",
+  "Kentucky",
+  "Louisiana",
+  "Maine",
+  "Maryland",
+  "Massachusetts",
+  "Michigan",
+  "Minnesota",
+  "Mississippi",
+  "Missouri",
+  "Montana",
+  "Nebraska",
+  "Nevada",
+  "New Hampshire",
+  "New Jersey",
+  "New Mexico",
+  "New York",
+  "North Carolina",
+  "North Dakota",
+  "Ohio",
+  "Oklahoma",
+  "Oregon",
+  "Pennsylvania",
+  "Rhode Island",
+  "South Carolina",
+  "South Dakota",
+  "Tennessee",
+  "Texas",
+  "Utah",
+  "Vermont",
+  "Virginia",
+  "Washington",
+  "West Virginia",
+  "Wisconsin",
+  "Wyoming",
+  "Washington D.C.",
+] as const;
+
+const CANADA_PROVINCES = [
+  "Ontario",
+  "Quebec",
+  "British Columbia",
+  "Alberta",
+  "Manitoba",
+  "Saskatchewan",
+  "Nova Scotia",
+  "New Brunswick",
+  "Newfoundland and Labrador",
+  "Prince Edward Island",
+  "Northwest Territories",
+  "Yukon",
+  "Nunavut",
+] as const;
+
+const REST_OF_WORLD = [
   "Mexico North",
   "Mexico Central",
   "Central America",
@@ -19,11 +90,34 @@ export const MATCH_REGIONS = [
   "Other",
 ] as const;
 
+export const MATCH_REGIONS = [
+  ...USA_BROAD,
+  ...USA_STATES,
+  ...CANADA_BROAD,
+  ...CANADA_PROVINCES,
+  ...REST_OF_WORLD,
+] as const;
+
 export type MatchRegion = (typeof MATCH_REGIONS)[number];
+
+// Drives the picker's <optgroup> sections — purely presentational grouping,
+// doesn't affect matching (that's all distance math over REGION_COORDINATES
+// below, which doesn't care which group a region is in).
+export const MATCH_REGION_GROUPS: { label: string; regions: readonly MatchRegion[] }[] = [
+  { label: "USA (broad)", regions: USA_BROAD },
+  { label: "USA (state)", regions: USA_STATES },
+  { label: "Canada (broad)", regions: CANADA_BROAD },
+  { label: "Canada (province/territory)", regions: CANADA_PROVINCES },
+  { label: "Elsewhere", regions: REST_OF_WORLD },
+];
 
 // Approximate representative coordinates per region, used only to rank
 // closeness for default matching — not shown to players. "Other" has none
-// (unknown location), so it only ever matches other "Other" players.
+// (unknown location), so it only ever matches other "Other" players. Where
+// a state/province shares a metro area with one of the old broad regions
+// above (e.g. California/"USA Pacific" both anchor on LA), the coordinates
+// are deliberately identical — same physical point, just a more specific
+// name for it.
 const REGION_COORDINATES: Record<string, [number, number]> = {
   "USA East": [38.9, -77.0],
   "USA Central": [41.9, -87.6],
@@ -42,14 +136,81 @@ const REGION_COORDINATES: Record<string, [number, number]> = {
   "East Asia": [35.7, 139.7],
   "Southeast Asia": [1.3, 103.8],
   "Oceania": [-33.9, 151.2],
+
+  // USA states — anchored on each state's largest metro area.
+  Alabama: [33.52, -86.8],
+  Alaska: [61.22, -149.9],
+  Arizona: [33.45, -112.07],
+  Arkansas: [34.75, -92.29],
+  California: [34.0, -118.2],
+  Colorado: [39.7, -105.0],
+  Connecticut: [41.19, -73.2],
+  Delaware: [39.74, -75.55],
+  Florida: [25.77, -80.19],
+  Georgia: [33.75, -84.39],
+  Hawaii: [21.31, -157.86],
+  Idaho: [43.62, -116.2],
+  Illinois: [41.9, -87.6],
+  Indiana: [39.77, -86.16],
+  Iowa: [41.6, -93.6],
+  Kansas: [37.69, -97.34],
+  Kentucky: [38.25, -85.76],
+  Louisiana: [29.95, -90.07],
+  Maine: [43.66, -70.26],
+  Maryland: [39.29, -76.61],
+  Massachusetts: [42.36, -71.06],
+  Michigan: [42.33, -83.05],
+  Minnesota: [44.98, -93.27],
+  Mississippi: [32.3, -90.18],
+  Missouri: [39.1, -94.58],
+  Montana: [45.78, -108.5],
+  Nebraska: [41.26, -95.94],
+  Nevada: [36.17, -115.14],
+  "New Hampshire": [42.99, -71.46],
+  "New Jersey": [40.7, -74.17],
+  "New Mexico": [35.08, -106.65],
+  "New York": [40.71, -74.0],
+  "North Carolina": [35.23, -80.84],
+  "North Dakota": [46.88, -96.79],
+  Ohio: [39.96, -83.0],
+  Oklahoma: [35.47, -97.52],
+  Oregon: [45.52, -122.68],
+  Pennsylvania: [39.95, -75.17],
+  "Rhode Island": [41.82, -71.41],
+  "South Carolina": [32.78, -79.93],
+  "South Dakota": [43.55, -96.73],
+  Tennessee: [36.16, -86.78],
+  Texas: [29.76, -95.37],
+  Utah: [40.76, -111.89],
+  Vermont: [44.48, -73.21],
+  Virginia: [36.85, -76.0],
+  Washington: [47.61, -122.33],
+  "West Virginia": [38.35, -81.63],
+  Wisconsin: [43.04, -87.91],
+  Wyoming: [41.14, -104.82],
+  "Washington D.C.": [38.9, -77.0],
+
+  // Canada provinces/territories — anchored on each one's largest city.
+  Ontario: [43.7, -79.4],
+  Quebec: [45.5, -73.57],
+  "British Columbia": [49.3, -123.1],
+  Alberta: [51.0, -114.1],
+  Manitoba: [49.9, -97.1],
+  Saskatchewan: [52.13, -106.67],
+  "Nova Scotia": [44.65, -63.57],
+  "New Brunswick": [46.09, -64.79],
+  "Newfoundland and Labrador": [47.56, -52.71],
+  "Prince Edward Island": [46.24, -63.13],
+  "Northwest Territories": [62.45, -114.37],
+  Yukon: [60.72, -135.05],
+  Nunavut: [63.75, -68.51],
 };
 
-// Reference city for each region's representative point above — shown next
-// to the region name in the picker so players can eyeball which option is
-// physically closest to them instead of guessing from the region name
-// alone (region names are administrative, not physical: a player near a
-// border may be much closer to a neighboring region's city). "Other" has
-// no entry since it has no coordinates.
+// Reference city shown next to a region name in the picker so players can
+// eyeball which option is physically closest to them instead of guessing
+// from the name alone. Only needed for the broad/administrative labels
+// (region names are not physical places there); state/province names are
+// specific enough on their own.
 export const REGION_REFERENCE_CITY: Partial<Record<MatchRegion, string>> = {
   "USA East": "Washington, D.C.",
   "USA Central": "Chicago",
