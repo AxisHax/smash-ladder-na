@@ -14,12 +14,26 @@ async function requireUserId() {
   return session.user.id;
 }
 
-export async function updateUsername(username: string) {
+export type UpdateUsernameState = { error: string | null; message: string | null };
+
+export async function updateUsernameAction(
+  _prevState: UpdateUsernameState,
+  formData: FormData,
+): Promise<UpdateUsernameState> {
   const userId = await requireUserId();
-  await setUsername(userId, username);
-  revalidatePath("/settings");
+  try {
+    await setUsername(userId, String(formData.get("username") ?? ""));
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Something went wrong — try again.", message: null };
+  }
+  // "layout" here, not just the default "page" — the header showing this
+  // player's name lives in the root layout, which a page-level revalidation
+  // doesn't touch, so the old name would otherwise stick around in the
+  // header (though not the page content) until the next full navigation.
+  revalidatePath("/", "layout");
   revalidatePath(`/players/${userId}`);
   revalidatePath("/leaderboard");
+  return { error: null, message: "Saved." };
 }
 
 export async function updateRematchCooldownSetting(rematchCooldownHours: number | null) {
