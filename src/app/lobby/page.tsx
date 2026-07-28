@@ -28,6 +28,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { CharacterIcon } from "@/components/character-icon";
 import { CharacterSelect } from "@/components/character-select";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { Countdown } from "@/components/countdown";
 import { LobbyPoller } from "@/components/lobby-poller";
 import { JoinLobbyForm } from "@/components/join-lobby-button";
@@ -781,11 +782,18 @@ function GameSection({
         )}
         <div className="mt-3 flex flex-wrap gap-2">
           {current.stagesRemaining.map((stage) => (
-            <form key={stage} action={action.bind(null, match.id, current.gameNumber, stage)}>
-              <Button type="submit" size="sm" variant="outline" disabled={!canAct}>
-                {stage}
-              </Button>
-            </form>
+            <ConfirmSubmitButton
+              key={stage}
+              action={action.bind(null, match.id, current.gameNumber, stage)}
+              confirmMessage={
+                turn.phase === "striking" ? `Strike ${stage}?` : `Pick ${stage} as the final stage?`
+              }
+              size="sm"
+              variant="outline"
+              disabled={!canAct}
+            >
+              {stage}
+            </ConfirmSubmitButton>
           ))}
         </div>
         {canUndoLastStrike && (
@@ -930,14 +938,19 @@ function ReportGameSection({
           Report game {game.gameNumber}&apos;s result once you&apos;ve played.
         </p>
         <div className="mt-4 flex gap-2">
-          <form action={reportGame.bind(null, match.id, game.gameNumber, true)}>
-            <Button type="submit">I Won</Button>
-          </form>
-          <form action={reportGame.bind(null, match.id, game.gameNumber, false)}>
-            <Button type="submit" variant="outline">
-              I Lost
-            </Button>
-          </form>
+          <ConfirmSubmitButton
+            action={reportGame.bind(null, match.id, game.gameNumber, true)}
+            confirmMessage={`Report that you won game ${game.gameNumber}?`}
+          >
+            I Won
+          </ConfirmSubmitButton>
+          <ConfirmSubmitButton
+            action={reportGame.bind(null, match.id, game.gameNumber, false)}
+            confirmMessage={`Report that you lost game ${game.gameNumber}?`}
+            variant="outline"
+          >
+            I Lost
+          </ConfirmSubmitButton>
         </div>
       </CardContent>
     );
