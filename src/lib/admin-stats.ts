@@ -10,7 +10,6 @@ export async function getAdminOverview() {
     suspendedUsers,
     bannedUsers,
     matchesToday,
-    matchesTotal,
     disputedGameCandidates,
     openReports,
     lobbyWaiting,
@@ -22,9 +21,6 @@ export async function getAdminOverview() {
     prisma.user.count({ where: { status: UserStatus.SUSPENDED } }),
     prisma.user.count({ where: { status: UserStatus.BANNED } }),
     prisma.ratingMatch.count({ where: { createdAt: { gte: dayAgo } } }),
-    // Every match ever created, any status — includes CANCELLED/EXPIRED
-    // ones too, unlike matchesToday's rolling window above.
-    prisma.ratingMatch.count(),
     // A disputed game no longer flips the whole match to a blocking status
     // — "disputed" now lives at the game level (winnerId still null, but
     // both a report and a conflicting second report exist). Prisma can't
@@ -66,7 +62,6 @@ export async function getAdminOverview() {
     suspendedUsers,
     bannedUsers,
     matchesToday,
-    matchesTotal,
     openDisputes,
     openReports,
     lobbyWaiting,
