@@ -15,6 +15,7 @@ import {
   isCurrentlyInMatch,
 } from "@/lib/players";
 import { isTwitchLive } from "@/lib/twitch-helix";
+import { getMatchHistoryAchievements } from "@/lib/match-achievements";
 import { computeAchievements } from "@/lib/rank-tier";
 import { CharacterIcon } from "@/components/character-icon";
 import { CharacterUsageCard } from "@/components/character-usage-card";
@@ -53,7 +54,7 @@ export default async function PlayerProfilePage({
   const player = await getPlayerProfile(id);
   if (!player) notFound();
 
-  const [history, chartPoints, careerStats, rivals, blocked, characterUsage, inMatch, isLiveOnTwitch] =
+  const [history, chartPoints, careerStats, rivals, blocked, characterUsage, inMatch, isLiveOnTwitch, matchAchievements] =
     await Promise.all([
       getPlayerMatchHistory(id),
       getRatingChartPoints(id),
@@ -63,6 +64,7 @@ export default async function PlayerProfilePage({
       getCharacterUsage(id),
       isCurrentlyInMatch(id),
       player.twitchUsername ? isTwitchLive(player.twitchUsername) : Promise.resolve(false),
+      getMatchHistoryAchievements(id),
     ]);
   const parentHost = (await headers()).get("host") ?? "smash-ladder-na.vercel.app";
   const reportHistory = isModerator ? await listReportsForUser(id) : [];
@@ -71,7 +73,7 @@ export default async function PlayerProfilePage({
   const losses = history.length - wins;
   const winRate = history.length > 0 ? Math.round((wins / history.length) * 100) : null;
   const streak = currentStreak(history);
-  const achievements = computeAchievements(careerStats);
+  const achievements = [...computeAchievements(careerStats), ...matchAchievements];
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
