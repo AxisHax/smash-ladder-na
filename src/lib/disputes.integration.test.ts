@@ -402,15 +402,18 @@ describe("adminSetGameWinner", () => {
     expect(updatedMatch.reportedWinnerId).toBe(p1.id);
   });
 
-  it("rejects editing a match that's already closed out", async () => {
+  it("rejects editing a confirmed match that can't be verified as the most recent result", async () => {
     const p1 = await createTestUser();
     const p2 = await createTestUser();
+    // No confirmedAt, so isMostRecentConfirmedMatch short-circuits to false.
     const match = await prisma.ratingMatch.create({
       data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.CONFIRMED, expiresAt: new Date() },
     });
     await createDecidedGame(match.id, 1, p1.id, p2.id);
 
-    await expect(adminSetGameWinner(match.id, 1, p2.id)).rejects.toThrow("already closed out");
+    await expect(adminSetGameWinner(match.id, 1, p2.id)).rejects.toThrow(
+      "Can't edit — a newer match has been confirmed since, or the season has ended",
+    );
   });
 });
 
@@ -462,14 +465,17 @@ describe("adminCancelMatch", () => {
   // Previously a silent no-op (updateMany matching zero rows) — a mod
   // clicking "Cancel match" on an already-closed match got no feedback at
   // all, which read as the button being broken.
-  it("throws instead of silently doing nothing for an already-confirmed match", async () => {
+  it("throws instead of silently doing nothing for a confirmed match that can't be verified as the most recent result", async () => {
     const p1 = await createTestUser();
     const p2 = await createTestUser();
+    // No confirmedAt, so isMostRecentConfirmedMatch short-circuits to false.
     const match = await prisma.ratingMatch.create({
       data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.CONFIRMED, expiresAt: new Date() },
     });
 
-    await expect(adminCancelMatch(match.id)).rejects.toThrow("already closed out");
+    await expect(adminCancelMatch(match.id)).rejects.toThrow(
+      "Can't cancel — a newer match has been confirmed since, or the season has ended",
+    );
   });
 
   it("throws for an already-cancelled match", async () => {
