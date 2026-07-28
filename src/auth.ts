@@ -72,19 +72,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       });
       if (existing?.status === UserStatus.BANNED) return false;
 
+      const discordUsername = discordProfile.global_name ?? discordProfile.username;
       await prisma.user.upsert({
         where: { discordId: discordProfile.id },
         // username is intentionally excluded here — players can rename
         // themselves on the site (their Discord name often doesn't match
         // their player tag), and re-syncing from Discord on every sign-in
-        // would silently wipe that out.
+        // would silently wipe that out. discordUsername is the opposite:
+        // always kept current, so a renamed player's actual Discord
+        // identity stays visible on their profile even after they've
+        // changed their site username.
         update: {
+          discordUsername,
           avatarUrl: discordProfile.image_url,
           lastKnownIp: ip ?? undefined,
         },
         create: {
           discordId: discordProfile.id,
-          username: discordProfile.global_name ?? discordProfile.username,
+          username: discordUsername,
+          discordUsername,
           avatarUrl: discordProfile.image_url,
           email: discordProfile.email ?? undefined,
           lastKnownIp: ip ?? undefined,

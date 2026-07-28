@@ -11,6 +11,7 @@ import {
   getPlayerProfile,
   getRatingChartPoints,
   getTopRivals,
+  isCurrentlyInMatch,
 } from "@/lib/players";
 import { computeAchievements } from "@/lib/rank-tier";
 import { CharacterIcon } from "@/components/character-icon";
@@ -48,13 +49,14 @@ export default async function PlayerProfilePage({
   const player = await getPlayerProfile(id);
   if (!player) notFound();
 
-  const [history, chartPoints, careerStats, rivals, blocked, characterUsage] = await Promise.all([
+  const [history, chartPoints, careerStats, rivals, blocked, characterUsage, inMatch] = await Promise.all([
     getPlayerMatchHistory(id),
     getRatingChartPoints(id),
     getCareerStats(id),
     getTopRivals(id),
     session?.user?.id && !isOwnProfile ? isBlockedByMe(session.user.id, id) : Promise.resolve(false),
     getCharacterUsage(id),
+    isCurrentlyInMatch(id),
   ]);
   const reportHistory = isModerator ? await listReportsForUser(id) : [];
   const topCharacters = characterUsage.slice(0, 3).map((u) => u.character);
@@ -85,6 +87,9 @@ export default async function PlayerProfilePage({
                 <CharacterIcon key={c} name={c} size={18} className="opacity-60" />
               ))}
             </h1>
+            {player.discordUsername && player.discordUsername !== player.username && (
+              <p className="text-xs text-muted-foreground">Discord: {player.discordUsername}</p>
+            )}
             <p className="text-sm tabular-nums text-muted-foreground">
               {player.rating} rating · {player.gamesPlayed} games played
               {topCharacters.length > 0 && (
@@ -103,6 +108,12 @@ export default async function PlayerProfilePage({
             </p>
             <div className="mt-1.5 flex items-center gap-1.5">
               <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} />
+              {inMatch && (
+                <Badge variant="success">
+                  <Swords className="size-3" />
+                  In a match
+                </Badge>
+              )}
               {player.region && (
                 <Badge variant="outline">
                   <MapPin className="size-3" />
