@@ -782,18 +782,11 @@ function GameSection({
         )}
         <div className="mt-3 flex flex-wrap gap-2">
           {current.stagesRemaining.map((stage) => (
-            <ConfirmSubmitButton
-              key={stage}
-              action={action.bind(null, match.id, current.gameNumber, stage)}
-              confirmMessage={
-                turn.phase === "striking" ? `Strike ${stage}?` : `Pick ${stage} as the final stage?`
-              }
-              size="sm"
-              variant="outline"
-              disabled={!canAct}
-            >
-              {stage}
-            </ConfirmSubmitButton>
+            <form key={stage} action={action.bind(null, match.id, current.gameNumber, stage)}>
+              <Button type="submit" size="sm" variant="outline" disabled={!canAct}>
+                {stage}
+              </Button>
+            </form>
           ))}
         </div>
         {canUndoLastStrike && (
