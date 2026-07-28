@@ -17,7 +17,7 @@ import {
   secondsUntil,
 } from "@/lib/match-games";
 import { listMatchComments, isOpponentTyping } from "@/lib/match-comments";
-import { MATCH_DISTANCE_PRESETS, MATCH_REGIONS, REGION_REFERENCE_CITY } from "@/lib/regions";
+import { MATCH_DISTANCE_PRESETS, MATCH_REGION_GROUPS, REGION_REFERENCE_CITY } from "@/lib/regions";
 import { MATCH_RATING_GAP_PRESETS, didTierUp, getRankTier } from "@/lib/rank-tier";
 import { REMATCH_COOLDOWN_PRESETS } from "@/lib/rematch-cooldown";
 import { effectiveArenaPassword } from "@/lib/arena";
@@ -280,10 +280,14 @@ async function MatchmakingForm({ userId }: { userId: string }) {
           <option value="" className="bg-background text-foreground">
             Not set
           </option>
-          {MATCH_REGIONS.map((r) => (
-            <option key={r} value={r} className="bg-background text-foreground">
-              {REGION_REFERENCE_CITY[r] ? `${r} (${REGION_REFERENCE_CITY[r]})` : r}
-            </option>
+          {MATCH_REGION_GROUPS.map((group) => (
+            <optgroup key={group.label} label={group.label}>
+              {group.regions.map((r) => (
+                <option key={r} value={r} className="bg-background text-foreground">
+                  {REGION_REFERENCE_CITY[r] ? `${r} (${REGION_REFERENCE_CITY[r]})` : r}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </select>
       </label>

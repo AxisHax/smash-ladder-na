@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Trophy } from "lucide-react";
 import { SMASH_CHARACTERS, echoGroupLabel, type SmashCharacter } from "@/lib/characters";
-import { MATCH_REGIONS } from "@/lib/regions";
+import { MATCH_REGIONS, MATCH_REGION_GROUPS } from "@/lib/regions";
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
 import { getLeaderboardPlayers } from "@/lib/leaderboard";
 import { ensureActiveSeason, PRE_SEASON_DURATION_MONTHS, PRE_SEASON_EXPECTED_END_AT } from "@/lib/seasons";
@@ -98,10 +98,14 @@ export default async function LeaderboardPage({
             <option value="" className="bg-background text-foreground">
               All regions
             </option>
-            {MATCH_REGIONS.map((r) => (
-              <option key={r} value={r} className="bg-background text-foreground">
-                {r}
-              </option>
+            {MATCH_REGION_GROUPS.map((group) => (
+              <optgroup key={group.label} label={group.label}>
+                {group.regions.map((r) => (
+                  <option key={r} value={r} className="bg-background text-foreground">
+                    {r}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </label>
