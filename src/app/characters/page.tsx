@@ -30,8 +30,8 @@ export default async function CharactersPage() {
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
         Mains are set by whoever you played against, not by yourself — ask an opponent to report
-        it after a match. Most echo fighters (Dark Pit, Daisy, Dark Samus, Richter, Ken) are
-        counted together with their base fighter — Marth/Lucina and Roy/Chrom are kept separate.
+        it after a match. Most echo fighters (Dark Pit, Daisy, Dark Samus, Richter) are counted
+        together with their base fighter — Marth/Lucina, Roy/Chrom, and Ryu/Ken are kept separate.
         Browse a character&apos;s leaderboard below.
       </p>
 
