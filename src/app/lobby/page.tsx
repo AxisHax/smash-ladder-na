@@ -829,7 +829,7 @@ function GameSection({
                   size="sm"
                   variant="outline"
                   disabled={!canAct || isStruck}
-                  className={`relative flex h-24 w-36 flex-col items-center justify-end gap-1 overflow-hidden p-2 ${isStruck ? "cursor-not-allowed opacity-60" : ""}`}
+                  className={`relative flex h-24 w-36 max-sm:h-20 max-sm:w-28 flex-col items-center justify-end gap-1 overflow-hidden p-2 ${isStruck ? "cursor-not-allowed opacity-60" : ""}`}
                 >
                   {imgPath && (
                     <Image
@@ -840,7 +840,7 @@ function GameSection({
                       sizes="128px"
                     />
                   )}
-                  <span className="relative z-10 rounded bg-background/80 px-1 text-xs font-medium">
+                  <span className="relative z-10 rounded bg-background/80 px-1 text-xs max-sm:text-[10px] font-medium">
                     {stage}
                   </span>
                   {isStruck && (
