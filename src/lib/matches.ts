@@ -81,6 +81,48 @@ export async function cancelMatch(userId: string, matchId: string) {
   }
 }
 
+// Once a game's been decided or reported, the one-sided cancelMatch above
+// blocks entirely — right, since a player down in the set could otherwise
+// erase away from a result they don't like. But two players who *both* want
+// to call it off (bad connection, one side needs to step away, etc.)
+// shouldn't be stuck grinding out a set neither wants to finish just because
+// a game already has a result. Same two-sided pattern as requestRematch: the
+// first ask just records itself, the second (from the other player) cancels
+// immediately. No cancelCount hit either way, since this isn't one side
+// backing out unilaterally — both agreed.
+export async function requestMutualCancel(userId: string, matchId: string) {
+  const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
+  if (!match) throw new Error("Match not found");
+  if (match.player1Id !== userId && match.player2Id !== userId) {
+    throw new Error("Not a participant in this match");
+  }
+  // Same legacy-status handling as cancelMatch above.
+  if (match.status !== MatchStatus.PENDING_REPORT && match.status !== MatchStatus.REPORTED) {
+    throw new Error("This match can no longer be cancelled");
+  }
+
+  const isPlayer1 = match.player1Id === userId;
+  if (isPlayer1 ? match.player1CancelRequestedAt : match.player2CancelRequestedAt) return;
+
+  await withTransientRetry(() =>
+    prisma.$transaction(async (tx) => {
+      await tx.ratingMatch.update({
+        where: { id: matchId },
+        data: isPlayer1 ? { player1CancelRequestedAt: new Date() } : { player2CancelRequestedAt: new Date() },
+      });
+
+      // Re-read within the transaction so a since-committed opponent request
+      // (the common case — their click happened earlier, not concurrently)
+      // is picked up even though the initial read above predates it.
+      const fresh = await tx.ratingMatch.findUniqueOrThrow({ where: { id: matchId } });
+      const opponentRequestedAt = isPlayer1 ? fresh.player2CancelRequestedAt : fresh.player1CancelRequestedAt;
+      if (!opponentRequestedAt) return;
+
+      await tx.ratingMatch.update({ where: { id: matchId }, data: { status: MatchStatus.CANCELLED } });
+    }, TX_OPTIONS),
+  );
+}
+
 // Once a set is over, either player may still want to keep chatting —
 // leaving only hides that player's own view of the match; it has no effect
 // on the other player's access. No status check: the Leave button is only
@@ -326,7 +368,7 @@ export async function applyEloAndConfirm(
 // with the winner swapped, then overwrites in place. Never touches
 // gamesPlayed (this isn't a new game) and never revisits any other match,
 // so it can't disturb a later match that already built on this one's result.
-async function applyCorrection(
+export async function applyCorrection(
   tx: Prisma.TransactionClient,
   match: {
     id: string;
@@ -396,7 +438,7 @@ async function applyCorrection(
 // so a match from an already-ended season has nothing live left to reverse
 // against — reapplying Elo from its stored before-ratings would silently
 // corrupt whatever the new season already built up.
-async function isMostRecentConfirmedMatch(
+export async function isMostRecentConfirmedMatch(
   tx: Prisma.TransactionClient,
   match: { id: string; player1Id: string; player2Id: string; confirmedAt: Date | null; seasonId: string | null },
 ) {
