@@ -62,9 +62,9 @@ Discord OAuth.
 
 4. Generate backend:
 
-  ```bash
-  npx prisma generate
-  ```
+   ```bash
+   npx prisma generate
+   ```
 
 5. Run the dev server:
 

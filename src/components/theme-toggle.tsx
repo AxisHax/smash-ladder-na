@@ -1,7 +1,7 @@
 "use client";
 
 import { Moon, Sun } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 type Theme = "light" | "dark" | "system";
 
@@ -28,15 +28,16 @@ function applyTheme(theme: Theme) {
 }
 
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>("system");
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    const stored = getStored();
-    setTheme(stored);
-    applyTheme(stored);
-    setMounted(true);
-  }, []);
+  const [theme, setTheme] = useState<Theme>(() => {
+    // Initialize from localStorage synchronously during render on the client.
+    // The server always returns "system" (typeof window is undefined).
+    if (typeof window !== "undefined") {
+      const stored = getStored();
+      applyTheme(stored);
+      return stored;
+    }
+    return "system";
+  });
 
   const toggle = useCallback(() => {
     setTheme((prev) => {
@@ -55,19 +56,10 @@ export function ThemeToggle() {
 
   const isDark = getEffective(theme) === "dark";
 
-  // Prevent hydration mismatch — render nothing on first pass
-  if (!mounted) {
-    return (
-      <button className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none select-none hover:bg-muted hover:text-foreground">
-        <Sun className="size-3.5 opacity-0" />
-        <span className="opacity-0">Theme</span>
-      </button>
-    );
-  }
-
   return (
     <button
       onClick={toggle}
+      suppressHydrationWarning
       className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none select-none hover:bg-muted hover:text-foreground"
     >
       {isDark ? <Moon className="size-3.5" /> : <Sun className="size-3.5" />}
