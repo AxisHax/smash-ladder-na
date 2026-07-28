@@ -4,6 +4,7 @@ import { MatchStatus, ConfirmationMethod, PairingMethod } from "@/generated/pris
 import { isWiredClaimUntrustworthy } from "@/lib/account";
 import { getBlockedEitherWayIds } from "@/lib/blocks";
 import { createDirectMatch } from "@/lib/lobby";
+import { recomputeCharacterUsage } from "@/lib/character-stats";
 
 // Used as `include`, which already returns every scalar column (leftAt,
 // rematchRequestedAt, etc.) by default — no need to list them here, and
@@ -300,6 +301,13 @@ export async function applyEloAndConfirm(
   if (historyRows.length > 0) {
     await tx.ratingHistory.createMany({ data: historyRows });
   }
+
+  // Refreshes mainCharacter/secondaryCharacters from actual play — see
+  // recomputeCharacterUsage. Runs on every confirm, practicing or not
+  // (getCharacterUsage itself already excludes practicing games, so this
+  // is a correct no-op on a practice-only confirm).
+  await recomputeCharacterUsage(p1.id, tx);
+  await recomputeCharacterUsage(p2.id, tx);
 }
 
 // Only reachable while `match` is still each player's most recent CONFIRMED

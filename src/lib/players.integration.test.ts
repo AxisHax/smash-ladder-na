@@ -1,6 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { prisma } from "@/lib/db";
-import { getCareerStats, getCharacterUsage, getPlayerMatchHistory, getTopCharacters } from "@/lib/players";
+import {
+  getCareerStats,
+  getCharacterUsage,
+  getPlayerMatchHistory,
+  getTopCharacters,
+  isCurrentlyInMatch,
+} from "@/lib/players";
 import { MatchStatus } from "@/generated/prisma/enums";
 import { createTestUser } from "@/test/factories";
 
@@ -56,6 +62,30 @@ async function createGame(
     },
   });
 }
+
+describe("isCurrentlyInMatch", () => {
+  it("is true while a match is pending report", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    await createPendingMatch(p1.id, p2.id);
+
+    expect(await isCurrentlyInMatch(p1.id)).toBe(true);
+    expect(await isCurrentlyInMatch(p2.id)).toBe(true);
+  });
+
+  it("is false once the match is confirmed", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    await createConfirmedMatch(p1.id, p2.id);
+
+    expect(await isCurrentlyInMatch(p1.id)).toBe(false);
+  });
+
+  it("is false for a player with no matches at all", async () => {
+    const player = await createTestUser();
+    expect(await isCurrentlyInMatch(player.id)).toBe(false);
+  });
+});
 
 describe("getTopCharacters", () => {
   it("returns an empty array when the player has no qualifying games", async () => {
@@ -257,6 +287,7 @@ describe("getPlayerMatchHistory", () => {
     const [entry] = await getPlayerMatchHistory(player.id);
     expect(entry.score).toEqual({ wins: 2, losses: 1 });
     expect(entry.characters).toEqual(["Terry", "Cloud"]);
+    expect(entry.opponentCharacters).toEqual(["Ken"]);
   });
 
   it("ignores games with no decided winner when computing score", async () => {
@@ -279,5 +310,6 @@ describe("getPlayerMatchHistory", () => {
     const [entry] = await getPlayerMatchHistory(player.id);
     expect(entry.score).toEqual({ wins: 0, losses: 0 });
     expect(entry.characters).toEqual([]);
+    expect(entry.opponentCharacters).toEqual([]);
   });
 });

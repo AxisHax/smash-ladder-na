@@ -4,6 +4,7 @@ import { createTestUser } from "@/test/factories";
 import {
   startFirstGame,
   strikeGameStage,
+  strikeSameBans,
   pickGameStage,
   pickGameCharacter,
   getCurrentGame,
@@ -12,7 +13,7 @@ import {
   bannedPracticeCharacter,
   CHARACTER_TIMEOUT_MS,
 } from "@/lib/match-games";
-import { GAME_ONE_STAGES } from "@/lib/stages";
+import { GAME_ONE_STAGES, COUNTERPICK_STAGES } from "@/lib/stages";
 
 async function createMatch(p1: string, p2: string) {
   return prisma.ratingMatch.create({
@@ -189,6 +190,164 @@ describe("character lock-in gates stage striking", () => {
       where: { matchId_gameNumber: { matchId: match.id, gameNumber: 2 } },
     });
     expect(updated?.finalStage).toBe("Final Destination");
+  });
+});
+
+describe("strikeSameBans", () => {
+  async function seedCompletedThreeStrikeTurn(matchId: string, p1: string, p2: string) {
+    await prisma.matchGame.create({
+      data: {
+        matchId,
+        gameNumber: 2,
+        actorAId: p1,
+        actorAStrikes: 3,
+        actorBId: p2,
+        actorBStrikes: 0,
+        struckStages: [COUNTERPICK_STAGES[0], COUNTERPICK_STAGES[1], COUNTERPICK_STAGES[2]],
+        stagesRemaining: COUNTERPICK_STAGES.slice(3),
+      },
+    });
+  }
+
+  it("applies the same 3 stages as the player's last completed 3-strike turn", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await seedCompletedThreeStrikeTurn(match.id, p1.id, p2.id);
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 4,
+        actorAId: p1.id,
+        actorAStrikes: 3,
+        actorBId: p2.id,
+        actorBStrikes: 0,
+        actorACharacter: "Mario",
+        actorBCharacter: "Fox",
+        stagesRemaining: [...COUNTERPICK_STAGES],
+      },
+    });
+
+    await strikeSameBans(p1.id, match.id, 4);
+
+    const updated = await prisma.matchGame.findUnique({
+      where: { matchId_gameNumber: { matchId: match.id, gameNumber: 4 } },
+    });
+    expect(updated?.struckStages).toEqual([COUNTERPICK_STAGES[0], COUNTERPICK_STAGES[1], COUNTERPICK_STAGES[2]]);
+    expect(updated?.stagesRemaining).toEqual(COUNTERPICK_STAGES.slice(3));
+  });
+
+  it("rejects when it isn't the calling player's turn to strike", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await seedCompletedThreeStrikeTurn(match.id, p1.id, p2.id);
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 4,
+        actorAId: p1.id,
+        actorAStrikes: 3,
+        actorBId: p2.id,
+        actorBStrikes: 0,
+        actorACharacter: "Mario",
+        actorBCharacter: "Fox",
+        stagesRemaining: [...COUNTERPICK_STAGES],
+      },
+    });
+
+    await expect(strikeSameBans(p2.id, match.id, 4)).rejects.toThrow(/not your turn/i);
+  });
+
+  it("rejects the counterpick loser — actorB never has a strike turn to repeat", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await seedCompletedThreeStrikeTurn(match.id, p1.id, p2.id);
+    // Game 4: p2 (actorA) already struck their 3 — it's the pick phase now,
+    // not a strike turn at all, so p1 (actorB) hits "striking is done"
+    // rather than a same-bans-specific rejection.
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 4,
+        actorAId: p2.id,
+        actorAStrikes: 3,
+        actorBId: p1.id,
+        actorBStrikes: 0,
+        actorACharacter: "Fox",
+        actorBCharacter: "Mario",
+        struckStages: [COUNTERPICK_STAGES[0], COUNTERPICK_STAGES[1], COUNTERPICK_STAGES[2]],
+        stagesRemaining: COUNTERPICK_STAGES.slice(3),
+      },
+    });
+
+    await expect(strikeSameBans(p1.id, match.id, 4)).rejects.toThrow(/striking is done/i);
+  });
+
+  it("rejects when the player has already struck stages this turn", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await seedCompletedThreeStrikeTurn(match.id, p1.id, p2.id);
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 4,
+        actorAId: p1.id,
+        actorAStrikes: 3,
+        actorBId: p2.id,
+        actorBStrikes: 0,
+        actorACharacter: "Mario",
+        actorBCharacter: "Fox",
+        struckStages: [COUNTERPICK_STAGES[0]],
+        stagesRemaining: COUNTERPICK_STAGES.slice(1),
+      },
+    });
+
+    await expect(strikeSameBans(p1.id, match.id, 4)).rejects.toThrow(/already struck/i);
+  });
+
+  it("rejects when there is no prior 3-strike turn to repeat", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 2,
+        actorAId: p1.id,
+        actorAStrikes: 3,
+        actorBId: p2.id,
+        actorBStrikes: 0,
+        actorACharacter: "Mario",
+        actorBCharacter: "Fox",
+        stagesRemaining: [...COUNTERPICK_STAGES],
+      },
+    });
+
+    await expect(strikeSameBans(p1.id, match.id, 2)).rejects.toThrow(/no prior bans/i);
+  });
+
+  it("rejects before both characters are locked in", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await seedCompletedThreeStrikeTurn(match.id, p1.id, p2.id);
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 4,
+        actorAId: p1.id,
+        actorAStrikes: 3,
+        actorBId: p2.id,
+        actorBStrikes: 0,
+        actorACharacter: "Mario",
+        stagesRemaining: [...COUNTERPICK_STAGES],
+      },
+    });
+
+    await expect(strikeSameBans(p1.id, match.id, 4)).rejects.toThrow(/character/i);
   });
 });
 

@@ -13,19 +13,22 @@ import {
   characterPickState,
   getMatchGames,
   gameTurnState,
+  lastSameBans,
   lastUsedCharacter,
   secondsUntil,
 } from "@/lib/match-games";
 import { listMatchComments, isOpponentTyping } from "@/lib/match-comments";
-import { MATCH_DISTANCE_PRESETS, MATCH_REGIONS, REGION_REFERENCE_CITY } from "@/lib/regions";
+import { MATCH_DISTANCE_PRESETS, MATCH_REGION_GROUPS, REGION_REFERENCE_CITY } from "@/lib/regions";
 import { MATCH_RATING_GAP_PRESETS, didTierUp, getRankTier } from "@/lib/rank-tier";
 import { REMATCH_COOLDOWN_PRESETS } from "@/lib/rematch-cooldown";
 import { effectiveArenaPassword } from "@/lib/arena";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { CharacterIcon } from "@/components/character-icon";
 import { CharacterSelect } from "@/components/character-select";
+import { Countdown } from "@/components/countdown";
 import { LobbyPoller } from "@/components/lobby-poller";
 import { JoinLobbyForm } from "@/components/join-lobby-button";
 import { CancelMatchButton } from "@/components/cancel-match-button";
@@ -53,6 +56,7 @@ import {
   requestDisputeResolutionAction,
   requestMutualCancelAction,
   requestRematchAction,
+  sameBansStrike,
   sendMatchCommentAction,
   strikeStage,
   submitRoomCode,
@@ -280,10 +284,14 @@ async function MatchmakingForm({ userId }: { userId: string }) {
           <option value="" className="bg-background text-foreground">
             Not set
           </option>
-          {MATCH_REGIONS.map((r) => (
-            <option key={r} value={r} className="bg-background text-foreground">
-              {REGION_REFERENCE_CITY[r] ? `${r} (${REGION_REFERENCE_CITY[r]})` : r}
-            </option>
+          {MATCH_REGION_GROUPS.map((group) => (
+            <optgroup key={group.label} label={group.label}>
+              {group.regions.map((r) => (
+                <option key={r} value={r} className="bg-background text-foreground">
+                  {REGION_REFERENCE_CITY[r] ? `${r} (${REGION_REFERENCE_CITY[r]})` : r}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </select>
       </label>
@@ -726,7 +734,7 @@ function GameSection({
   // Only shown once both characters are locked in (see the !bothLocked
   // branch below) — at that point turnStartedAt is purely a stage-strike
   // clock, so STRIKE_TIMEOUT_MS is the only deadline that applies here.
-  const secondsLeft = secondsUntil(new Date(current.turnStartedAt.getTime() + STRIKE_TIMEOUT_MS));
+  const deadline = new Date(current.turnStartedAt.getTime() + STRIKE_TIMEOUT_MS).toISOString();
 
   const lastStrikeIndex = current.struckStages.length - 1;
   const canUndoLastStrike =
@@ -734,18 +742,43 @@ function GameSection({
     lastStrikeIndex >= 0 &&
     (lastStrikeIndex < current.actorAStrikes ? current.actorAId : current.actorBId) === userId;
 
+  const sameBans =
+    turn.phase === "striking" && current.actorAId === userId && current.actorAStrikes === 3 && struckSoFar === 0
+      ? lastSameBans(games, userId)
+      : null;
+
   return (
     <>
       {characterSection}
       <CardContent className="border-t border-border pt-4">
         <p className="text-sm text-muted-foreground">
           Game {current.gameNumber} —{" "}
-          {!bothLocked
-            ? "Stage selection will start once both characters are locked in."
-            : !myTurn
-              ? `Waiting for ${opponentName} to ${verb}… (${secondsLeft}s left)`
-              : `Your turn — ${turnDescription} (${secondsLeft}s left, or it auto-picks).`}
+          {!bothLocked ? (
+            "Stage selection will start once both characters are locked in."
+          ) : !myTurn ? (
+            <>
+              Waiting for {opponentName} to {verb}… (<Countdown deadline={deadline} />s left)
+            </>
+          ) : (
+            <>
+              Your turn — {turnDescription} (<Countdown deadline={deadline} />s left, or it auto-picks).
+            </>
+          )}
         </p>
+        {sameBans && (
+          <div className="mt-3">
+            <form action={sameBansStrike.bind(null, match.id, current.gameNumber)}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button type="submit" size="sm" variant="default" disabled={!canAct}>
+                    Same bans as Game {sameBans.gameNumber}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{sameBans.stages.join(", ")}</TooltipContent>
+              </Tooltip>
+            </form>
+          </div>
+        )}
         <div className="mt-3 flex flex-wrap gap-2">
           {current.stagesRemaining.map((stage) => (
             <form key={stage} action={action.bind(null, match.id, current.gameNumber, stage)}>
@@ -793,7 +826,9 @@ function CharacterPickSection({
   // Silent from the player's point of view otherwise — autoResolveStaleCharacterPick
   // forfeits the whole game to whoever's opponent never locked in within this
   // window, measured from the game's creation, so it needs to be visible here.
-  const secondsLeft = secondsUntil(new Date(game.createdAt.getTime() + CHARACTER_TIMEOUT_MS));
+  const pickDeadline = new Date(game.createdAt.getTime() + CHARACTER_TIMEOUT_MS);
+  const secondsLeft = secondsUntil(pickDeadline);
+  const deadline = pickDeadline.toISOString();
 
   if (yourCharacter && opponentCharacter) {
     return (
@@ -813,9 +848,13 @@ function CharacterPickSection({
           Game {game.gameNumber} — you locked in{" "}
           <span className="font-medium text-foreground">{yourCharacter}</span>. Waiting for{" "}
           {opponentName} to pick…{" "}
-          {secondsLeft > 0
-            ? `You win this game by forfeit if they don't in ${secondsLeft}s.`
-            : "They're past the deadline — this should resolve in your favor shortly."}
+          {secondsLeft > 0 ? (
+            <>
+              You win this game by forfeit if they don&apos;t in <Countdown deadline={deadline} />s.
+            </>
+          ) : (
+            "They're past the deadline — this should resolve in your favor shortly."
+          )}
         </p>
       </CardContent>
     );
@@ -842,7 +881,7 @@ function CharacterPickSection({
             : "pick your character — you're up first, this locks in before the opponent picks."}{" "}
         {secondsLeft > 0 ? (
           <span className="font-medium text-foreground">
-            Lock in within {secondsLeft}s or you forfeit this game.
+            Lock in within <Countdown deadline={deadline} />s or you forfeit this game.
           </span>
         ) : (
           <span className="font-medium text-destructive">

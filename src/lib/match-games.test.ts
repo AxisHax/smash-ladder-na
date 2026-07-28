@@ -6,7 +6,7 @@ vi.mock("@/generated/prisma/enums", () => ({ ConfirmationMethod: {}, MatchStatus
 vi.mock("@/lib/matches", () => ({ applyEloAndConfirm: vi.fn() }));
 vi.mock("@/lib/discord-bot", () => ({ sendDiscordDM: vi.fn() }));
 
-import { characterPickState, gameTurnState, lastUsedCharacter, tallySetWins, GAMES_TO_WIN } from "./match-games";
+import { characterPickState, gameTurnState, lastSameBans, lastUsedCharacter, tallySetWins, GAMES_TO_WIN } from "./match-games";
 
 describe("gameTurnState", () => {
   const base = {
@@ -196,5 +196,83 @@ describe("lastUsedCharacter", () => {
 
   it("returns null if the player has no games at all", () => {
     expect(lastUsedCharacter([], "p1")).toBeNull();
+  });
+});
+
+describe("lastSameBans", () => {
+  it("returns null when the player has never struck 3 stages as actorA", () => {
+    const games = [
+      { gameNumber: 1, actorAId: "p1", actorAStrikes: 1, struckStages: ["Battlefield"] },
+    ];
+    expect(lastSameBans(games, "p1")).toBeNull();
+  });
+
+  it("returns the stages from the most recent completed 3-strike turn", () => {
+    const games = [
+      { gameNumber: 1, actorAId: "p1", actorAStrikes: 1, struckStages: ["Battlefield"] },
+      {
+        gameNumber: 2,
+        actorAId: "p1",
+        actorAStrikes: 3,
+        struckStages: ["Battlefield", "Smashville", "Final Destination"],
+      },
+    ];
+    expect(lastSameBans(games, "p1")).toEqual({
+      gameNumber: 2,
+      stages: ["Battlefield", "Smashville", "Final Destination"],
+    });
+  });
+
+  it("prefers the more recent 3-strike turn over an earlier one", () => {
+    const games = [
+      {
+        gameNumber: 2,
+        actorAId: "p1",
+        actorAStrikes: 3,
+        struckStages: ["Battlefield", "Smashville", "Final Destination"],
+      },
+      {
+        gameNumber: 4,
+        actorAId: "p1",
+        actorAStrikes: 3,
+        struckStages: ["Hollow Bastion", "Town and City", "Kalos Pokémon League"],
+      },
+    ];
+    expect(lastSameBans(games, "p1")).toEqual({
+      gameNumber: 4,
+      stages: ["Hollow Bastion", "Town and City", "Kalos Pokémon League"],
+    });
+  });
+
+  it("skips a game where the player's 3-strike turn is still in progress", () => {
+    const games = [
+      {
+        gameNumber: 2,
+        actorAId: "p1",
+        actorAStrikes: 3,
+        struckStages: ["Battlefield", "Smashville", "Final Destination"],
+      },
+      { gameNumber: 4, actorAId: "p1", actorAStrikes: 3, struckStages: ["Hollow Bastion"] },
+    ];
+    expect(lastSameBans(games, "p1")).toEqual({
+      gameNumber: 2,
+      stages: ["Battlefield", "Smashville", "Final Destination"],
+    });
+  });
+
+  it("ignores a game where the player was actorB, not actorA", () => {
+    const games = [
+      {
+        gameNumber: 2,
+        actorAId: "p2",
+        actorAStrikes: 3,
+        struckStages: ["Battlefield", "Smashville", "Final Destination"],
+      },
+    ];
+    expect(lastSameBans(games, "p1")).toBeNull();
+  });
+
+  it("returns null if the player has no games at all", () => {
+    expect(lastSameBans([], "p1")).toBeNull();
   });
 });
