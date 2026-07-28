@@ -35,7 +35,7 @@ export default async function SeasonStandingsPage({
               <th className="py-2 pl-4 font-medium">#</th>
               <th className="py-2 font-medium">Player</th>
               <th className="py-2 font-medium text-right tabular-nums">Final rating</th>
-              <th className="py-2 pr-4 font-medium text-right tabular-nums">Games</th>
+              <th className="py-2 pr-4 font-medium text-right tabular-nums">Sets</th>
             </tr>
           </thead>
           <tbody>

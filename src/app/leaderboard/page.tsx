@@ -47,7 +47,7 @@ export default async function LeaderboardPage({
         <Badge variant="outline">{season.name}</Badge>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
-        Ranked players with {LEADERBOARD_MIN_GAMES}+ games played
+        Ranked players with {LEADERBOARD_MIN_GAMES}+ sets played
         {isValidCharacter ? ` who main ${echoGroupLabel(character as SmashCharacter)}` : ""}
         {isValidRegion ? ` in ${region}` : ""}
         {query ? ` matching "${query}"` : ""}.
@@ -122,7 +122,7 @@ export default async function LeaderboardPage({
               <th className="py-2 font-medium">Player</th>
               <th className="py-2 font-medium">Tier</th>
               <th className="py-2 font-medium text-right tabular-nums">Rating</th>
-              <th className="py-2 font-medium text-right tabular-nums">Games</th>
+              <th className="py-2 font-medium text-right tabular-nums">Sets</th>
               {!isFiltered && (
                 <th className="py-2 pr-4 font-medium text-right tabular-nums">Prize</th>
               )}

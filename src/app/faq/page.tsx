@@ -65,7 +65,7 @@ export default function FaqPage() {
           </QA>
           <QA q="Does a practicing match affect my ladder rating?">
             No. Practicing results go entirely to a separate practice rating — your regular
-            ladder rating and games-played count don&apos;t move, whether you win or lose.
+            ladder rating and sets-played count don&apos;t move, whether you win or lose.
           </QA>
           <QA q="I didn't mean to check Practicing — can I turn it off mid-match?">
             No, it&apos;s locked in for that match once you&apos;re paired. Cancel the match if
@@ -139,7 +139,7 @@ export default function FaqPage() {
 
         <Category title="Seasons">
           <QA q="What happens to my rating when a season ends?">
-            Standings get snapshotted, then rating and games-played reset for everyone at the
+            Standings get snapshotted, then rating and sets-played reset for everyone at the
             start of the next season — a clean slate rather than a partial regression, so every
             season starts on equal footing.
           </QA>

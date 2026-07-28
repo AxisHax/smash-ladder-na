@@ -9,7 +9,7 @@ export function EndSeasonButton({ action, seasonName }: { action: () => Promise<
       onSubmit={(e) => {
         if (
           !confirm(
-            `End "${seasonName}" and start the next one? This resets EVERYONE's rating to 1500 and games played to 0. This can't be undone.`,
+            `End "${seasonName}" and start the next one? This resets EVERYONE's rating to 1500 and sets played to 0. This can't be undone.`,
           )
         ) {
           e.preventDefault();

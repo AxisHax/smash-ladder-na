@@ -48,7 +48,7 @@ export default async function FreeBattlePage() {
           get a Discord DM the moment someone does.
         </li>
         <li>
-          3. Once matched, coordinate the actual game yourselves (room code, timing) — Free Battle
+          3. Once matched, coordinate the actual set yourselves (room code, timing) — Free Battle
           just makes the introduction, it doesn&apos;t track games or affect your rating like
           ranked matches do.
         </li>
