@@ -50,7 +50,7 @@ export default async function Home() {
       {user && me && (
         <p className="mt-6 text-sm text-muted-foreground tabular-nums">
           You&apos;re <span className="font-medium text-foreground">{me.rating}</span> rated
-          across {me.gamesPlayed} games.
+          across {me.gamesPlayed} sets.
         </p>
       )}
 

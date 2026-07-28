@@ -33,7 +33,7 @@ export default function RulesPage() {
             {SEASON_PRIZE_POOL_USD} USD prize pool: 1st gets {PRIZE_SPLIT_PERCENT[0]}%, 2nd{" "}
             {PRIZE_SPLIT_PERCENT[1]}%, 3rd {PRIZE_SPLIT_PERCENT[2]}%, 4th{" "}
             {PRIZE_SPLIT_PERCENT[3]}%, and 5th {PRIZE_SPLIT_PERCENT[4]}%. You need{" "}
-            {LEADERBOARD_MIN_GAMES}+ games played to appear on the leaderboard at all.
+            {LEADERBOARD_MIN_GAMES}+ sets played to appear on the leaderboard at all.
           </p>
           <p>
             The current preseason is a fixed {PRE_SEASON_DURATION_MONTHS}-month trial run,
@@ -128,7 +128,7 @@ export default function RulesPage() {
           <p>
             Check &quot;Practicing&quot; when you join the queue to keep the set off your main
             ladder rating entirely — wins and losses go to a separate practice rating instead, and
-            your regular rating and games-played don&apos;t move. Practice rating starts at the
+            your regular rating and sets-played don&apos;t move. Practice rating starts at the
             same 1500 baseline and uses the same math, but it&apos;s a fully independent track.
           </p>
           <p>

@@ -101,7 +101,7 @@ export default async function PlayerProfilePage({
               <p className="text-xs text-muted-foreground">Discord: {player.discordUsername}</p>
             )}
             <p className="text-sm tabular-nums text-muted-foreground">
-              {player.rating} rating · {player.gamesPlayed} games played
+              {player.rating} rating · {player.gamesPlayed} sets played
               {topCharacters.length > 0 && (
                 <>
                   {" · "}

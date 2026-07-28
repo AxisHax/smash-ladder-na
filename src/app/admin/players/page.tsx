@@ -40,7 +40,7 @@ export default async function AdminPlayersPage({
         <h1 className="text-2xl font-semibold tracking-tight">Players</h1>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
-        Look up any player, including new accounts that haven&apos;t played enough games to show
+        Look up any player, including new accounts that haven&apos;t played enough sets to show
         up on the public leaderboard yet.
       </p>
 
@@ -70,7 +70,7 @@ export default async function AdminPlayersPage({
               <th className="py-2 font-medium">Status</th>
               <th className="py-2 font-medium">Region</th>
               <th className="py-2 font-medium text-right tabular-nums">Rating</th>
-              <th className="py-2 font-medium text-right tabular-nums">Games</th>
+              <th className="py-2 font-medium text-right tabular-nums">Sets</th>
               <th className="py-2 pr-4 font-medium text-right">Joined</th>
             </tr>
           </thead>
