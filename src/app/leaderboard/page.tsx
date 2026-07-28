@@ -122,7 +122,9 @@ export default async function LeaderboardPage({
               <th className="py-2 font-medium">Player</th>
               <th className="py-2 font-medium">Tier</th>
               <th className="py-2 font-medium text-right tabular-nums">Rating</th>
-              <th className="py-2 font-medium text-right tabular-nums">Sets</th>
+              <th className={`py-2 font-medium text-right tabular-nums ${isFiltered ? "pr-4" : ""}`}>
+                Sets
+              </th>
               {!isFiltered && (
                 <th className="py-2 pr-4 font-medium text-right tabular-nums">Prize</th>
               )}
@@ -157,7 +159,11 @@ export default async function LeaderboardPage({
                     <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} />
                   </td>
                   <td className="py-2 text-right font-medium tabular-nums">{player.rating}</td>
-                  <td className="py-2 text-right tabular-nums text-muted-foreground">
+                  <td
+                    className={`py-2 text-right tabular-nums text-muted-foreground ${
+                      isFiltered ? "pr-4" : ""
+                    }`}
+                  >
                     {player.gamesPlayed}
                   </td>
                   {!isFiltered && (
