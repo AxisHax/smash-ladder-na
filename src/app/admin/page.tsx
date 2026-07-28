@@ -90,6 +90,7 @@ export default async function AdminOverviewPage() {
         <StatCard icon={Activity} label="Active in last 24h" value={stats.activeUsers24h} />
         <StatCard icon={Users} label="Total players" value={stats.totalUsers} />
         <StatCard icon={Swords} label="Matches today" value={stats.matchesToday} />
+        <StatCard icon={Swords} label="Matches total" value={stats.matchesTotal} />
         <StatCard icon={Medal} label="Open tournaments" value={stats.openTournaments} />
         <StatCard
           icon={Users}
