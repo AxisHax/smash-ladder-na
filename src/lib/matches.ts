@@ -1,10 +1,9 @@
 import { prisma, TX_OPTIONS, withTransientRetry } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
-import { MatchStatus, ConfirmationMethod, PairingMethod, UserRole } from "@/generated/prisma/enums";
+import { MatchStatus, ConfirmationMethod, PairingMethod } from "@/generated/prisma/enums";
 import { isWiredClaimUntrustworthy } from "@/lib/account";
 import { getBlockedEitherWayIds } from "@/lib/blocks";
 import { createDirectMatch } from "@/lib/lobby";
-import { sendDiscordDM } from "@/lib/discord-bot";
 
 // Used as `include`, which already returns every scalar column (leftAt,
 // rematchRequestedAt, etc.) by default — no need to list them here, and
@@ -212,57 +211,6 @@ function expectedScore(ratingSelf: number, ratingOpp: number) {
   return 1 / (1 + 10 ** ((ratingOpp - ratingSelf) / 400));
 }
 
-// How recently an account must have been created (relative to the match
-// starting) — combined with almost no other match history — to read as a
-// disposable alt rather than a real new player. 24h comfortably covers
-// "signed up specifically for this", while not flagging every genuine
-// newcomer who happens to play their first match same-day.
-const SELF_BOOST_NEW_ACCOUNT_WINDOW_MS = 24 * 60 * 60 * 1000;
-const SELF_BOOST_LOW_HISTORY_GAMES = 1;
-
-// Best-effort heuristic for the JerBear-style abuse pattern (a player
-// creates a disposable alt account and matches/plays against themselves for
-// free rating) — same two signals that actually caught that incident: the
-// two accounts sharing a last-known IP, or one side being a barely-used
-// account created right before this match. Never blocks anything, only
-// alerts — same-IP roommates/LAN setups are a real false positive here, so
-// this is a lead for a mod to check, not an automatic verdict.
-//
-// Deliberately NOT awaited by its caller (see below applyEloAndConfirm) and
-// uses the module-level prisma client rather than the surrounding tx: this
-// runs its own queries and Discord sends after the interactive transaction
-// that confirmed the match may have already committed. Awaiting Discord's
-// API from inside that transaction once blew its 5s timeout in production
-// (P2028) and rolled back an otherwise-fine confirmation — never again.
-async function flagPossibleSelfBoost(
-  match: { id: string; createdAt: Date },
-  p1: { id: string; username: string; lastKnownIp: string | null; gamesPlayed: number; createdAt: Date },
-  p2: { id: string; username: string; lastKnownIp: string | null; gamesPlayed: number; createdAt: Date },
-) {
-  const reasons: string[] = [];
-  if (p1.lastKnownIp && p1.lastKnownIp === p2.lastKnownIp) {
-    reasons.push("both accounts share the same last-known IP");
-  }
-  for (const [fresh] of [[p1], [p2]] as const) {
-    const accountAgeMs = match.createdAt.getTime() - fresh.createdAt.getTime();
-    if (
-      accountAgeMs >= 0 &&
-      accountAgeMs < SELF_BOOST_NEW_ACCOUNT_WINDOW_MS &&
-      fresh.gamesPlayed <= SELF_BOOST_LOW_HISTORY_GAMES
-    ) {
-      reasons.push(`${fresh.username}'s account was created shortly before this match and has almost no other match history`);
-    }
-  }
-  if (reasons.length === 0) return;
-
-  const mods = await prisma.user.findMany({
-    where: { role: { in: [UserRole.MOD, UserRole.ADMIN] } },
-    select: { discordId: true },
-  });
-  const message = `🕵️ Possible self-boost: ${p1.username} vs ${p2.username} (match ${match.id}) — ${reasons.join("; ")}. Review at /admin/live or the players' profiles.`;
-  await Promise.all(mods.map((mod) => sendDiscordDM(mod.discordId, message)));
-}
-
 // Applies the Elo update, marks the match CONFIRMED, and records rating history.
 // Shared by self-confirmation (both players agree) and the cron finalizer's
 // auto-timeout path (only one player reported before the match expired).
@@ -351,14 +299,6 @@ export async function applyEloAndConfirm(
   ];
   if (historyRows.length > 0) {
     await tx.ratingHistory.createMany({ data: historyRows });
-  }
-
-  // Self-boosting a practice rating has no real payoff (it never touches
-  // rank), so skip mods getting paged over it.
-  if (!matchRow.player1IsPracticing && !matchRow.player2IsPracticing) {
-    // Fire-and-forget — see the comment on flagPossibleSelfBoost for why this
-    // must never be awaited from inside this transaction.
-    flagPossibleSelfBoost({ id: match.id, createdAt: matchRow.createdAt }, p1, p2).catch(() => {});
   }
 }
 
