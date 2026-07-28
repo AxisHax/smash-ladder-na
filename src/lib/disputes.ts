@@ -191,10 +191,35 @@ const RECENTLY_EXPIRED_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 // CONFIRMED matches only stay editable (see adminSetGameWinner/adminCancelMatch
 // above) while they're still each player's most recent CONFIRMED result — so
-// there's no point surfacing one older than that here, it'd just 404 on edit.
-// A short window comfortably covers "mod finds out about a bad forfeit within
-// a day or so," without listing every CONFIRMED match ever.
+// there's no point surfacing one older than that here, it'd just error on
+// edit. A short time window alone isn't a safe bound on a busy ladder (a
+// day's worth of CONFIRMED matches can run into the thousands), so this
+// intersects the window with "still actually editable" via a correlated
+// NOT EXISTS — a newer CONFIRMED match for either player disqualifies it —
+// which keeps the result bounded by active players, not total match volume.
 const RECENTLY_CONFIRMED_WINDOW_MS = 24 * 60 * 60 * 1000;
+const RECENTLY_CONFIRMED_LIMIT = 200;
+
+async function recentlyConfirmedEditableMatchIds() {
+  const rows = await prisma.$queryRaw<{ id: string }[]>`
+    SELECT rm.id FROM "RatingMatch" rm
+    WHERE rm.status = 'CONFIRMED'
+      AND rm."confirmedAt" > ${new Date(Date.now() - RECENTLY_CONFIRMED_WINDOW_MS)}
+      AND rm."adminGameEditCount" < ${MAX_ADMIN_GAME_EDITS}
+      AND NOT EXISTS (
+        SELECT 1 FROM "RatingMatch" newer
+        WHERE newer.status = 'CONFIRMED'
+          AND newer."confirmedAt" > rm."confirmedAt"
+          AND (
+            newer."player1Id" IN (rm."player1Id", rm."player2Id")
+            OR newer."player2Id" IN (rm."player1Id", rm."player2Id")
+          )
+      )
+    ORDER BY rm."confirmedAt" DESC
+    LIMIT ${RECENTLY_CONFIRMED_LIMIT}
+  `;
+  return rows.map((r) => r.id);
+}
 
 // Includes recently-EXPIRED matches too (not just still-in-progress ones):
 // if nobody ever clicked through the per-game report flow, the 24h cron
@@ -203,6 +228,8 @@ const RECENTLY_CONFIRMED_WINDOW_MS = 24 * 60 * 60 * 1000;
 // and force-confirm those, not just ones still technically "live". Capped
 // to a recent window so this doesn't accumulate ancient history forever.
 export async function listLiveMatches() {
+  const editableConfirmedIds = await recentlyConfirmedEditableMatchIds();
+
   return prisma.ratingMatch.findMany({
     where: {
       OR: [
@@ -211,11 +238,7 @@ export async function listLiveMatches() {
           status: MatchStatus.EXPIRED,
           expiresAt: { gt: new Date(Date.now() - RECENTLY_EXPIRED_WINDOW_MS) },
         },
-        {
-          status: MatchStatus.CONFIRMED,
-          confirmedAt: { gt: new Date(Date.now() - RECENTLY_CONFIRMED_WINDOW_MS) },
-          adminGameEditCount: { lt: MAX_ADMIN_GAME_EDITS },
-        },
+        { id: { in: editableConfirmedIds } },
       ],
     },
     orderBy: { createdAt: "desc" },
