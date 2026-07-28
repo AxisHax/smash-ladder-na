@@ -134,6 +134,8 @@ export function AdminMatchOverride({
   const [undoState, undoFormAction, isPendingUndo] = useActionState(undoAction, { error: null });
   const error = state1.error ?? state2.error ?? undoState.error;
   const anyPending = isPending1 || isPending2 || isPendingUndo;
+  const [confirm, confirmDialog] = useConfirm();
+  const undoReadyRef = useRef(false);
 
   return (
     <details className="mt-1 text-xs">
@@ -156,13 +158,20 @@ export function AdminMatchOverride({
         <form
           action={undoFormAction}
           onSubmit={(e) => {
-            if (
-              !confirm(
-                "Undo this match? Reverts both players' rating back to right before it and cancels it outright — can't be undone.",
-              )
-            ) {
-              e.preventDefault();
+            if (undoReadyRef.current) {
+              undoReadyRef.current = false;
+              return;
             }
+            e.preventDefault();
+            confirm(
+              "Undo this match? Reverts both players' rating back to right before it and cancels it outright — can't be undone.",
+              { confirmLabel: "Undo match", variant: "destructive" },
+            ).then((ok) => {
+              if (ok) {
+                undoReadyRef.current = true;
+                e.currentTarget.requestSubmit();
+              }
+            });
           }}
         >
           <Button type="submit" size="sm" variant="destructive" disabled={anyPending}>
@@ -171,6 +180,7 @@ export function AdminMatchOverride({
         </form>
         {error && <p className="text-destructive">{error}</p>}
       </div>
+      {confirmDialog}
     </details>
   );
 }
