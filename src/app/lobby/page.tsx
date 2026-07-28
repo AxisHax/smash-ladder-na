@@ -457,6 +457,7 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
 
   const games = await getMatchGames(match.id);
   const topCharacters = await getTopCharacters(opponent.id);
+  const myTopCharacter = (await getTopCharacters(userId, 1))[0] ?? null;
   const wins = { me: 0, opponent: 0 };
   for (const g of games) {
     if (g.winnerId === userId) wins.me++;
@@ -539,7 +540,13 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
         ))}
 
         {(match.status === "PENDING_REPORT" || match.status === "REPORTED") && (
-          <GameSection userId={userId} match={match} games={games} opponentName={opponent.username} />
+          <GameSection
+            userId={userId}
+            match={match}
+            games={games}
+            opponentName={opponent.username}
+            myTopCharacter={myTopCharacter}
+          />
         )}
 
         {match.status === "DISPUTED" && (
@@ -621,11 +628,13 @@ function GameSection({
   match,
   games,
   opponentName,
+  myTopCharacter,
 }: {
   userId: string;
   match: Match;
   games: Awaited<ReturnType<typeof getMatchGames>>;
   opponentName: string;
+  myTopCharacter: string | null;
 }) {
   // A disputed game is skipped here — it doesn't block the rest of the set,
   // so the next (or first playable) game becomes "current" instead.
@@ -670,7 +679,11 @@ function GameSection({
   const bannedCharacter = isPracticing
     ? (userId === match.player1Id ? match.player1.mainCharacter : match.player2.mainCharacter)
     : null;
-  const priorCharacter = lastUsedCharacter(games, userId);
+  // Game 1 has no in-match history yet, so lastUsedCharacter falls through to
+  // null and this defaults to the player's most-played character instead;
+  // every later game already has a locked-in character from the prior game,
+  // so this fallback is effectively game-1-only.
+  const priorCharacter = lastUsedCharacter(games, userId) ?? myTopCharacter;
   const defaultCharacter = priorCharacter === bannedCharacter ? null : priorCharacter;
   const characterSection = (
     <CharacterPickSection
