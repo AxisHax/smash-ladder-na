@@ -1,7 +1,7 @@
 "use client";
 
 import { Moon, Sun } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useLayoutEffect, useState } from "react";
 
 type Theme = "light" | "dark";
 
@@ -26,15 +26,18 @@ function applyTheme(theme: Theme) {
 
 export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>(() => {
-    // Initialize from localStorage synchronously during render on the client.
-    // The server always returns "light" (typeof window is undefined).
+    // Read-only — no side effects during render.
     if (typeof window !== "undefined") {
-      const stored = getStored();
-      applyTheme(stored);
-      return stored;
+      return getStored();
     }
     return "light";
   });
+
+  // Sync the DOM with the current theme after every render, before the browser
+  // paints. This is the correct place for DOM mutations that depend on state.
+  useLayoutEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
 
   const toggle = useCallback(() => {
     setTheme((prev) => {
@@ -44,7 +47,6 @@ export function ThemeToggle() {
       } catch {
         /* ignore */
       }
-      applyTheme(next);
       return next;
     });
   }, []);
