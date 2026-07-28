@@ -176,12 +176,48 @@ export async function getMatchHistoryAchievements(userId: string): Promise<Achie
   }
 
   return [
-    { id: "jack-of-trades", label: "Jack of Trades", achieved: hasJackOfTrades(matches, userId) },
-    { id: "mirror-match", label: "Mirror Match", achieved: hasMirrorMatch(matches, userId) },
-    { id: "risky-business", label: "Risky Business", achieved: hasRiskyBusiness(matches, userId) },
-    { id: "globetrotter", label: "Globetrotter", achieved: hasGlobetrotter(matches, userId) },
-    { id: "grudge-match", label: "Grudge Match", achieved: hasGrudgeMatch(matches) },
-    { id: "beginners-luck", label: "Beginner's Luck", achieved: hasBeginnersLuck(matches) },
-    { id: "bounce-back", label: "Bounce Back", achieved: hasBounceBack(matches) },
+    {
+      id: "jack-of-trades",
+      label: "Jack of Trades",
+      description: "Win a set using a different character every game.",
+      achieved: hasJackOfTrades(matches, userId),
+    },
+    {
+      id: "mirror-match",
+      label: "Mirror Match",
+      description: "Win a set where you and your opponent played the exact same character the whole way.",
+      achieved: hasMirrorMatch(matches, userId),
+    },
+    {
+      id: "risky-business",
+      label: "Risky Business",
+      description:
+        "Play the same character for games 1-4 of a set, then swap to a different character for game 5 and win it.",
+      achieved: hasRiskyBusiness(matches, userId),
+    },
+    {
+      id: "globetrotter",
+      label: "Globetrotter",
+      description: "Win at least one game on every legal stage.",
+      achieved: hasGlobetrotter(matches, userId),
+    },
+    {
+      id: "grudge-match",
+      label: "Grudge Match",
+      description: "Beat an opponent who beat you the last time you played them.",
+      achieved: hasGrudgeMatch(matches),
+    },
+    {
+      id: "beginners-luck",
+      label: "Beginner's Luck",
+      description: "Win the first set you play on some day.",
+      achieved: hasBeginnersLuck(matches),
+    },
+    {
+      id: "bounce-back",
+      label: "Bounce Back",
+      description: "Lose the first set you play on some day, then win the very next set you play.",
+      achieved: hasBounceBack(matches),
+    },
   ];
 }

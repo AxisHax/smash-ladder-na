@@ -84,7 +84,7 @@ function minRatingFor(tierName: string) {
   return TIERS.find((t) => t.name === tierName)!.minRating;
 }
 
-export type Achievement = { id: string; label: string; achieved: boolean };
+export type Achievement = { id: string; label: string; description: string; achieved: boolean };
 
 // Derived on the fly from stats that already persist forever (match/rating
 // history, tournament entries) rather than a stored Achievement table — no
@@ -97,13 +97,38 @@ export function computeAchievements(stats: {
 }): Achievement[] {
   const peak = stats.peakRating ?? -Infinity;
   return [
-    { id: "first-win", label: "First Win", achieved: stats.totalWins >= 1 },
-    { id: "ten-wins", label: "10 Wins", achieved: stats.totalWins >= 10 },
-    { id: "fifty-wins", label: "50 Wins", achieved: stats.totalWins >= 50 },
-    { id: "elite", label: "Reached Elite", achieved: peak >= minRatingFor("Elite") },
-    { id: "master", label: "Reached Master", achieved: peak >= minRatingFor("Master") },
-    { id: "grandmaster", label: "Reached Grandmaster", achieved: peak >= minRatingFor("Grandmaster") },
-    { id: "veteran", label: "Played 3+ Seasons", achieved: stats.seasonsPlayed >= 3 },
-    { id: "competitor", label: "Entered a Tournament", achieved: stats.tournamentsEntered >= 1 },
+    { id: "first-win", label: "First Win", description: "Win your first ranked set.", achieved: stats.totalWins >= 1 },
+    { id: "ten-wins", label: "10 Wins", description: "Win 10 ranked sets.", achieved: stats.totalWins >= 10 },
+    { id: "fifty-wins", label: "50 Wins", description: "Win 50 ranked sets.", achieved: stats.totalWins >= 50 },
+    {
+      id: "elite",
+      label: "Reached Elite",
+      description: `Reach a rating of ${minRatingFor("Elite")}.`,
+      achieved: peak >= minRatingFor("Elite"),
+    },
+    {
+      id: "master",
+      label: "Reached Master",
+      description: `Reach a rating of ${minRatingFor("Master")}.`,
+      achieved: peak >= minRatingFor("Master"),
+    },
+    {
+      id: "grandmaster",
+      label: "Reached Grandmaster",
+      description: `Reach a rating of ${minRatingFor("Grandmaster")}.`,
+      achieved: peak >= minRatingFor("Grandmaster"),
+    },
+    {
+      id: "veteran",
+      label: "Played 3+ Seasons",
+      description: "Play in 3 or more ladder seasons.",
+      achieved: stats.seasonsPlayed >= 3,
+    },
+    {
+      id: "competitor",
+      label: "Entered a Tournament",
+      description: "Sign up for a tournament through the site.",
+      achieved: stats.tournamentsEntered >= 1,
+    },
   ];
 }

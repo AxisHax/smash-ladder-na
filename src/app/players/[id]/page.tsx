@@ -27,6 +27,7 @@ import { BlockUserButton } from "@/components/block-user-button";
 import { RequestCorrectionForm } from "@/components/request-correction-form";
 import { AdminMatchOverride, BanIpButton, ModerationStatusForm } from "@/components/moderation-tools";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Card, CardContent } from "@/components/ui/card";
 import { TwitchLiveEmbed } from "@/components/twitch-live-embed";
 import { isBlockedByMe } from "@/lib/blocks";
@@ -230,15 +231,19 @@ export default async function PlayerProfilePage({
           <p className="mt-5 text-sm font-medium">Achievements</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {achievements.map((a, i) => (
-              <Badge
-                key={a.id}
-                variant={a.achieved ? "success" : "outline"}
-                className={a.achieved ? "badge-pop gap-1" : "gap-1 opacity-40"}
-                style={a.achieved ? { animationDelay: `${i * 60}ms` } : undefined}
-              >
-                <Award className="size-3" />
-                {a.label}
-              </Badge>
+              <Tooltip key={a.id}>
+                <TooltipTrigger asChild>
+                  <Badge
+                    variant={a.achieved ? "success" : "outline"}
+                    className={a.achieved ? "badge-pop gap-1 cursor-help" : "gap-1 cursor-help opacity-40"}
+                    style={a.achieved ? { animationDelay: `${i * 60}ms` } : undefined}
+                  >
+                    <Award className="size-3" />
+                    {a.label}
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>{a.description}</TooltipContent>
+              </Tooltip>
             ))}
           </div>
         </CardContent>
