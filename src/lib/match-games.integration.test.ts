@@ -6,6 +6,7 @@ import {
   strikeGameStage,
   strikeSameBans,
   pickGameStage,
+  pickSameStage,
   pickGameCharacter,
   getCurrentGame,
   getMatchGames,
@@ -348,6 +349,110 @@ describe("strikeSameBans", () => {
     });
 
     await expect(strikeSameBans(p1.id, match.id, 4)).rejects.toThrow(/character/i);
+  });
+});
+
+describe("pickSameStage", () => {
+  it("picks the previous game's stage when it's still available", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await prisma.matchGame.create({
+      data: { matchId: match.id, gameNumber: 1, actorAId: p1.id, actorAStrikes: 1, actorBId: p2.id, actorBStrikes: 2, stagesRemaining: [], finalStage: COUNTERPICK_STAGES[0] },
+    });
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 2,
+        actorAId: p2.id, // game 1's winner strikes first
+        actorAStrikes: 3,
+        actorBId: p1.id,
+        actorBStrikes: 0,
+        actorACharacter: "Fox",
+        actorBCharacter: "Mario",
+        struckStages: COUNTERPICK_STAGES.slice(1, 4),
+        stagesRemaining: COUNTERPICK_STAGES.filter((s) => !COUNTERPICK_STAGES.slice(1, 4).includes(s)),
+      },
+    });
+
+    await pickSameStage(p1.id, match.id, 2);
+
+    const updated = await prisma.matchGame.findUnique({
+      where: { matchId_gameNumber: { matchId: match.id, gameNumber: 2 } },
+    });
+    expect(updated?.finalStage).toBe(COUNTERPICK_STAGES[0]);
+  });
+
+  it("rejects when the previous stage was struck this game", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await prisma.matchGame.create({
+      data: { matchId: match.id, gameNumber: 1, actorAId: p1.id, actorAStrikes: 1, actorBId: p2.id, actorBStrikes: 2, stagesRemaining: [], finalStage: COUNTERPICK_STAGES[0] },
+    });
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 2,
+        actorAId: p2.id,
+        actorAStrikes: 3,
+        actorBId: p1.id,
+        actorBStrikes: 0,
+        actorACharacter: "Fox",
+        actorBCharacter: "Mario",
+        struckStages: COUNTERPICK_STAGES.slice(0, 3), // includes game 1's stage
+        stagesRemaining: COUNTERPICK_STAGES.slice(3),
+      },
+    });
+
+    await expect(pickSameStage(p1.id, match.id, 2)).rejects.toThrow(/isn't available/i);
+  });
+
+  it("rejects on game 1 — there's no previous game to repeat", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 1,
+        actorAId: p1.id,
+        actorAStrikes: 1,
+        actorBId: p2.id,
+        actorBStrikes: 2,
+        actorACharacter: "Mario",
+        actorBCharacter: "Fox",
+        struckStages: GAME_ONE_STAGES.slice(0, 3),
+        stagesRemaining: GAME_ONE_STAGES.slice(3),
+      },
+    });
+
+    await expect(pickSameStage(p1.id, match.id, 1)).rejects.toThrow(/no previous game/i);
+  });
+
+  it("rejects when it isn't the calling player's turn to pick", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await prisma.matchGame.create({
+      data: { matchId: match.id, gameNumber: 1, actorAId: p1.id, actorAStrikes: 1, actorBId: p2.id, actorBStrikes: 2, stagesRemaining: [], finalStage: COUNTERPICK_STAGES[0] },
+    });
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 2,
+        actorAId: p2.id,
+        actorAStrikes: 3,
+        actorBId: p1.id,
+        actorBStrikes: 0,
+        actorACharacter: "Fox",
+        actorBCharacter: "Mario",
+        struckStages: COUNTERPICK_STAGES.slice(1, 4),
+        stagesRemaining: COUNTERPICK_STAGES.filter((s) => !COUNTERPICK_STAGES.slice(1, 4).includes(s)),
+      },
+    });
+
+    await expect(pickSameStage(p2.id, match.id, 2)).rejects.toThrow(/not your turn/i);
   });
 });
 

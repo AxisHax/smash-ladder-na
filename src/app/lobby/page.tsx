@@ -13,6 +13,7 @@ import {
   characterPickState,
   getMatchGames,
   gameTurnState,
+  lastPlayedStage,
   lastSameBans,
   lastUsedCharacter,
   secondsUntil,
@@ -57,6 +58,7 @@ import {
   requestDisputeResolutionAction,
   requestMutualCancelAction,
   requestRematchAction,
+  runItBack,
   sameBansStrike,
   sendMatchCommentAction,
   strikeStage,
@@ -748,6 +750,10 @@ function GameSection({
       ? lastSameBans(games, userId)
       : null;
 
+  const runItBackStage =
+    turn.phase === "picking" ? lastPlayedStage(games, current.gameNumber) : null;
+  const canRunItBack = runItBackStage !== null && current.stagesRemaining.includes(runItBackStage);
+
   return (
     <>
       {characterSection}
@@ -777,6 +783,15 @@ function GameSection({
                 </TooltipTrigger>
                 <TooltipContent>{sameBans.stages.join(", ")}</TooltipContent>
               </Tooltip>
+            </form>
+          </div>
+        )}
+        {canRunItBack && (
+          <div className="mt-3">
+            <form action={runItBack.bind(null, match.id, current.gameNumber)}>
+              <Button type="submit" size="sm" variant="default" disabled={!canAct}>
+                Run it back ({runItBackStage})
+              </Button>
             </form>
           </div>
         )}

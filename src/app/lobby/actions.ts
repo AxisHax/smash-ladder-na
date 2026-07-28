@@ -17,6 +17,7 @@ import {
 import {
   pickGameCharacter,
   pickGameStage,
+  pickSameStage,
   reportGameResult,
   startFirstGame,
   strikeGameStage,
@@ -56,6 +57,8 @@ const STALE_GAME_ERRORS = new Set([
   "You can only undo your own most recent strike",
   "Both players must lock in their character before striking a stage",
   "Both players must lock in their character before picking a stage",
+  "No previous game to repeat",
+  "That stage isn't available this game",
 ]);
 
 async function ignoringStaleGameRaces(fn: () => Promise<void>) {
@@ -137,6 +140,13 @@ export async function pickStage(matchId: string, gameNumber: number, stage: stri
   const userId = await requireUserId();
   await requireNotBanned(userId);
   await ignoringStaleGameRaces(() => pickGameStage(userId, matchId, gameNumber, stage));
+  revalidatePath("/lobby");
+}
+
+export async function runItBack(matchId: string, gameNumber: number) {
+  const userId = await requireUserId();
+  await requireNotBanned(userId);
+  await ignoringStaleGameRaces(() => pickSameStage(userId, matchId, gameNumber));
   revalidatePath("/lobby");
 }
 

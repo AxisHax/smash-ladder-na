@@ -306,6 +306,19 @@ export function lastSameBans(
   return null;
 }
 
+// Mirrors lastSameBans, but for the "Run it back" pick shortcut — the
+// immediately preceding game's finalStage, when there is one. Games are
+// always numbered sequentially with no gaps, so "the previous game" is
+// unambiguous; this doesn't need to scan further back like lastSameBans
+// does (a striker's ban history can skip games since Same Bans is opt-in,
+// but a decided game's finalStage never gets cleared).
+export function lastPlayedStage(
+  games: { gameNumber: number; finalStage: string | null }[],
+  currentGameNumber: number,
+): string | null {
+  return games.find((g) => g.gameNumber === currentGameNumber - 1)?.finalStage ?? null;
+}
+
 // A player queued with isPracticing bans their own self-declared
 // mainCharacter for the whole match — the point is practicing something
 // else, so their usual pick has to actually be off the table, not just
@@ -465,6 +478,28 @@ export async function pickGameStage(
   if (picker(game) !== userId) throw new Error("Not your turn to pick");
   if (!bothCharactersLocked(game)) throw new Error("Both players must lock in their character before picking a stage");
   if (!game.stagesRemaining.includes(stage)) throw new Error("Not a valid remaining stage");
+
+  await prisma.matchGame.updateMany({
+    where: { id: game.id, finalStage: null },
+    data: { finalStage: stage },
+  });
+}
+
+// "Run it back" — one-click repeat of the previous game's stage, for the
+// player whose turn it is to pick. Only works if that stage happens to
+// still be in stagesRemaining (the other side's bans this game may have
+// taken it off the table).
+export async function pickSameStage(userId: string, matchId: string, gameNumber: number) {
+  const game = await requireGame(matchId, gameNumber);
+  if (game.finalStage) throw new Error("Stage already decided");
+  if (actorForStrike(game) !== null) throw new Error("Striking isn't finished yet");
+  if (picker(game) !== userId) throw new Error("Not your turn to pick");
+  if (!bothCharactersLocked(game)) throw new Error("Both players must lock in their character before picking a stage");
+
+  const allGames = await prisma.matchGame.findMany({ where: { matchId } });
+  const stage = lastPlayedStage(allGames, gameNumber);
+  if (!stage) throw new Error("No previous game to repeat");
+  if (!game.stagesRemaining.includes(stage)) throw new Error("That stage isn't available this game");
 
   await prisma.matchGame.updateMany({
     where: { id: game.id, finalStage: null },
