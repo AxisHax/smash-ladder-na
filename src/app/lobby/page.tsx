@@ -816,7 +816,7 @@ function GameSection({
         )}
         <div className="mt-3 flex flex-wrap gap-2">
           {(() => {
-            const pool = current.gameNumber === 1 ? GAME_ONE_STAGES : COUNTERPICK_STAGES;
+            const pool: readonly string[] = current.gameNumber === 1 ? GAME_ONE_STAGES : COUNTERPICK_STAGES;
             const allStages = [...new Set([...current.struckStages, ...current.stagesRemaining])];
             return allStages.sort((a, b) => pool.indexOf(a) - pool.indexOf(b));
           })().map((stage) => {
