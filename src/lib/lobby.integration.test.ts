@@ -204,4 +204,26 @@ describe("createDirectMatch", () => {
     expect(entryA?.match?.id).toBe(match.id);
     expect(entryB?.match?.id).toBe(match.id);
   });
+
+  it("defaults to non-practice for both sides when not specified", async () => {
+    const a = await createTestUser();
+    const b = await createTestUser();
+
+    const match = await prisma.$transaction((tx) => createDirectMatch(tx, a.id, b.id, PairingMethod.REMATCH));
+
+    expect(match.player1IsPracticing).toBe(false);
+    expect(match.player2IsPracticing).toBe(false);
+  });
+
+  it("carries through each side's practicing flag when given", async () => {
+    const a = await createTestUser();
+    const b = await createTestUser();
+
+    const match = await prisma.$transaction((tx) =>
+      createDirectMatch(tx, a.id, b.id, PairingMethod.REMATCH, true, false),
+    );
+
+    expect(match.player1IsPracticing).toBe(true);
+    expect(match.player2IsPracticing).toBe(false);
+  });
 });

@@ -259,12 +259,18 @@ export async function joinLobbyAndTryPair(userId: string, isPracticing = false) 
 // request) where the two players are already decided rather than being
 // matched from a pool. Only one entry (player1's) records matchId/pairedEntryId,
 // same as joinLobbyAndTryPair above — the other side's match is found by
-// player lookup via getActiveLobbyEntry.
+// player lookup via getActiveLobbyEntry. Defaults to non-practice for either
+// side — a rematch (the only current caller) passes through whatever each
+// player's own setting was on the match being repeated, so it doesn't
+// silently flip someone's practice set into one that counts toward their
+// real rating.
 export async function createDirectMatch(
   tx: Prisma.TransactionClient,
   player1Id: string,
   player2Id: string,
   pairingMethod: PairingMethod,
+  player1IsPracticing = false,
+  player2IsPracticing = false,
 ) {
   const now = new Date();
   const match = await tx.ratingMatch.create({
@@ -274,6 +280,8 @@ export async function createDirectMatch(
       pairingMethod,
       status: MatchStatus.PENDING_REPORT,
       expiresAt: new Date(now.getTime() + MATCH_TTL_MS),
+      player1IsPracticing,
+      player2IsPracticing,
     },
   });
 
@@ -282,6 +290,7 @@ export async function createDirectMatch(
       userId: player2Id,
       status: LobbyEntryStatus.PAIRED,
       pairingMethod,
+      isPracticing: player2IsPracticing,
       expiresAt: new Date(now.getTime() + LOBBY_ENTRY_TTL_MS),
     },
   });
@@ -290,6 +299,7 @@ export async function createDirectMatch(
       userId: player1Id,
       status: LobbyEntryStatus.PAIRED,
       pairingMethod,
+      isPracticing: player1IsPracticing,
       matchId: match.id,
       pairedEntryId: entry2.id,
       expiresAt: new Date(now.getTime() + LOBBY_ENTRY_TTL_MS),

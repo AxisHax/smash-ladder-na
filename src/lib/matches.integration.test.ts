@@ -597,6 +597,37 @@ describe("requestRematch", () => {
     expect(newEntries.length).toBeGreaterThanOrEqual(1);
   });
 
+  // Regression test: a player who was practicing in the original match
+  // (banning their own main, results kept off their real rating) expects a
+  // rematch to keep behaving the same way — createDirectMatch used to
+  // always default both sides to non-practice regardless of what the
+  // original match had, silently putting a practice-mode player's rematch
+  // onto their real ladder rating.
+  it("carries over each side's practicing flag from the original match", async () => {
+    const player1 = await createTestUser();
+    const player2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: {
+        player1Id: player1.id,
+        player2Id: player2.id,
+        status: MatchStatus.CONFIRMED,
+        confirmedAt: new Date(),
+        expiresAt: new Date(),
+        player1IsPracticing: true,
+        player2IsPracticing: false,
+      },
+    });
+
+    await requestRematch(player1.id, match.id);
+    await requestRematch(player2.id, match.id);
+
+    const newMatch = await prisma.ratingMatch.findFirstOrThrow({
+      where: { id: { not: match.id }, player1Id: player1.id, player2Id: player2.id },
+    });
+    expect(newMatch.player1IsPracticing).toBe(true);
+    expect(newMatch.player2IsPracticing).toBe(false);
+  });
+
   it("doesn't create a new match if the opponent already left", async () => {
     const { player1, player2, match } = await createConfirmedMatch();
     await requestRematch(player1.id, match.id);

@@ -217,7 +217,14 @@ export async function requestRematch(userId: string, matchId: string) {
       });
       if (eitherAlreadyPlaying) return;
 
-      await createDirectMatch(tx, match.player1Id, match.player2Id, PairingMethod.REMATCH);
+      await createDirectMatch(
+        tx,
+        match.player1Id,
+        match.player2Id,
+        PairingMethod.REMATCH,
+        match.player1IsPracticing,
+        match.player2IsPracticing,
+      );
     }, TX_OPTIONS),
   );
 }
