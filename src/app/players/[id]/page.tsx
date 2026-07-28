@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { Award, Cable, ExternalLink, MapPin, Swords } from "lucide-react";
 import { auth } from "@/auth";
@@ -13,6 +14,7 @@ import {
   getTopRivals,
   isCurrentlyInMatch,
 } from "@/lib/players";
+import { isTwitchLive } from "@/lib/twitch-helix";
 import { computeAchievements } from "@/lib/rank-tier";
 import { CharacterIcon } from "@/components/character-icon";
 import { CharacterUsageCard } from "@/components/character-usage-card";
@@ -25,6 +27,7 @@ import { RequestCorrectionForm } from "@/components/request-correction-form";
 import { AdminMatchOverride, BanIpButton, ModerationStatusForm } from "@/components/moderation-tools";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { TwitchLiveEmbed } from "@/components/twitch-live-embed";
 import { isBlockedByMe } from "@/lib/blocks";
 import { startggProfileUrl } from "@/lib/startgg-oauth";
 import { listReportsForUser } from "@/lib/reports";
@@ -49,15 +52,18 @@ export default async function PlayerProfilePage({
   const player = await getPlayerProfile(id);
   if (!player) notFound();
 
-  const [history, chartPoints, careerStats, rivals, blocked, characterUsage, inMatch] = await Promise.all([
-    getPlayerMatchHistory(id),
-    getRatingChartPoints(id),
-    getCareerStats(id),
-    getTopRivals(id),
-    session?.user?.id && !isOwnProfile ? isBlockedByMe(session.user.id, id) : Promise.resolve(false),
-    getCharacterUsage(id),
-    isCurrentlyInMatch(id),
-  ]);
+  const [history, chartPoints, careerStats, rivals, blocked, characterUsage, inMatch, isLiveOnTwitch] =
+    await Promise.all([
+      getPlayerMatchHistory(id),
+      getRatingChartPoints(id),
+      getCareerStats(id),
+      getTopRivals(id),
+      session?.user?.id && !isOwnProfile ? isBlockedByMe(session.user.id, id) : Promise.resolve(false),
+      getCharacterUsage(id),
+      isCurrentlyInMatch(id),
+      player.twitchUsername ? isTwitchLive(player.twitchUsername) : Promise.resolve(false),
+    ]);
+  const parentHost = (await headers()).get("host") ?? "smash-ladder-na.vercel.app";
   const reportHistory = isModerator ? await listReportsForUser(id) : [];
   const topCharacters = characterUsage.slice(0, 3).map((u) => u.character);
   const wins = history.filter((m) => m.won).length;
@@ -163,6 +169,10 @@ export default async function PlayerProfilePage({
           )
         )}
       </div>
+
+      {inMatch && isLiveOnTwitch && player.twitchUsername && (
+        <TwitchLiveEmbed username={player.twitchUsername} parentHost={parentHost} />
+      )}
 
       {chartPoints.length >= 2 && (
         <Card className="mt-8">

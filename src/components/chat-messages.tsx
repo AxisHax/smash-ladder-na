@@ -67,9 +67,9 @@ export function ChatMessages({
       ) : (
         <ul className="flex flex-col gap-1.5">
           {comments.map((c) => (
-            <li key={c.id} className="text-sm leading-relaxed">
+            <li key={c.id} className="text-sm leading-relaxed break-words">
               <span className="font-medium">{c.author.username}:</span>{" "}
-              <span>{c.body}</span>
+              <span className="whitespace-pre-wrap">{c.body}</span>
               <span className="ml-1.5 whitespace-nowrap text-[10px] text-muted-foreground/60">
                 {formatTime(c.createdAt)}
               </span>
