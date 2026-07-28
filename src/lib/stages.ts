@@ -16,3 +16,19 @@ export const COUNTERPICK_STAGES = [
   "Hollow Bastion",
   "Kalos Pokémon League",
 ] as const;
+
+// Maps stage names to their image paths under /stages/.
+const STAGE_IMAGE_MAP: Record<string, string> = {
+  Battlefield: "battlefield.png",
+  "Small Battlefield": "small_battlefield.png",
+  "Pokémon Stadium 2": "pokemon_stadium.png",
+  Smashville: "smashville.png",
+  "Town and City": "town_and_city.png",
+  "Final Destination": "final_destination.png",
+  "Hollow Bastion": "hollow_bastion.png",
+  "Kalos Pokémon League": "kalos.png",
+};
+
+export function stageImagePath(stage: string): string {
+  return STAGE_IMAGE_MAP[stage] ?? null;
+}
