@@ -122,12 +122,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // sign-in time (the `profile` param the jwt callback keys off is
         // absent on subsequent calls). Otherwise, revoking a MOD/ADMIN's
         // role wouldn't take effect until they happened to sign out —
-        // their existing session would silently keep admin access.
+        // their existing session would silently keep admin access. Same
+        // reasoning for username: session.user.name otherwise stays
+        // whatever it was at sign-in forever, so renaming yourself on the
+        // site wouldn't be reflected anywhere reading the session (e.g. the
+        // header) until a fresh sign-in.
         const dbUser = await prisma.user.findUnique({
           where: { id: token.userId },
-          select: { role: true },
+          select: { role: true, username: true },
         });
         session.user.role = dbUser?.role ?? "USER";
+        if (dbUser?.username) session.user.name = dbUser.username;
       }
       return session;
     },

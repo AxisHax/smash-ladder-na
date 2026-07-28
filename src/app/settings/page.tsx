@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArenaPasswordForm } from "@/components/arena-password-form";
 import { OwnCharactersForm } from "@/components/own-characters-form";
+import { UsernameForm } from "@/components/username-form";
 import { listBlockedUsers } from "@/lib/blocks";
 import { REMATCH_COOLDOWN_PRESETS } from "@/lib/rematch-cooldown";
 import { DEFAULT_ARENA_PASSWORD } from "@/lib/arena";
@@ -18,7 +19,7 @@ import {
   updateAvoidPracticeOpponentsSetting,
   updateOwnCharacters,
   updateRematchCooldownSetting,
-  updateUsername,
+  updateUsernameAction,
 } from "./actions";
 
 const ANYTIME_VALUE = "anytime";
@@ -73,7 +74,7 @@ export default async function SettingsPage({
 
       <Card className="mt-8">
         <CardContent className="pt-4">
-          <UsernameForm defaultValue={me?.username ?? ""} />
+          <UsernameForm defaultValue={me?.username ?? ""} action={updateUsernameAction} />
         </CardContent>
       </Card>
 
@@ -302,36 +303,6 @@ function PageTitle() {
       <Settings className="size-5 text-muted-foreground" />
       <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
     </div>
-  );
-}
-
-function UsernameForm({ defaultValue }: { defaultValue: string }) {
-  async function action(formData: FormData) {
-    "use server";
-    await updateUsername(String(formData.get("username") ?? ""));
-  }
-
-  return (
-    <form action={action} className="flex items-end gap-2">
-      <label className="flex flex-1 flex-col gap-1 text-sm">
-        Username
-        <span className="text-xs font-normal text-muted-foreground">
-          Shown everywhere on the site instead of your Discord name — handy if they don&apos;t
-          match.
-        </span>
-        <input
-          name="username"
-          type="text"
-          required
-          maxLength={32}
-          defaultValue={defaultValue}
-          className="h-8 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
-        />
-      </label>
-      <Button type="submit" size="sm">
-        Save
-      </Button>
-    </form>
   );
 }
 
