@@ -833,7 +833,9 @@ function CharacterPickSection({
       </p>
       {bannedCharacter && (
         <p className="mt-2 text-xs text-muted-foreground">
-          Practicing this set — {bannedCharacter} is banned for you.
+          You queued this match as Practicing, so {bannedCharacter} (your reported main) is
+          banned for you this set — pick something else. This set only affects your separate
+          practice rating, not your ladder rating.
         </p>
       )}
       <form action={pickCharacter.bind(null, matchId, game.gameNumber)} className="mt-3 flex items-end gap-2">
