@@ -94,17 +94,17 @@ export type SmashCharacter = (typeof SMASH_CHARACTERS)[number];
 // fighter, functionally the same character for matchup/usage purposes.
 // Doesn't include semi-clones (Falco, Ganondorf, Dr. Mario, etc.) — those
 // have real enough differences that lumping their stats together would be
-// misleading, not just tidying. Marth/Lucina and Roy/Chrom are deliberately
-// NOT grouped either, despite being official echoes — different enough in
-// practice (and different enough in community perception) that merging
-// their stats did more harm than good. First entry in each group is the
-// canonical one stats/filters key off of; order otherwise doesn't matter.
+// misleading, not just tidying. Marth/Lucina, Roy/Chrom, and Ryu/Ken are
+// deliberately NOT grouped either, despite being official echoes —
+// different enough in practice (and different enough in community
+// perception) that merging their stats did more harm than good. First
+// entry in each group is the canonical one stats/filters key off of; order
+// otherwise doesn't matter.
 export const ECHO_FIGHTER_GROUPS: readonly (readonly SmashCharacter[])[] = [
   ["Peach", "Daisy"],
   ["Samus", "Dark Samus"],
   ["Pit", "Dark Pit"],
   ["Simon", "Richter"],
-  ["Ryu", "Ken"],
 ] as const;
 
 const ECHO_GROUP_BY_MEMBER = new Map<SmashCharacter, readonly SmashCharacter[]>(
