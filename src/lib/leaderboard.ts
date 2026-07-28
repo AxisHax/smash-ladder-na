@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { UserStatus } from "@/generated/prisma/enums";
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
+import { echoGroupMembers, type SmashCharacter } from "@/lib/characters";
 
 export interface LeaderboardFilters {
   character?: string | null;
@@ -33,8 +34,16 @@ export async function getLeaderboardPlayers(
     // Matches either the peer-reported main character or any accumulated
     // secondary — otherwise a player who mains two characters only ever
     // shows up under whichever one an opponent happened to report first.
+    // Echo fighters (Lucina/Marth, Daisy/Peach, etc.) count as the same
+    // character here — filtering by either side of an echo pair pulls in
+    // both, since they're functionally the same fighter.
     ...(filters.character
-      ? { OR: [{ mainCharacter: filters.character }, { secondaryCharacters: { has: filters.character } }] }
+      ? {
+          OR: echoGroupMembers(filters.character as SmashCharacter).flatMap((c) => [
+            { mainCharacter: c },
+            { secondaryCharacters: { has: c } },
+          ]),
+        }
       : {}),
     ...(filters.region ? { region: filters.region } : {}),
   };

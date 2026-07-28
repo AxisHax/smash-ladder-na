@@ -89,3 +89,44 @@ export const SMASH_CHARACTERS = [
 ] as const;
 
 export type SmashCharacter = (typeof SMASH_CHARACTERS)[number];
+
+// Nintendo's official Echo Fighters — near-identical moveset to their base
+// fighter, functionally the same character for matchup/usage purposes.
+// Doesn't include semi-clones (Falco, Ganondorf, Dr. Mario, etc.) — those
+// have real enough differences that lumping their stats together would be
+// misleading, not just tidying. Marth/Lucina and Roy/Chrom are deliberately
+// NOT grouped either, despite being official echoes — different enough in
+// practice (and different enough in community perception) that merging
+// their stats did more harm than good. First entry in each group is the
+// canonical one stats/filters key off of; order otherwise doesn't matter.
+export const ECHO_FIGHTER_GROUPS: readonly (readonly SmashCharacter[])[] = [
+  ["Peach", "Daisy"],
+  ["Samus", "Dark Samus"],
+  ["Pit", "Dark Pit"],
+  ["Simon", "Richter"],
+  ["Ryu", "Ken"],
+] as const;
+
+const ECHO_GROUP_BY_MEMBER = new Map<SmashCharacter, readonly SmashCharacter[]>(
+  ECHO_FIGHTER_GROUPS.flatMap((group) => group.map((member) => [member, group] as const)),
+);
+
+// Every character in the same echo group as `character`, including itself —
+// just `[character]` for anyone without an echo. Use this wherever a single
+// character's stats/filtering should actually mean "this character or its
+// echo(es)" (leaderboard filtering, character usage counts).
+export function echoGroupMembers(character: SmashCharacter): readonly SmashCharacter[] {
+  return ECHO_GROUP_BY_MEMBER.get(character) ?? [character];
+}
+
+// The group's first (canonical) member — same for every character in a
+// group, so grouping/summing by this collapses echoes into one bucket.
+export function echoGroupCanonical(character: SmashCharacter): SmashCharacter {
+  return echoGroupMembers(character)[0];
+}
+
+// Human-readable label for a character's whole echo group, e.g. "Marth /
+// Lucina" — falls back to just the name for anyone without an echo.
+export function echoGroupLabel(character: SmashCharacter): string {
+  return echoGroupMembers(character).join(" / ");
+}

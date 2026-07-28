@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Trophy } from "lucide-react";
-import { SMASH_CHARACTERS } from "@/lib/characters";
+import { SMASH_CHARACTERS, echoGroupLabel, type SmashCharacter } from "@/lib/characters";
 import { MATCH_REGIONS } from "@/lib/regions";
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
 import { getLeaderboardPlayers } from "@/lib/leaderboard";
@@ -48,7 +48,7 @@ export default async function LeaderboardPage({
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
         Ranked players with {LEADERBOARD_MIN_GAMES}+ games played
-        {isValidCharacter ? ` who main ${character}` : ""}
+        {isValidCharacter ? ` who main ${echoGroupLabel(character as SmashCharacter)}` : ""}
         {isValidRegion ? ` in ${region}` : ""}
         {query ? ` matching "${query}"` : ""}.
       </p>
