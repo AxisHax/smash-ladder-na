@@ -39,11 +39,18 @@ export async function SiteHeader() {
             className="flex shrink-0 items-center gap-1.5 text-sm font-semibold tracking-tight"
           >
             <Image
-              src="/smash-icon.webp"
+              src="/smash_ladder_icon.png"
               alt=""
               width={24}
               height={24}
-              className="size-6"
+              className="size-6 block dark:hidden"
+            />
+            <Image
+              src="/smash_ladder_icon_white.png"
+              alt=""
+              width={24}
+              height={24}
+              className="size-6 hidden dark:block"
             />
             Smash Ladder <span className="text-primary">NA</span>
           </Link>

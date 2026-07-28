@@ -22,6 +22,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Smash Ladder NA",
   description: "North American ranked ladder and matchmaking for Smash.",
+  icons: {
+    icon: "/smash_ladder_icon.png",
+    apple: "/smash_ladder_icon.png",
+  },
 };
 
 export default async function RootLayout({
