@@ -100,7 +100,7 @@ export default async function AdminOverviewPage() {
         <StatCard
           icon={Radio}
           label="Matches in progress"
-          value={stats.lobbyPaired}
+          value={stats.matchesInProgress}
           href="/admin/live"
         />
         <StatCard
@@ -126,7 +126,7 @@ export default async function AdminOverviewPage() {
       </div>
 
       <div className="mt-8 flex flex-wrap gap-2">
-        <Badge variant="outline">{stats.lobbyPaired} pairs in progress right now</Badge>
+        <Badge variant="outline">{stats.matchesInProgress} matches in progress right now</Badge>
         <Badge variant="outline">{stats.suspendedUsers} suspended</Badge>
         <Badge variant="outline">{stats.bannedUsers} banned</Badge>
       </div>
