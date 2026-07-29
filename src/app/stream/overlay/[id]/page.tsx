@@ -77,18 +77,17 @@ export default async function StreamOverlayPage({
       })
     : [];
 
-  // Determine characters used by each player in the current match
+  // Determine the character each player is using in the current game
   // actorAId/actorBId are per-game and do NOT always match player1Id/player2Id
   // (counterpick games rotate who is actorA).
   const isUserPlayer1 = currentMatch?.player1.id === user.id;
-  const userCharacters = currentMatchGames
-    .map((g) => (g.actorAId === user.id ? g.actorACharacter : g.actorBCharacter))
-    .filter((c): c is string => !!c);
-  const opponentCharacters = currentMatchGames
-    .map((g) => (g.actorAId === user.id ? g.actorBCharacter : g.actorACharacter))
-    .filter((c): c is string => !!c);
-  const uniqueUserChars = [...new Set(userCharacters)];
-  const uniqueOpponentChars = [...new Set(opponentCharacters)];
+  const currentGame = currentMatchGames.at(-1);
+  const userCharacter = currentGame
+    ? (currentGame.actorAId === user.id ? currentGame.actorACharacter : currentGame.actorBCharacter)
+    : null;
+  const opponentCharacter = currentGame
+    ? (currentGame.actorAId === user.id ? currentGame.actorBCharacter : currentGame.actorACharacter)
+    : null;
 
   // Count games won by each player
   const userWins = currentMatchGames.filter((g) => g.winnerId === user.id).length;
@@ -151,10 +150,8 @@ export default async function StreamOverlayPage({
               <span className="truncate text-3xl font-bold text-white drop-shadow-sm">
                 {isUserPlayer1 ? currentMatch.player1.username : currentMatch.player2.username}
               </span>
-              <div className="flex shrink-0 -space-x-2.5">
-                {uniqueUserChars.map((c) => (
-                  <CharacterIcon key={c} name={c} size={48} />
-                ))}
+              <div className="flex shrink-0">
+                {userCharacter && <CharacterIcon name={userCharacter} size={48} />}
               </div>
             </div>
 
@@ -171,17 +168,14 @@ export default async function StreamOverlayPage({
 
             {/* Opponent side (right, red) */}
             <div className="flex min-w-96 max-w-96 flex-1 items-center justify-start gap-5 bg-zinc-800 px-8 py-5">
-              <div className="flex shrink-0 -space-x-2.5">
-                {uniqueOpponentChars.map((c) => (
-                  <CharacterIcon key={c} name={c} size={48} />
-                ))}
+              <div className="flex shrink-0">
+                {opponentCharacter && <CharacterIcon name={opponentCharacter} size={48} />}
               </div>
               <span className="truncate text-3xl font-bold text-white drop-shadow-sm">
                 {isUserPlayer1 ? currentMatch.player2.username : currentMatch.player1.username}
               </span>
             </div>
           </div>
-
         </div>
       )}
 
