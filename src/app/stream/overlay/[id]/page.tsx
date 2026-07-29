@@ -77,18 +77,17 @@ export default async function StreamOverlayPage({
       })
     : [];
 
-  // Determine characters used by each player in the current match
+  // Determine the character each player is using in the current game
   // actorAId/actorBId are per-game and do NOT always match player1Id/player2Id
   // (counterpick games rotate who is actorA).
   const isUserPlayer1 = currentMatch?.player1.id === user.id;
-  const userCharacters = currentMatchGames
-    .map((g) => (g.actorAId === user.id ? g.actorACharacter : g.actorBCharacter))
-    .filter((c): c is string => !!c);
-  const opponentCharacters = currentMatchGames
-    .map((g) => (g.actorAId === user.id ? g.actorBCharacter : g.actorACharacter))
-    .filter((c): c is string => !!c);
-  const uniqueUserChars = [...new Set(userCharacters)];
-  const uniqueOpponentChars = [...new Set(opponentCharacters)];
+  const currentGame = currentMatchGames.at(-1);
+  const userCharacter = currentGame
+    ? (currentGame.actorAId === user.id ? currentGame.actorACharacter : currentGame.actorBCharacter)
+    : null;
+  const opponentCharacter = currentGame
+    ? (currentGame.actorAId === user.id ? currentGame.actorBCharacter : currentGame.actorACharacter)
+    : null;
 
   // Count games won by each player
   const userWins = currentMatchGames.filter((g) => g.winnerId === user.id).length;
@@ -104,33 +103,33 @@ export default async function StreamOverlayPage({
       <StreamRefreshPoller intervalMs={10000} />
 
       {/* Top-left: Player info panel */}
-      <div className="absolute left-6 top-6">
-        <div className="rounded-lg border border-white/10 bg-zinc-900 px-5 py-4 shadow-2xl">
-          <span className="text-[10px] font-semibold tracking-[0.15em] text-white/50 uppercase">
+      <div className="absolute left-10 top-10">
+        <div className="rounded-2xl border border-white/10 bg-zinc-900/95 px-10 py-7 shadow-2xl backdrop-blur-sm">
+          <span className="text-base font-semibold tracking-[0.15em] text-white/50 uppercase">
             Rating
           </span>
-          <div className="mt-0.5 flex items-baseline gap-2">
-            <span className="text-4xl font-bold tabular-nums text-white drop-shadow-lg">
+          <div className="mt-1 flex items-baseline gap-4">
+            <span className="text-5xl font-bold tabular-nums text-white drop-shadow-lg">
               {user.rating}
             </span>
-            <RankBadge rating={user.rating} gamesPlayed={user.gamesPlayed} />
+            <RankBadge rating={user.rating} gamesPlayed={user.gamesPlayed} className="text-lg px-3 py-1" />
           </div>
           {tier && (
-            <span className="mt-0.5 block text-xs font-medium text-white/70">
+            <span className="mt-1.5 block text-lg font-medium text-white/70">
               {tier.name}
             </span>
           )}
           {rank && (
-            <span className="mt-1 block text-xs text-white/50">
+            <span className="mt-1.5 block text-3xl text-white/50">
               Rank #{rank}/{totalPlayers}
             </span>
           )}
 
-          <div className="mt-3 flex items-center gap-3 text-xs">
-            <span className="text-emerald-400 font-medium">
+          <div className="mt-5 flex items-center gap-5 text-2xl">
+            <span className="text-emerald-400 font-semibold">
               {stats.totalWins}W
             </span>
-            <span className="text-red-400 font-medium">
+            <span className="text-red-400 font-semibold">
               {stats.totalLosses}L
             </span>
             {user.region && (
@@ -142,72 +141,61 @@ export default async function StreamOverlayPage({
 
       {/* Top-center: Current match — scoreboard style */}
       {currentMatch && (
-        <div className="absolute left-1/2 top-6 -translate-x-1/2 flex flex-col items-center">
+        <div className="absolute left-1/2 top-10 -translate-x-1/2 flex flex-col items-center">
 
           {/* Scoreboard */}
-          <div className="flex items-stretch overflow-hidden rounded-md shadow-2xl">
-            {/* Player 1 side */}
-            <div className="flex min-w-64 max-w-64 flex-1 items-center justify-end gap-3 bg-sky-700 px-5 py-3">
-              <span className="truncate text-lg font-bold text-white drop-shadow-sm">
-                {currentMatch.player1.username}
+          <div className="flex items-stretch overflow-hidden rounded-2xl shadow-2xl">
+            {/* Stream user side (left, sky) */}
+            <div className="flex min-w-96 max-w-96 flex-1 items-center justify-end gap-5 bg-zinc-800 px-8 py-5">
+              <span className="truncate text-3xl font-bold text-white drop-shadow-sm">
+                {isUserPlayer1 ? currentMatch.player1.username : currentMatch.player2.username}
               </span>
-              <div className="flex shrink-0 -space-x-1.5">
-                {(isUserPlayer1 ? uniqueUserChars : uniqueOpponentChars).map((c) => (
-                  <CharacterIcon key={c} name={c} size={26} />
-                ))}
+              <div className="flex shrink-0">
+                {userCharacter && <CharacterIcon name={userCharacter} size={48} />}
               </div>
             </div>
 
             {/* Score divider */}
-            <div className="flex items-center justify-center gap-2.5 bg-zinc-900 px-6 py-3">
-              <span className="text-2xl font-bold tabular-nums leading-none text-emerald-400">
-                {isUserPlayer1 ? userWins : opponentWins}
+            <div className="flex items-center justify-center gap-4 bg-zinc-900 px-10 py-5">
+              <span className="text-5xl font-bold tabular-nums leading-none text-sky-400">
+                {userWins}
               </span>
-              <span className="text-base font-bold tracking-widest text-zinc-500">VS</span>
-              <span className="text-2xl font-bold tabular-nums leading-none text-red-400">
-                {isUserPlayer1 ? opponentWins : userWins}
+              <span className="text-2xl font-bold tracking-widest text-zinc-500">VS</span>
+              <span className="text-5xl font-bold tabular-nums leading-none text-red-400">
+                {opponentWins}
               </span>
             </div>
 
-            {/* Player 2 side */}
-            <div className="flex min-w-64 max-w-64 flex-1 items-center justify-start gap-3 bg-red-700 px-5 py-3">
-              <div className="flex shrink-0 -space-x-1.5">
-                {(isUserPlayer1 ? uniqueOpponentChars : uniqueUserChars).map((c) => (
-                  <CharacterIcon key={c} name={c} size={26} />
-                ))}
+            {/* Opponent side (right, red) */}
+            <div className="flex min-w-96 max-w-96 flex-1 items-center justify-start gap-5 bg-zinc-800 px-8 py-5">
+              <div className="flex shrink-0">
+                {opponentCharacter && <CharacterIcon name={opponentCharacter} size={48} />}
               </div>
-              <span className="truncate text-lg font-bold text-white drop-shadow-sm">
-                {currentMatch.player2.username}
+              <span className="truncate text-3xl font-bold text-white drop-shadow-sm">
+                {isUserPlayer1 ? currentMatch.player2.username : currentMatch.player1.username}
               </span>
             </div>
-          </div>
-
-          {/* Game count footer */}
-          <div className="mt-0.5 rounded-b-md bg-zinc-900 px-4 py-0.5">
-            <span className="text-[11px] font-medium text-white/60">
-              Game {totalCompletedGames + 1}
-            </span>
           </div>
         </div>
       )}
 
       {/* Top-right: Recent matches (moved down 96px and left 24px from its default position) */}
-      <div className="absolute" style={{ right: "calc(1.5rem + 24px)", top: "calc(1.5rem + 96px)" }}>
-        <div className="rounded-lg border border-white/10 bg-zinc-900 px-4 py-3 shadow-2xl">
-          <span className="text-[10px] font-semibold tracking-[0.15em] text-white/50 uppercase">
+      <div className="absolute" style={{ right: "calc(2.5rem + 24px)", top: "calc(2.5rem + 96px)" }}>
+        <div className="rounded-2xl border border-white/10 bg-zinc-900/95 px-7 py-5 shadow-2xl backdrop-blur-sm">
+          <span className="text-base font-semibold tracking-[0.15em] text-white/50 uppercase">
             Recent matches
           </span>
-          <div className="mt-2 flex flex-col gap-1">
+          <div className="mt-3 flex flex-col gap-2">
             {recentMatches.length === 0 ? (
-              <span className="text-xs text-white/40">No matches yet</span>
+              <span className="text-lg text-white/40">No matches yet</span>
             ) : (
               recentMatches.map((match) => (
                 <div
                   key={match.id}
-                  className="flex items-center gap-2 text-sm"
+                  className="flex items-center gap-4 text-2xl"
                 >
                   <span
-                    className={`w-4 text-center text-xs font-bold ${
+                    className={`w-6 text-center text-base font-bold ${
                       match.won ? "text-emerald-400" : "text-red-400"
                     }`}
                   >
@@ -215,7 +203,7 @@ export default async function StreamOverlayPage({
                   </span>
                   <span className="text-white/80">{match.opponent.username}</span>
                   <span
-                    className={`ml-auto tabular-nums text-xs font-medium ${
+                    className={`ml-auto tabular-nums text-base font-semibold ${
                       match.delta >= 0 ? "text-emerald-400" : "text-red-400"
                     }`}
                   >
