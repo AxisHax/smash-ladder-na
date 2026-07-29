@@ -153,6 +153,13 @@ export async function setHideOpponentRating(userId: string, hideOpponentRating: 
   await prisma.user.update({ where: { id: userId }, data: { hideOpponentRating } });
 }
 
+// Expanded display preference — hides the opponent's rating, username,
+// characters, and avatar from this player's own lobby view, and replaces
+// the opponent's name with "Opponent" in chat too.
+export async function setZenMode(userId: string, zenMode: boolean) {
+  await prisma.user.update({ where: { id: userId }, data: { zenMode } });
+}
+
 export function isWiredClaimUntrustworthy(cancelCount: number, gamesPlayed: number) {
   if (cancelCount < WIRED_TRUST_MIN_CANCELS) return false;
   const ratio = cancelCount / (cancelCount + gamesPlayed);
