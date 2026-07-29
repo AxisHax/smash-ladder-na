@@ -515,18 +515,18 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
             <Badge variant="secondary">{match.status.replace("_", " ").toLowerCase()}</Badge>
           </div>
         </CardHeader>
-        {!zenMode && (
-          <CardContent className="flex items-center gap-3">
-            {opponent.avatarUrl && (
-              <Image
-                src={opponent.avatarUrl}
-                alt={opponent.username}
-                width={40}
-                height={40}
-                className="rounded-full"
-              />
-            )}
-            <div>
+        <CardContent className="flex items-center gap-3">
+          {!zenMode && opponent.avatarUrl && (
+            <Image
+              src={opponent.avatarUrl}
+              alt={opponent.username}
+              width={40}
+              height={40}
+              className="rounded-full"
+            />
+          )}
+          <div className={zenMode ? "flex-1" : ""}>
+            {!zenMode && (
               <p className="flex items-center gap-1.5 font-medium">
                 {displayName}
                 {opponentStreak !== 0 && (
@@ -535,27 +535,27 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
                   </Badge>
                 )}
               </p>
-              {!me?.hideOpponentRating && (
-                <p className="text-sm text-muted-foreground tabular-nums">{opponent.rating} rating</p>
-              )}
-              {topCharacters.length > 0 && (
-                <div className="group/characters relative mt-1 flex items-center gap-1.5">
-                  <span className="pointer-events-none absolute -top-6 left-0 z-10 rounded border border-border bg-popover px-1.5 py-0.5 text-xs whitespace-nowrap text-popover-foreground opacity-0 shadow-sm transition-opacity group-hover/characters:opacity-100">
-                    Most played characters
-                  </span>
-                  {topCharacters.map((character) => (
-                    <CharacterIcon key={character} name={character} size={20} />
-                  ))}
-                </div>
-              )}
-            </div>
-            {games.length > 0 && (
-              <Badge variant="outline" className="ml-auto tabular-nums">
-                {wins.me}–{wins.opponent}
-              </Badge>
             )}
-          </CardContent>
-        )}
+            {!zenMode && !me?.hideOpponentRating && (
+              <p className="text-sm text-muted-foreground tabular-nums">{opponent.rating} rating</p>
+            )}
+            {!zenMode && topCharacters.length > 0 && (
+              <div className="group/characters relative mt-1 flex items-center gap-1.5">
+                <span className="pointer-events-none absolute -top-6 left-0 z-10 rounded border border-border bg-popover px-1.5 py-0.5 text-xs whitespace-nowrap text-popover-foreground opacity-0 shadow-sm transition-opacity group-hover/characters:opacity-100">
+                  Most played characters
+                </span>
+                {topCharacters.map((character) => (
+                  <CharacterIcon key={character} name={character} size={20} />
+                ))}
+              </div>
+            )}
+          </div>
+          {games.length > 0 && (
+            <Badge variant="outline" className="ml-auto tabular-nums">
+              {wins.me}–{wins.opponent}
+            </Badge>
+          )}
+        </CardContent>
 
         <CardContent>
           <RoomCodeSection
