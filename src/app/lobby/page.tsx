@@ -5,7 +5,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { getActiveLobbyEntry, getLobbyActivityStats } from "@/lib/lobby";
 import { shouldPollLobby } from "@/lib/lobby-poll";
-import { getTopCharacters } from "@/lib/players";
+import { currentStreak, getPlayerMatchHistory, getTopCharacters } from "@/lib/players";
 import {
   STRIKE_TIMEOUT_MS,
   CHARACTER_TIMEOUT_MS,
@@ -475,6 +475,7 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
   const topCharacters = await getTopCharacters(opponent.id);
   const myTopCharacter = (await getTopCharacters(userId, 1))[0] ?? null;
   const me = await prisma.user.findUnique({ where: { id: userId }, select: { hideOpponentRating: true } });
+  const opponentStreak = currentStreak(await getPlayerMatchHistory(opponent.id));
   const wins = { me: 0, opponent: 0 };
   for (const g of games) {
     if (g.winnerId === userId) wins.me++;
@@ -510,7 +511,14 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
             />
           )}
           <div>
-            <p className="font-medium">{opponent.username}</p>
+            <p className="flex items-center gap-1.5 font-medium">
+              {opponent.username}
+              {opponentStreak !== 0 && (
+                <Badge variant={opponentStreak > 0 ? "success" : "destructive"} className="tabular-nums">
+                  {Math.abs(opponentStreak)} {opponentStreak > 0 ? "win" : "loss"} streak
+                </Badge>
+              )}
+            </p>
             {!me?.hideOpponentRating && (
               <p className="text-sm text-muted-foreground tabular-nums">{opponent.rating} rating</p>
             )}

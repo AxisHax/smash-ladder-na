@@ -207,7 +207,7 @@ export default async function PlayerProfilePage({
           <p className="mt-1 text-xs text-muted-foreground">
             Doesn&apos;t reset between seasons.
           </p>
-          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-5">
             <div>
               <p className="text-lg font-semibold tabular-nums">
                 {careerStats.totalWins}-{careerStats.totalLosses}
@@ -217,6 +217,10 @@ export default async function PlayerProfilePage({
             <div>
               <p className="text-lg font-semibold tabular-nums">{careerStats.peakRating ?? "—"}</p>
               <p className="text-xs text-muted-foreground">Peak rating</p>
+            </div>
+            <div>
+              <p className="text-lg font-semibold tabular-nums">{careerStats.bestWinStreak}</p>
+              <p className="text-xs text-muted-foreground">Best win streak</p>
             </div>
             <div>
               <p className="text-lg font-semibold tabular-nums">{careerStats.seasonsPlayed}</p>

@@ -273,6 +273,61 @@ describe("getCareerStats", () => {
     expect(stats.totalWins).toBe(1);
     expect(stats.totalLosses).toBe(0);
   });
+
+  async function createConfirmedMatchAt(
+    p1: string,
+    p2: string,
+    reportedWinnerId: string,
+    confirmedAt: Date,
+  ) {
+    return prisma.ratingMatch.create({
+      data: { player1Id: p1, player2Id: p2, status: MatchStatus.CONFIRMED, expiresAt: new Date(), reportedWinnerId, confirmedAt },
+    });
+  }
+
+  it("finds the longest win streak across the player's whole history, not just the current one", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const base = Date.now();
+    // W W W L W W (in order) -> longest streak is 3, current streak is 2.
+    const results = [true, true, true, false, true, true];
+    for (let i = 0; i < results.length; i++) {
+      await createConfirmedMatchAt(
+        player.id,
+        opponent.id,
+        results[i] ? player.id : opponent.id,
+        new Date(base + i * 1000),
+      );
+    }
+
+    const stats = await getCareerStats(player.id);
+    expect(stats.bestWinStreak).toBe(3);
+  });
+
+  it("is 0 for a player with no wins", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    await createConfirmedMatchAt(player.id, opponent.id, opponent.id, new Date());
+
+    const stats = await getCareerStats(player.id);
+    expect(stats.bestWinStreak).toBe(0);
+  });
+
+  it("excludes practice matches from the streak", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const base = Date.now();
+    await createConfirmedMatchAt(player.id, opponent.id, player.id, new Date(base));
+    await createConfirmedMatch(player.id, opponent.id, {
+      reportedWinnerId: player.id,
+      player1IsPracticing: true,
+    });
+    await createConfirmedMatchAt(player.id, opponent.id, player.id, new Date(base + 1000));
+
+    const stats = await getCareerStats(player.id);
+    // Only the two non-practice wins should count toward the streak.
+    expect(stats.bestWinStreak).toBe(2);
+  });
 });
 
 describe("getPlayerMatchHistory", () => {

@@ -169,7 +169,7 @@ function notPracticingFor(userId: string) {
 // gamesPlayed reset there. These read from history that survives forever,
 // so a player has something that keeps growing across season resets.
 export async function getCareerStats(userId: string) {
-  const [wins, losses, peakRating, seasons, tournaments] = await Promise.all([
+  const [wins, losses, peakRating, seasons, tournaments, resultsInOrder] = await Promise.all([
     prisma.ratingMatch.count({
       where: { status: MatchStatus.CONFIRMED, reportedWinnerId: userId, OR: notPracticingFor(userId) },
     }),
@@ -191,7 +191,28 @@ export async function getCareerStats(userId: string) {
       distinct: ["seasonId"],
     }),
     prisma.tournamentEntry.count({ where: { userId } }),
+    // Full history, oldest first, purely to walk it once for the longest
+    // win streak ever hit — unlike currentStreak (rank-tier.ts/players.ts
+    // history helper), which only looks at the most recent N matches and
+    // resets across seasons in spirit, this is a lifetime best and needs
+    // every confirmed match in order.
+    prisma.ratingMatch.findMany({
+      where: { status: MatchStatus.CONFIRMED, reportedWinnerId: { not: null }, OR: notPracticingFor(userId) },
+      orderBy: { confirmedAt: "asc" },
+      select: { reportedWinnerId: true },
+    }),
   ]);
+
+  let bestWinStreak = 0;
+  let running = 0;
+  for (const m of resultsInOrder) {
+    if (m.reportedWinnerId === userId) {
+      running++;
+      bestWinStreak = Math.max(bestWinStreak, running);
+    } else {
+      running = 0;
+    }
+  }
 
   return {
     totalWins: wins,
@@ -199,6 +220,7 @@ export async function getCareerStats(userId: string) {
     peakRating: peakRating._max.ratingAfter,
     seasonsPlayed: seasons.length,
     tournamentsEntered: tournaments,
+    bestWinStreak,
   };
 }
 
