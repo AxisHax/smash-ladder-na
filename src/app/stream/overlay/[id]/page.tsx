@@ -69,6 +69,8 @@ export default async function StreamOverlayPage({
         select: {
           gameNumber: true,
           winnerId: true,
+          actorAId: true,
+          actorBId: true,
           actorACharacter: true,
           actorBCharacter: true,
         },
@@ -76,12 +78,14 @@ export default async function StreamOverlayPage({
     : [];
 
   // Determine characters used by each player in the current match
+  // actorAId/actorBId are per-game and do NOT always match player1Id/player2Id
+  // (counterpick games rotate who is actorA).
   const isUserPlayer1 = currentMatch?.player1.id === user.id;
   const userCharacters = currentMatchGames
-    .map((g) => (isUserPlayer1 ? g.actorACharacter : g.actorBCharacter))
+    .map((g) => (g.actorAId === user.id ? g.actorACharacter : g.actorBCharacter))
     .filter((c): c is string => !!c);
   const opponentCharacters = currentMatchGames
-    .map((g) => (isUserPlayer1 ? g.actorBCharacter : g.actorACharacter))
+    .map((g) => (g.actorAId === user.id ? g.actorBCharacter : g.actorACharacter))
     .filter((c): c is string => !!c);
   const uniqueUserChars = [...new Set(userCharacters)];
   const uniqueOpponentChars = [...new Set(opponentCharacters)];
