@@ -3,17 +3,10 @@ import { prisma } from "@/lib/db";
 import {
   getCharacterLeaderboard,
   recomputeCharacterUsage,
-  reportOpponentCharacter,
   setOwnCharacters,
 } from "@/lib/character-stats";
 import { MatchStatus } from "@/generated/prisma/enums";
 import { createTestUser } from "@/test/factories";
-
-async function createMatch(p1: string, p2: string) {
-  return prisma.ratingMatch.create({
-    data: { player1Id: p1, player2Id: p2, expiresAt: new Date() },
-  });
-}
 
 async function createConfirmedMatch(p1: string, p2: string) {
   return prisma.ratingMatch.create({
@@ -35,95 +28,9 @@ async function createGame(
   });
 }
 
-describe("reportOpponentCharacter", () => {
-  it("sets mainCharacter on the first report", async () => {
-    const reporter = await createTestUser();
-    const opponent = await createTestUser();
-    const match = await createMatch(reporter.id, opponent.id);
-
-    await reportOpponentCharacter(reporter.id, match.id, "Fox");
-
-    const updated = await prisma.user.findUniqueOrThrow({ where: { id: opponent.id } });
-    expect(updated.mainCharacter).toBe("Fox");
-    expect(updated.secondaryCharacters).toEqual([]);
-  });
-
-  it("accumulates a different character into secondaryCharacters instead of overwriting mainCharacter", async () => {
-    const reporter = await createTestUser();
-    const opponent = await createTestUser({ mainCharacter: "Fox" });
-    const match = await createMatch(reporter.id, opponent.id);
-
-    await reportOpponentCharacter(reporter.id, match.id, "Falco");
-
-    const updated = await prisma.user.findUniqueOrThrow({ where: { id: opponent.id } });
-    expect(updated.mainCharacter).toBe("Fox");
-    expect(updated.secondaryCharacters).toEqual(["Falco"]);
-  });
-
-  it("doesn't duplicate a character already in secondaryCharacters", async () => {
-    const reporter = await createTestUser();
-    const opponent = await createTestUser({ mainCharacter: "Fox", secondaryCharacters: ["Falco"] });
-    const match = await createMatch(reporter.id, opponent.id);
-
-    await reportOpponentCharacter(reporter.id, match.id, "Falco");
-
-    const updated = await prisma.user.findUniqueOrThrow({ where: { id: opponent.id } });
-    expect(updated.secondaryCharacters).toEqual(["Falco"]);
-  });
-
-  it("doesn't add anything once the secondary list is at the cap", async () => {
-    const reporter = await createTestUser();
-    const opponent = await createTestUser({
-      mainCharacter: "Fox",
-      secondaryCharacters: ["Falco", "Marth", "Cloud", "Roy", "Ike"],
-    });
-    const match = await createMatch(reporter.id, opponent.id);
-
-    await reportOpponentCharacter(reporter.id, match.id, "Pikachu");
-
-    const updated = await prisma.user.findUniqueOrThrow({ where: { id: opponent.id } });
-    expect(updated.secondaryCharacters).toEqual(["Falco", "Marth", "Cloud", "Roy", "Ike"]);
-  });
-
-  it("rejects a non-participant", async () => {
-    const outsider = await createTestUser();
-    const p1 = await createTestUser();
-    const p2 = await createTestUser();
-    const match = await createMatch(p1.id, p2.id);
-
-    await expect(reportOpponentCharacter(outsider.id, match.id, "Fox")).rejects.toThrow(/participant/i);
-  });
-
-  it("rejects an unrecognized character", async () => {
-    const reporter = await createTestUser();
-    const opponent = await createTestUser();
-    const match = await createMatch(reporter.id, opponent.id);
-
-    await expect(reportOpponentCharacter(reporter.id, match.id, "Not A Real Fighter")).rejects.toThrow(
-      /not a recognized character/i,
-    );
-  });
-
-  it("no-ops once the opponent has self-declared their characters", async () => {
-    const reporter = await createTestUser();
-    const opponent = await createTestUser({
-      mainCharacter: "Fox",
-      secondaryCharacters: ["Falco"],
-      charactersSelfDeclared: true,
-    });
-    const match = await createMatch(reporter.id, opponent.id);
-
-    await reportOpponentCharacter(reporter.id, match.id, "Pikachu");
-
-    const updated = await prisma.user.findUniqueOrThrow({ where: { id: opponent.id } });
-    expect(updated.mainCharacter).toBe("Fox");
-    expect(updated.secondaryCharacters).toEqual(["Falco"]);
-  });
-});
-
 describe("setOwnCharacters", () => {
   it("sets mainCharacter, secondaries, and the self-declared flag", async () => {
-    const player = await createTestUser({ mainCharacter: "Pikachu" }); // pre-existing peer-reported value
+    const player = await createTestUser({ mainCharacter: "Pikachu" }); // pre-existing auto-computed value
 
     await setOwnCharacters(player.id, "Inkling", ["Cloud", "Roy"]);
 
@@ -187,11 +94,7 @@ describe("recomputeCharacterUsage", () => {
     expect(updated.secondaryCharacters).toEqual(["Falco"]);
   });
 
-  // The actual bug report this fixes: reportOpponentCharacter only ever
-  // assigns mainCharacter once (the first report) and never revisits it, so
-  // a player who started on one character and later mostly plays another
-  // stayed stuck showing the first one forever.
-  it("promotes a newly-dominant character over a stale peer-reported main", async () => {
+  it("promotes a newly-dominant character over a stale main", async () => {
     const player = await createTestUser({ mainCharacter: "Fox", secondaryCharacters: [] });
     const opponent = await createTestUser();
     const match = await createConfirmedMatch(player.id, opponent.id);

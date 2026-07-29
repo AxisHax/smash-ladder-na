@@ -39,7 +39,6 @@ import { JoinLobbyForm } from "@/components/join-lobby-button";
 import { QueueCooldownGate } from "@/components/queue-cooldown-gate";
 import { CancelMatchButton } from "@/components/cancel-match-button";
 import { VictoryCelebration } from "@/components/victory-celebration";
-import { ReportCharacterForm } from "@/components/report-character-form";
 import { DisputeResolutionForm } from "@/components/dispute-resolution-form";
 import { CommentForm } from "@/components/comment-form";
 import { ChatMessages } from "@/components/chat-messages";
@@ -58,7 +57,6 @@ import {
   reportConductAction,
   reportConnection,
   reportGame,
-  reportOpponentCharacterAction,
   requestDisputeResolutionAction,
   requestMutualCancelAction,
   requestRematchAction,
@@ -437,7 +435,7 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
         <Card>
           {match.status === "CONFIRMED" ? (
-            <ConfirmedSection userId={userId} match={match} opponentName={opponent.username} />
+            <ConfirmedSection userId={userId} match={match} />
           ) : (
             <TerminatedSection status={match.status} />
           )}
@@ -1075,11 +1073,9 @@ function ReportGameSection({
 async function ConfirmedSection({
   userId,
   match,
-  opponentName,
 }: {
   userId: string;
   match: Match;
-  opponentName: string;
 }) {
   const won = match.reportedWinnerId === userId;
   const ratingBefore = match.player1Id === userId ? match.player1RatingBefore : match.player2RatingBefore;
@@ -1113,11 +1109,6 @@ async function ConfirmedSection({
           </p>
         </>
       )}
-
-      <ReportCharacterForm
-        action={reportOpponentCharacterAction.bind(null, match.id)}
-        opponentName={opponentName}
-      />
     </CardContent>
   );
 }
