@@ -24,6 +24,7 @@ export function CharacterSelect({
   className,
   name,
   excludeCharacter,
+  clearLabel,
 }: {
   value?: string;
   onChange?: (value: string) => void;
@@ -37,6 +38,9 @@ export function CharacterSelect({
   /** Hides this one character from the roster entirely — used to enforce a
    *  practice-mode ban on the player's own main character. */
   excludeCharacter?: string | null;
+  /** When set, pins an extra option at the top of the list that clears the
+   *  selection back to none — e.g. "All Characters" for a filter dropdown. */
+  clearLabel?: string;
 }) {
   // Internal state for form-integrated mode
   const [internalValue, setInternalValue] = useState(defaultValue ?? "");
@@ -147,6 +151,20 @@ export function CharacterSelect({
 
           {/* List */}
           <ul className="max-h-60 overflow-y-auto py-1">
+            {clearLabel && !query && (
+              <li>
+                <button
+                  type="button"
+                  onClick={() => select("")}
+                  className={`flex w-full cursor-pointer items-center gap-2.5 px-3 py-1.5 text-left text-sm outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground ${
+                    !selected ? "bg-primary/10 font-medium text-primary" : "text-foreground"
+                  }`}
+                >
+                  <span className="flex-1">{clearLabel}</span>
+                  {!selected && <Check className="size-3.5 shrink-0 text-primary" />}
+                </button>
+              </li>
+            )}
             {filtered.length === 0 ? (
               <li className="px-3 py-3 text-center text-xs text-muted-foreground">
                 No characters match &ldquo;{query}&rdquo;

@@ -12,7 +12,13 @@ export function CharacterFilterSelect({ defaultValue }: { defaultValue: string }
     <label className="flex flex-col gap-1 text-sm">
       Character
       {/* key forces remount so defaultValue syncs when searchParams change */}
-      <CharacterSelect key={defaultValue} name="character" defaultValue={defaultValue} placeholder="All players" />
+      <CharacterSelect
+        key={defaultValue}
+        name="character"
+        defaultValue={defaultValue}
+        placeholder="All players"
+        clearLabel="All Characters"
+      />
     </label>
   );
 }

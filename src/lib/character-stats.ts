@@ -22,64 +22,16 @@ export async function getCharacterLeaderboard(character: string) {
   });
 }
 
-// Caps how many secondaries accumulate from peer reports, and how many a
-// player can self-declare — a handful is enough to stop opponents banning
-// around a single reported character (the original problem) without the
-// profile turning into "plays everyone."
+// Caps how many secondaries a player can self-declare, and how many
+// recomputeCharacterUsage below will derive from real play — a handful is
+// enough without the profile turning into "plays everyone."
 const MAX_SECONDARY_CHARACTERS = 5;
 
-// Peer-reported by default — set by whoever actually played against you,
-// not the player themselves, so it can't be gamed or just go stale. The
-// first character anyone ever reports becomes mainCharacter; anything
-// different reported later accumulates into secondaryCharacters instead of
-// overwriting it, so a player who plays multiple characters doesn't get
-// reduced to whichever one an opponent happened to report most recently.
-//
-// No-ops entirely once the player has self-declared via setOwnCharacters
-// (see charactersSelfDeclared) — peer reports kept landing on a character
-// the player didn't actually consider their main, so a player who's taken
-// ownership of their own profile has the final say from then on.
-export async function reportOpponentCharacter(
-  reporterId: string,
-  matchId: string,
-  character: string,
-) {
-  assertValidCharacter(character);
-
-  const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
-  if (!match) throw new Error("Match not found");
-  if (match.player1Id !== reporterId && match.player2Id !== reporterId) {
-    throw new Error("Not a participant in this match");
-  }
-
-  const opponentId = match.player1Id === reporterId ? match.player2Id : match.player1Id;
-  const opponent = await prisma.user.findUniqueOrThrow({
-    where: { id: opponentId },
-    select: { mainCharacter: true, secondaryCharacters: true, charactersSelfDeclared: true },
-  });
-  if (opponent.charactersSelfDeclared) return;
-
-  if (opponent.mainCharacter === null) {
-    await prisma.user.update({ where: { id: opponentId }, data: { mainCharacter: character } });
-    return;
-  }
-  if (
-    character === opponent.mainCharacter ||
-    opponent.secondaryCharacters.includes(character) ||
-    opponent.secondaryCharacters.length >= MAX_SECONDARY_CHARACTERS
-  ) {
-    return;
-  }
-  await prisma.user.update({
-    where: { id: opponentId },
-    data: { secondaryCharacters: { push: character } },
-  });
-}
-
-// Players complained peer reports kept landing on the wrong main (a stale
-// report, a bad guess, an early low-effort match) — this lets a player take
-// full ownership of their own profile instead. Once set, reportOpponentCharacter
-// stops touching this profile entirely (see charactersSelfDeclared above).
+// Players complained the old peer-reported main (see recomputeCharacterUsage
+// below, which replaced it) kept landing on the wrong character — this lets
+// a player take full ownership of their own profile instead. Once set,
+// recomputeCharacterUsage stops touching this profile entirely (see
+// charactersSelfDeclared above).
 export async function setOwnCharacters(
   userId: string,
   mainCharacter: string | null,
@@ -102,13 +54,11 @@ export async function setOwnCharacters(
 }
 
 // Keeps mainCharacter/secondaryCharacters in sync with what a player
-// actually plays, rather than freezing on whichever character an opponent
-// happened to report first (reportOpponentCharacter's old sole mechanism —
-// still runs, but its writes get overwritten by this on the very next
-// confirmed match either way, since this always derives fresh from real
-// game data). Called for both players every time a match confirms — see
-// applyEloAndConfirm. Skipped entirely once self-declared, same rule
-// reportOpponentCharacter follows.
+// actually plays, derived fresh from real game data every time — replaced
+// the old peer-report mechanism (an opponent manually reporting your
+// character after a match), which kept freezing on whichever character got
+// reported first. Called for both players every time a match confirms —
+// see applyEloAndConfirm. Skipped entirely once self-declared.
 export async function recomputeCharacterUsage(userId: string, tx: Prisma.TransactionClient) {
   const user = await tx.user.findUniqueOrThrow({
     where: { id: userId },

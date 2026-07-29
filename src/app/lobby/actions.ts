@@ -29,7 +29,6 @@ import { postMatchComment } from "@/lib/match-comments";
 import { cancelMatch, leaveMatch, requestMutualCancel, requestRematch } from "@/lib/matches";
 import { requestDisputeResolution } from "@/lib/disputes";
 import { fileConnectionReport, fileMatchReport } from "@/lib/reports";
-import { reportOpponentCharacter } from "@/lib/character-stats";
 import { prisma } from "@/lib/db";
 import { enforceRateLimit, minutesAgo } from "@/lib/rate-limit";
 
@@ -377,33 +376,4 @@ export async function updateZenMode(zenMode: boolean) {
   const userId = await requireUserId();
   await setZenMode(userId, zenMode);
   revalidatePath("/lobby");
-}
-
-export type ReportCharacterState = { reportedCharacter: string | null; error: string | null };
-
-// (matchId, prevState, formData) shape so useActionState can drive it and
-// show a confirmation — the select always defaulting to "Skip" regardless
-// of what was actually saved made a successful report look like it had
-// silently failed.
-export async function reportOpponentCharacterAction(
-  matchId: string,
-  _prevState: ReportCharacterState,
-  formData: FormData,
-): Promise<ReportCharacterState> {
-  const userId = await requireUserId();
-  const character = String(formData.get("character") ?? "");
-  if (!character) return { reportedCharacter: null, error: null };
-
-  try {
-    await reportOpponentCharacter(userId, matchId, character);
-  } catch (err) {
-    return {
-      reportedCharacter: null,
-      error: err instanceof Error ? err.message : "Something went wrong — try again.",
-    };
-  }
-  revalidatePath("/lobby");
-  revalidatePath("/characters");
-  revalidatePath("/leaderboard");
-  return { reportedCharacter: character, error: null };
 }
