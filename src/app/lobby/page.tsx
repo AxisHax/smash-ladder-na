@@ -452,7 +452,7 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
         <Card>
           {match.status === "CONFIRMED" ? (
-<ConfirmedSection userId={userId} match={match} />
+            <ConfirmedSection userId={userId} match={match} />
           ) : (
             <TerminatedSection status={match.status} />
           )}

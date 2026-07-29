@@ -94,7 +94,6 @@ export default async function StreamOverlayPage({
   const opponentWins = currentMatchGames.filter(
     (g) => g.winnerId && g.winnerId !== user.id,
   ).length;
-  const totalCompletedGames = userWins + opponentWins;
 
   const tier = getRankTier(user.rating, user.gamesPlayed);
 
