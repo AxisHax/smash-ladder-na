@@ -1,9 +1,10 @@
 import { prisma } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { MatchStatus } from "@/generated/prisma/enums";
+import { liftExpiredSuspension } from "@/lib/account";
 
 export async function getPlayerProfile(userId: string) {
-  return prisma.user.findUnique({
+  const player = await prisma.user.findUnique({
     where: { id: userId },
     select: {
       id: true,
@@ -23,10 +24,20 @@ export async function getPlayerProfile(userId: string) {
       noShowCount: true,
       cancelCount: true,
       status: true,
+      suspendedUntil: true,
       lastKnownIp: true, // only ever rendered in the mod-only section of the profile page
       _count: { select: { connectionReportsReceived: true } },
     },
   });
+  if (!player) return player;
+
+  // Without this, a suspension that's already expired keeps showing as
+  // "suspended" on the profile (and to the mod tools below it) until the
+  // suspended player themselves happens to hit requireActiveUser — which
+  // never happens if they only play ranked. Lift it here too so the status
+  // mods see is always current.
+  const status = await liftExpiredSuspension(userId, player);
+  return { ...player, status };
 }
 
 // Lightweight existence check for the profile page's "currently playing"

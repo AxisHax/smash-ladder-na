@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { prisma } from "@/lib/db";
-import { fileConnectionReport, moderateUserDirectly } from "@/lib/reports";
-import { UserStatus } from "@/generated/prisma/enums";
+import { actionReport, fileConnectionReport, moderateUserDirectly } from "@/lib/reports";
+import { ReportStatus, UserStatus } from "@/generated/prisma/enums";
 import { createTestUser } from "@/test/factories";
 
 async function createMatch(p1: string, p2: string) {
@@ -135,5 +135,94 @@ describe("moderateUserDirectly", () => {
     const target = await createTestUser({ status: UserStatus.BANNED });
 
     await expect(moderateUserDirectly(mod.id, target.id, "SUSPEND")).rejects.toThrow(/already banned/i);
+  });
+
+  // The actual bug report this fixes: a mod re-suspending a repeat offender
+  // who's already suspended got wrongly refused with "already suspended"
+  // instead of applying the new duration — same-level re-application should
+  // be a legitimate refresh, not a blocked downgrade.
+  it("lets a mod re-suspend (extend) a user who's already suspended", async () => {
+    const mod = await createTestUser();
+    const target = await createTestUser({
+      status: UserStatus.SUSPENDED,
+      suspendedUntil: new Date(Date.now() + 60 * 60 * 1000),
+    });
+
+    await moderateUserDirectly(mod.id, target.id, "SUSPEND", { suspensionHours: 720 });
+
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: target.id } });
+    expect(updated.status).toBe(UserStatus.SUSPENDED);
+    expect(updated.suspendedUntil!.getTime()).toBeGreaterThan(Date.now() + 700 * 60 * 60 * 1000);
+  });
+
+  // Real incident: a suspension that had already expired (suspendedUntil in
+  // the past) never gets lazily lifted back to ACTIVE unless the suspended
+  // player themselves hits requireActiveUser — so a mod trying to suspend
+  // them again for a new violation saw it refused as "already suspended"
+  // even though the old suspension was long over.
+  it("treats an already-expired suspension as liftable before re-suspending", async () => {
+    const mod = await createTestUser();
+    const target = await createTestUser({
+      status: UserStatus.SUSPENDED,
+      suspendedUntil: new Date(Date.now() - 60 * 60 * 1000),
+    });
+
+    await moderateUserDirectly(mod.id, target.id, "SUSPEND", { suspensionHours: 24 });
+
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: target.id } });
+    expect(updated.status).toBe(UserStatus.SUSPENDED);
+    expect(updated.suspendedUntil!.getTime()).toBeGreaterThan(Date.now());
+  });
+});
+
+describe("actionReport", () => {
+  async function createOpenReport(reporterId: string, reportedUserId: string) {
+    return prisma.conductReport.create({
+      data: { reporterId, reportedUserId, reason: "test", status: ReportStatus.OPEN },
+    });
+  }
+
+  it("suspends a reported user and closes out their open reports", async () => {
+    const reporter = await createTestUser();
+    const target = await createTestUser();
+    const report = await createOpenReport(reporter.id, target.id);
+
+    await actionReport(report.id, "SUSPENDED", { suspensionHours: 24, skipThreshold: true });
+
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: target.id } });
+    expect(updated.status).toBe(UserStatus.SUSPENDED);
+
+    const updatedReport = await prisma.conductReport.findUniqueOrThrow({ where: { id: report.id } });
+    expect(updatedReport.status).toBe(ReportStatus.ACTIONED);
+  });
+
+  // Same bug as moderateUserDirectly above, but via the report-queue path:
+  // actioning a report against an already-suspended user used to silently
+  // skip the user update entirely (no error, no effect) instead of applying
+  // the new duration — a mod would see the report resolve with nothing
+  // actually changing about the suspension.
+  it("still applies a new suspension duration when the user is already suspended", async () => {
+    const reporter = await createTestUser();
+    const target = await createTestUser({
+      status: UserStatus.SUSPENDED,
+      suspendedUntil: new Date(Date.now() + 60 * 60 * 1000),
+    });
+    const report = await createOpenReport(reporter.id, target.id);
+
+    await actionReport(report.id, "SUSPENDED", { suspensionHours: 720, skipThreshold: true });
+
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: target.id } });
+    expect(updated.suspendedUntil!.getTime()).toBeGreaterThan(Date.now() + 700 * 60 * 60 * 1000);
+  });
+
+  it("doesn't downgrade an already-banned user back to suspended", async () => {
+    const reporter = await createTestUser();
+    const target = await createTestUser({ status: UserStatus.BANNED });
+    const report = await createOpenReport(reporter.id, target.id);
+
+    await actionReport(report.id, "SUSPENDED", { suspensionHours: 24, skipThreshold: true });
+
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: target.id } });
+    expect(updated.status).toBe(UserStatus.BANNED);
   });
 });

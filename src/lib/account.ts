@@ -20,8 +20,15 @@ function requireRegionUnlocked(region: string | null) {
 // A timed SUSPENDED (suspendedUntil in the past) lifts itself back to
 // ACTIVE the next time anything checks status, rather than needing a cron —
 // same lazy-read pattern used elsewhere (e.g. free battle/match expiry).
-// Returns the up-to-date status.
-async function liftExpiredSuspension(userId: string, user: { status: string; suspendedUntil: Date | null }) {
+// Returns the up-to-date status. Exported so callers that display or act on
+// status (getPlayerProfile, moderateUserDirectly, actionReport) can lift a
+// stale expired suspension before reading/comparing it — otherwise a mod
+// re-suspending someone whose old suspension already expired sees it
+// refused as "already suspended" instead of applying.
+export async function liftExpiredSuspension(
+  userId: string,
+  user: { status: UserStatus; suspendedUntil: Date | null },
+): Promise<UserStatus> {
   if (user.status !== UserStatus.SUSPENDED || !user.suspendedUntil || user.suspendedUntil > new Date()) {
     return user.status;
   }

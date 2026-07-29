@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { ReportStatus, UserStatus } from "@/generated/prisma/enums";
-import { isWiredClaimDisputedByOpponents } from "@/lib/account";
+import { isWiredClaimDisputedByOpponents, liftExpiredSuspension } from "@/lib/account";
 
 export async function fileMatchReport(
   reporterId: string,
@@ -146,12 +146,18 @@ export async function actionReport(
 
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: report.reportedUserId },
-    select: { status: true },
+    select: { status: true, suspendedUntil: true },
   });
+  // Lift a since-expired suspension first — otherwise a stale SUSPENDED
+  // status (nothing had reason to lazily re-check it) makes a genuinely new
+  // suspension look like a no-op downgrade-guard below instead of applying.
+  const currentStatus = await liftExpiredSuspension(report.reportedUserId, user);
   // A leftover OPEN report against an already-banned user shouldn't be able
   // to downgrade them back to suspended, or double-count misconduct points
-  // for a decision that's already been made.
-  const isEscalation = STATUS_RANK[newStatus] > STATUS_RANK[user.status];
+  // for a decision that's already been made. Re-applying the *same* level
+  // (e.g. suspending someone who's already suspended) is allowed through —
+  // that's a legitimate refresh/extension, not a downgrade.
+  const isEscalation = STATUS_RANK[newStatus] >= STATUS_RANK[currentStatus];
   const suspendedUntil =
     newStatus === "SUSPENDED" && options.suspensionHours != null
       ? new Date(Date.now() + options.suspensionHours * 60 * 60 * 1000)
@@ -192,9 +198,20 @@ export async function moderateUserDirectly(
   }
 
   const newStatus = action === "SUSPEND" ? UserStatus.SUSPENDED : UserStatus.BANNED;
-  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { status: true } });
-  const isEscalation = STATUS_RANK[newStatus] > STATUS_RANK[user.status];
-  if (!isEscalation) throw new Error(`This player is already ${user.status.toLowerCase()}`);
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: { status: true, suspendedUntil: true },
+  });
+  // Lift a since-expired suspension first — otherwise re-suspending someone
+  // whose old suspension already lapsed (nothing had reason to lazily
+  // re-check it) gets wrongly refused as "already suspended" below.
+  const currentStatus = await liftExpiredSuspension(userId, user);
+  // Only a genuine downgrade (e.g. trying to "Suspend" someone already
+  // banned) is refused — re-applying the same level is a deliberate,
+  // explicit mod action here (extending/refreshing a suspension), not a
+  // stale-report replay, so it's allowed through.
+  const isDowngrade = STATUS_RANK[newStatus] < STATUS_RANK[currentStatus];
+  if (isDowngrade) throw new Error(`This player is already ${currentStatus.toLowerCase()}`);
 
   const suspendedUntil =
     newStatus === UserStatus.SUSPENDED && options.suspensionHours != null
