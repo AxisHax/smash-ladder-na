@@ -185,8 +185,8 @@ function StreamOverlayCard({ userId, host, protocol }: { userId: string; host: s
     <div className="flex flex-col gap-1.5 text-sm">
       <p className="font-medium">Stream overlay</p>
       <p className="text-xs text-muted-foreground">
-        Use this URL as an OBS Browser Source to show your rating, recent matches, and current
-        match info on stream.
+        Use this URL as an OBS Browser Source (set to <strong>1920 x 1080</strong>) to show your
+        rating, recent matches, and current match info on stream.
       </p>
       <div className="mt-1 flex items-center gap-2">
         <code className="rounded-md border border-border bg-muted px-2 py-1 text-xs font-mono break-all max-w-full">
