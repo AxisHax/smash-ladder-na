@@ -27,7 +27,6 @@ import { effectiveArenaPassword } from "@/lib/arena";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { CharacterIcon } from "@/components/character-icon";
 import { CharacterSelect } from "@/components/character-select";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
@@ -38,6 +37,7 @@ import { LobbyPoller } from "@/components/lobby-poller";
 import { JoinLobbyForm } from "@/components/join-lobby-button";
 import { QueueCooldownGate } from "@/components/queue-cooldown-gate";
 import { CancelMatchButton } from "@/components/cancel-match-button";
+import { SameBansButton } from "@/components/same-bans-button";
 import { VictoryCelebration } from "@/components/victory-celebration";
 import { DisputeResolutionForm } from "@/components/dispute-resolution-form";
 import { CommentForm } from "@/components/comment-form";
@@ -814,16 +814,12 @@ function GameSection({
         </p>
         {sameBans && (
           <div className="mt-3">
-            <form action={sameBansStrike.bind(null, match.id, current.gameNumber)}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button type="submit" size="sm" variant="default" disabled={!canAct}>
-                    Same bans as Game {sameBans.gameNumber}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{sameBans.stages.join(", ")}</TooltipContent>
-              </Tooltip>
-            </form>
+            <SameBansButton
+              action={sameBansStrike.bind(null, match.id, current.gameNumber)}
+              gameNumber={sameBans.gameNumber}
+              stages={sameBans.stages}
+              canAct={canAct}
+            />
           </div>
         )}
         {canRunItBack && (
