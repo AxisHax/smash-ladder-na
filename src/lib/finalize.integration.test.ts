@@ -84,4 +84,115 @@ describe("finalizeExpiredMatches", () => {
     expect(result.expiredNoReport).toBe(0);
     expect(result.autoConfirmed).toBe(0);
   });
+
+  it("awards the set to a player already ahead 1-0 when the opponent never responds again", async () => {
+    const leader = await createTestUser({ rating: 1500 });
+    const ghost = await createTestUser({ rating: 1500 });
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: leader.id, player2Id: ghost.id, status: MatchStatus.PENDING_REPORT, expiresAt: past },
+    });
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 1,
+        actorAId: leader.id,
+        actorAStrikes: 1,
+        actorBId: ghost.id,
+        actorBStrikes: 2,
+        finalStage: "Battlefield",
+        winnerId: leader.id,
+      },
+    });
+    // Game 2 exists but nobody ever locked in a character or reported it.
+    await prisma.matchGame.create({
+      data: { matchId: match.id, gameNumber: 2, actorAId: leader.id, actorAStrikes: 3, actorBId: ghost.id, actorBStrikes: 0 },
+    });
+
+    const result = await finalizeExpiredMatches(new Date());
+
+    expect(result.closedOutOnLead).toBe(1);
+    expect(result.autoConfirmed).toBe(0);
+    expect(result.expiredNoReport).toBe(0);
+
+    const updatedMatch = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(updatedMatch.status).toBe(MatchStatus.CONFIRMED);
+    expect(updatedMatch.reportedWinnerId).toBe(leader.id);
+
+    const [updatedLeader, updatedGhost] = await Promise.all([
+      prisma.user.findUniqueOrThrow({ where: { id: leader.id } }),
+      prisma.user.findUniqueOrThrow({ where: { id: ghost.id } }),
+    ]);
+    expect(updatedLeader.rating).toBeGreaterThan(1500);
+    expect(updatedGhost.rating).toBeLessThan(1500);
+    expect(updatedGhost.noShowCount).toBe(1);
+    expect(updatedGhost.queueCooldownUntil).not.toBeNull();
+  });
+
+  it("awards the set to a player already ahead 2-0 the same way", async () => {
+    const leader = await createTestUser({ rating: 1500 });
+    const ghost = await createTestUser({ rating: 1500 });
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: leader.id, player2Id: ghost.id, status: MatchStatus.PENDING_REPORT, expiresAt: past },
+    });
+    for (let gameNumber = 1; gameNumber <= 2; gameNumber++) {
+      await prisma.matchGame.create({
+        data: {
+          matchId: match.id,
+          gameNumber,
+          actorAId: leader.id,
+          actorAStrikes: 1,
+          actorBId: ghost.id,
+          actorBStrikes: 2,
+          finalStage: "Battlefield",
+          winnerId: leader.id,
+        },
+      });
+    }
+
+    const result = await finalizeExpiredMatches(new Date());
+
+    expect(result.closedOutOnLead).toBe(1);
+    const updatedMatch = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(updatedMatch.status).toBe(MatchStatus.CONFIRMED);
+    expect(updatedMatch.reportedWinnerId).toBe(leader.id);
+  });
+
+  it("does NOT auto-close a genuinely contested score (both sides have a win)", async () => {
+    const a = await createTestUser({ rating: 1500 });
+    const b = await createTestUser({ rating: 1500 });
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: a.id, player2Id: b.id, status: MatchStatus.PENDING_REPORT, expiresAt: past },
+    });
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 1,
+        actorAId: a.id,
+        actorAStrikes: 1,
+        actorBId: b.id,
+        actorBStrikes: 2,
+        finalStage: "Battlefield",
+        winnerId: a.id,
+      },
+    });
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 2,
+        actorAId: a.id,
+        actorAStrikes: 3,
+        actorBId: b.id,
+        actorBStrikes: 0,
+        finalStage: "Battlefield",
+        winnerId: b.id,
+      },
+    });
+
+    const result = await finalizeExpiredMatches(new Date());
+
+    expect(result.closedOutOnLead).toBe(0);
+    expect(result.expiredNoReport).toBe(1);
+    const updatedMatch = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(updatedMatch.status).toBe(MatchStatus.EXPIRED);
+  });
 });

@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { LobbyEntryStatus, MatchStatus, PostStatus, UserRole } from "@/generated/prisma/enums";
-import { autoConfirmStaleGameReport } from "@/lib/match-games";
+import { autoConfirmStaleGameReport, closeOutUnansweredLead } from "@/lib/match-games";
 import { sendDiscordDM } from "@/lib/discord-bot";
 
 export async function finalizeExpiredLobbyEntries(now = new Date()) {
@@ -37,23 +37,41 @@ export async function finalizeExpiredMatches(now = new Date()) {
   // Reporting is per-game (BO3), not per-match, so "timed out" is decided
   // per match by whether its current game has a lone unconfirmed report —
   // that side did their part, so their report is accepted and the other
-  // side is charged a no-show. A match with no hanging report (nobody
-  // reported anything, or the current game isn't even decided yet) just
-  // expires below with no rating impact for either player.
+  // side is charged a no-show. Failing that, a side already ahead with the
+  // other at zero wins (see closeOutUnansweredLead) gets the set outright —
+  // covers the case where the trailing player vanished before any further
+  // game got far enough to even have a report to accept. A match with
+  // neither (nobody reported anything and no one-sided lead) just expires
+  // below with no rating impact for either player.
   let autoConfirmed = 0;
+  let closedOutOnLead = 0;
   const handledIds = new Set<string>();
   for (const match of overdue) {
     const result = await autoConfirmStaleGameReport(match, now);
-    if (!result) continue;
-    autoConfirmed++;
-    handledIds.add(match.id);
+    if (result) {
+      autoConfirmed++;
+      handledIds.add(match.id);
 
-    const reporterName = result.reporterId === match.player1Id ? match.player1.username : match.player2.username;
-    const nonReporterName =
-      result.nonReporterId === match.player1Id ? match.player1.username : match.player2.username;
-    await alertModsOfAbandonedMatch(
-      `⏱️ Auto-confirmed: ${match.player1.username} vs ${match.player2.username}, game ${result.gameNumber} — ${reporterName}'s report was accepted after ${nonReporterName} didn't respond in time.`,
-    );
+      const reporterName = result.reporterId === match.player1Id ? match.player1.username : match.player2.username;
+      const nonReporterName =
+        result.nonReporterId === match.player1Id ? match.player1.username : match.player2.username;
+      await alertModsOfAbandonedMatch(
+        `⏱️ Auto-confirmed: ${match.player1.username} vs ${match.player2.username}, game ${result.gameNumber} — ${reporterName}'s report was accepted after ${nonReporterName} didn't respond in time.`,
+      );
+      continue;
+    }
+
+    const leadResult = await closeOutUnansweredLead(match, now);
+    if (leadResult) {
+      closedOutOnLead++;
+      handledIds.add(match.id);
+
+      const winnerName = leadResult.winnerId === match.player1Id ? match.player1.username : match.player2.username;
+      const loserName = leadResult.loserId === match.player1Id ? match.player1.username : match.player2.username;
+      await alertModsOfAbandonedMatch(
+        `⏱️ Auto-confirmed: ${match.player1.username} vs ${match.player2.username} — ${winnerName} was already ahead with zero response from ${loserName}, so the set was awarded to them once the match expired.`,
+      );
+    }
   }
 
   const stillUnhandled = overdue.filter((m) => !handledIds.has(m.id));
@@ -74,7 +92,7 @@ export async function finalizeExpiredMatches(now = new Date()) {
     data: { status: MatchStatus.EXPIRED },
   });
 
-  return { expiredNoReport: expiredNoReport.count, autoConfirmed };
+  return { expiredNoReport: expiredNoReport.count, autoConfirmed, closedOutOnLead };
 }
 
 export async function finalizeExpiredFreeBattlePosts(now = new Date()) {

@@ -691,6 +691,43 @@ export async function autoConfirmStaleGameReport(
   return { nonReporterId, reporterId: hangingGame.reportedById, gameNumber: hangingGame.gameNumber };
 }
 
+// Called by the cron finalizer for a PENDING_REPORT match past its deadline
+// that autoConfirmStaleGameReport didn't handle (no hanging report to
+// accept) — e.g. a player already up 1-0 or 2-0 just stopped bothering to
+// keep locking in characters once their opponent vanished, so no further
+// game ever got far enough to report. Rather than letting a set that's
+// entirely one-sided so far expire with no impact for either side, award it
+// to whoever has confirmed wins when the other side has none at all — a
+// genuinely contested score (both sides with at least one win, or neither)
+// is left alone to expire as before, since there's no clear winner to hand
+// it to.
+export async function closeOutUnansweredLead(
+  match: { id: string; player1Id: string; player2Id: string },
+  now: Date,
+): Promise<{ winnerId: string; loserId: string } | null> {
+  const games = await prisma.matchGame.findMany({ where: { matchId: match.id }, select: { winnerId: true } });
+  const wins = tallySetWins(games);
+  const p1Wins = wins[match.player1Id] ?? 0;
+  const p2Wins = wins[match.player2Id] ?? 0;
+
+  const winnerId = p1Wins > 0 && p2Wins === 0 ? match.player1Id : p2Wins > 0 && p1Wins === 0 ? match.player2Id : null;
+  if (!winnerId) return null;
+  const loserId = winnerId === match.player1Id ? match.player2Id : match.player1Id;
+
+  await withTransientRetry(() =>
+    prisma.$transaction(async (tx) => {
+      await tx.ratingMatch.update({
+        where: { id: match.id },
+        data: { reportedWinnerId: winnerId, reportedById: winnerId, reportedAt: now },
+      });
+      await applyEloAndConfirm(tx, match, winnerId, ConfirmationMethod.AUTO_TIMEOUT, null);
+      await applyTimeoutCooldown(tx, loserId, now);
+    }, TX_OPTIONS),
+  );
+
+  return { winnerId, loserId };
+}
+
 // Only counts games with a settled winnerId, so a still-disputed game
 // (winnerId left null on purpose) never contributes to either side's tally.
 export function tallySetWins(games: { winnerId: string | null }[]) {

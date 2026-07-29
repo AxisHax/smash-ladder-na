@@ -90,12 +90,15 @@ export default function RulesPage() {
             If only one player reports and the other never responds, the lone report is accepted
             automatically after 3 hours, and the non-reporting player is charged a no-show — you&apos;ll
             get a Discord reminder as soon as your opponent reports, so you know the clock has
-            started. If neither player reports within 3 hours, the match closes with no rating
-            impact for either side — if that leaves you stuck after a set you actually won, message
-            a mod and they can close it out manually from the Live matches page. A no-show (whether
-            from a stale report or never locking in a character) also locks you out of queueing
-            again for a bit — 5 minutes the first time, escalating by 5 more minutes each time it
-            happens again without a clean 30-day stretch in between.
+            started. If you&apos;re already ahead (1-0 or 2-0) and your opponent goes fully silent —
+            not even locking in a character for the next game — the set is awarded to you once the
+            3 hours run out, same as if they&apos;d shown up and lost. If neither player has any
+            confirmed game wins yet, the match closes with no rating impact for either side instead —
+            if that leaves you stuck after a set you actually won, message a mod and they can close
+            it out manually from the Live matches page. A no-show (whether from a stale report,
+            never locking in a character, or a set closed out this way) also locks you out of
+            queueing again for a bit — 5 minutes the first time, escalating by 5 more minutes each
+            time it happens again without a clean 30-day stretch in between.
           </p>
           <p>
             Reported the wrong winner? Either player can request a correction from their own

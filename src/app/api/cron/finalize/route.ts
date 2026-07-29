@@ -26,7 +26,7 @@ async function handle(request: Request) {
   // joins that missed each other at request time gets a second chance.
   const sweepPaired = await sweepLobbyPairing();
   const expiredLobbyEntries = await finalizeExpiredLobbyEntries();
-  const { expiredNoReport, autoConfirmed } = await finalizeExpiredMatches();
+  const { expiredNoReport, autoConfirmed, closedOutOnLead } = await finalizeExpiredMatches();
   const expiredFreeBattlePosts = await finalizeExpiredFreeBattlePosts();
 
   return NextResponse.json({
@@ -34,6 +34,7 @@ async function handle(request: Request) {
     expiredLobbyEntries,
     expiredNoReport,
     autoConfirmed,
+    closedOutOnLead,
     expiredFreeBattlePosts,
   });
 }
