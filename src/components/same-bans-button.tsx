@@ -1,0 +1,48 @@
+"use client";
+
+import type { ComponentProps } from "react";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useIsTouchDevice } from "@/hooks/use-is-touch-device";
+
+export function SameBansButton({
+  action,
+  gameNumber,
+  stages,
+  canAct,
+}: {
+  action: ComponentProps<"form">["action"];
+  gameNumber: number;
+  stages: string[];
+  canAct: boolean;
+}) {
+  const isTouch = useIsTouchDevice();
+  const stagesText = stages.join(", ");
+
+  const button = (
+    <Button type="submit" size="sm" variant="default" disabled={!canAct}>
+      Same bans as Game {gameNumber}
+    </Button>
+  );
+
+  return (
+    <form action={action}>
+      {isTouch ? (
+        // A hover tooltip doesn't work here: this is a real submit button, so
+        // a tap both fires the strike action and (if it toggled a tooltip)
+        // would race with the page navigating away — there's no way to
+        // "preview" the bans before committing. Show them as plain text
+        // instead.
+        <div className="space-y-1">
+          {button}
+          <p className="text-xs text-muted-foreground">{stagesText}</p>
+        </div>
+      ) : (
+        <Tooltip>
+          <TooltipTrigger asChild>{button}</TooltipTrigger>
+          <TooltipContent>{stagesText}</TooltipContent>
+        </Tooltip>
+      )}
+    </form>
+  );
+}
