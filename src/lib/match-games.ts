@@ -749,6 +749,20 @@ async function progressSet(
   gameWinnerId: string,
   confirmationMethod: ConfirmationMethod = ConfirmationMethod.SELF_CONFIRMED,
 ): Promise<string | null> {
+  // A pending mutual-cancel request (see requestMutualCancel) only reflects
+  // consent at the moment it was made. Without this, a request from early in
+  // the set — made and then declined, with play continuing normally — stays
+  // "live" forever and can be accepted by the other side well after the
+  // fact. Real incident: a player asked to cancel at the very start, the
+  // opponent said no and they played the set out, the asker won 3-1, and the
+  // opponent later accepted the stale request to void the result instead of
+  // the loss standing. Clearing both sides here (a game just got decided)
+  // means cancelling past this point needs a fresh, contemporaneous ask.
+  await tx.ratingMatch.update({
+    where: { id: match.id },
+    data: { player1CancelRequestedAt: null, player2CancelRequestedAt: null },
+  });
+
   const games = await tx.matchGame.findMany({ where: { matchId: match.id } });
   const setWinnerId = getSetWinnerId(tallySetWins(games));
   if (setWinnerId) {

@@ -6,10 +6,12 @@ import {
   applyEloAndConfirm,
   cancelMatch,
   leaveMatch,
+  requestMutualCancel,
   requestRematch,
   requestResultCorrection,
   resolveMatchCorrection,
 } from "@/lib/matches";
+import { reportGameResult } from "@/lib/match-games";
 import { blockUser } from "@/lib/blocks";
 import { endActiveSeasonAndStartNext } from "@/lib/seasons";
 import { CANCEL_SUSPEND_MIN_CANCELS } from "@/lib/account";
@@ -423,6 +425,90 @@ describe("cancelMatch", () => {
 
     const updated = await prisma.user.findUniqueOrThrow({ where: { id: canceller.id } });
     expect(updated.status).toBe(UserStatus.BANNED);
+  });
+});
+
+describe("requestMutualCancel", () => {
+  it("does nothing when only one side has requested", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+
+    await requestMutualCancel(p1.id, match.id);
+
+    const updated = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(updated.status).toBe(MatchStatus.PENDING_REPORT);
+    expect(updated.player1CancelRequestedAt).not.toBeNull();
+    expect(updated.player2CancelRequestedAt).toBeNull();
+  });
+
+  it("cancels once both sides have requested", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+
+    await requestMutualCancel(p1.id, match.id);
+    await requestMutualCancel(p2.id, match.id);
+
+    const updated = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(updated.status).toBe(MatchStatus.CANCELLED);
+  });
+
+  it("rejects a non-participant", async () => {
+    const outsider = await createTestUser();
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+
+    await expect(requestMutualCancel(outsider.id, match.id)).rejects.toThrow(/participant/i);
+  });
+
+  // The actual incident this fixes: the eventual winner asked to cancel
+  // right at the start, the opponent declined (in chat) and they played the
+  // whole set out, ending 3-1 for the asker — but the request was never
+  // withdrawn, so the opponent later clicked "Agree to Cancel" on that same
+  // stale request to void a set they'd already lost. A decided game should
+  // clear any pending request (see progressSet), so by the time a game's
+  // been won this way there's nothing left to accept.
+  it("doesn't let a stale pre-match request be accepted after a game has since been decided", async () => {
+    const asker = await createTestUser();
+    const opponent = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: asker.id, player2Id: opponent.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 1,
+        actorAId: asker.id,
+        actorAStrikes: 1,
+        actorBId: opponent.id,
+        actorBStrikes: 2,
+        finalStage: "Battlefield",
+      },
+    });
+
+    // Asker requests cancel before anything's happened; opponent declines
+    // (never agrees) and the set is played out normally instead.
+    await requestMutualCancel(asker.id, match.id);
+    await reportGameResult(asker.id, match.id, 1, true);
+    await reportGameResult(opponent.id, match.id, 1, false);
+
+    const afterGameOne = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(afterGameOne.player1CancelRequestedAt).toBeNull();
+
+    // Opponent, now down in the set, tries to accept the old request.
+    await requestMutualCancel(opponent.id, match.id);
+
+    const updated = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(updated.status).not.toBe(MatchStatus.CANCELLED);
+    expect(updated.player2CancelRequestedAt).not.toBeNull();
   });
 });
 
