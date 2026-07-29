@@ -13,6 +13,7 @@ import {
   setRequireWiredOpponent,
   setUserRegion,
   setWiredConnection,
+  setZenMode,
 } from "@/lib/account";
 import {
   pickGameCharacter,
@@ -371,3 +372,8 @@ export async function updateAvoidPracticeOpponents(avoid: boolean) {
   revalidatePath("/lobby");
 }
 
+export async function updateZenMode(zenMode: boolean) {
+  const userId = await requireUserId();
+  await setZenMode(userId, zenMode);
+  revalidatePath("/lobby");
+}

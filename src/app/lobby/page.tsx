@@ -73,6 +73,7 @@ import {
   updateRematchCooldown,
   updateRequireWiredOpponent,
   updateWiredConnection,
+  updateZenMode,
 } from "./actions";
 
 type Match = NonNullable<NonNullable<Awaited<ReturnType<typeof getActiveLobbyEntry>>>["match"]>;
@@ -251,6 +252,7 @@ async function MatchmakingForm({ userId }: { userId: string }) {
       wiredConnection: true,
       requireWiredOpponent: true,
       avoidPracticeOpponents: true,
+      zenMode: true,
     },
   });
 
@@ -270,6 +272,7 @@ async function MatchmakingForm({ userId }: { userId: string }) {
       await updateRematchCooldown(rematchCooldown === ANYTIME_VALUE ? null : Number(rematchCooldown));
       await updateRequireWiredOpponent(formData.get("requireWiredOpponent") === "on");
       await updateAvoidPracticeOpponents(formData.get("avoidPracticeOpponents") === "on");
+      await updateZenMode(formData.get("zenMode") === "on");
       await updateWiredConnection(formData.get("wired") === "on");
     } catch (err) {
       return {
@@ -407,6 +410,16 @@ async function MatchmakingForm({ userId }: { userId: string }) {
         />
         Don&apos;t match me with opponents who are practicing
       </label>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          key={String(me?.zenMode ?? false)}
+          type="checkbox"
+          name="zenMode"
+          defaultChecked={me?.zenMode ?? false}
+          className="size-4 rounded border-border"
+        />
+        Zen Mode — hide opponent&apos;s rating, name, characters, and avatar
+      </label>
     </MatchSettingsForm>
   );
 }
@@ -421,21 +434,25 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
   const isPlayer1 = match.player1Id === userId;
   const myLeftAt = isPlayer1 ? match.player1LeftAt : match.player2LeftAt;
   const opponentLeftAt = isPlayer1 ? match.player2LeftAt : match.player1LeftAt;
+  const me = await prisma.user.findUnique({ where: { id: userId }, select: { hideOpponentRating: true, zenMode: true } });
+  const zenMode = me?.zenMode ?? false;
+  const displayName = zenMode ? "Opponent" : opponent.username;
 
   if (match.status === "CONFIRMED" || match.status === "CANCELLED" || match.status === "EXPIRED") {
     const chat = (
       <CommentsSection
         userId={userId}
         match={match}
-        opponentName={opponent.username}
+        opponentName={displayName}
         opponentHasLeft={!!opponentLeftAt}
+        zenMode={zenMode}
       />
     );
     return (
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
         <Card>
           {match.status === "CONFIRMED" ? (
-            <ConfirmedSection userId={userId} match={match} />
+<ConfirmedSection userId={userId} match={match} />
           ) : (
             <TerminatedSection status={match.status} />
           )}
@@ -443,7 +460,7 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
             <CardContent className="flex items-center gap-3 border-t border-border pt-4">
               <RematchSection
                 matchId={match.id}
-                opponentName={opponent.username}
+                opponentName={displayName}
                 myRequestedAt={isPlayer1 ? match.player1RematchRequestedAt : match.player2RematchRequestedAt}
                 opponentRequestedAt={isPlayer1 ? match.player2RematchRequestedAt : match.player1RematchRequestedAt}
                 opponentLeftAt={opponentLeftAt}
@@ -472,7 +489,6 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
   const games = await getMatchGames(match.id);
   const topCharacters = await getTopCharacters(opponent.id);
   const myTopCharacter = (await getTopCharacters(userId, 1))[0] ?? null;
-  const me = await prisma.user.findUnique({ where: { id: userId }, select: { hideOpponentRating: true } });
   const opponentStreak = currentStreak(await getPlayerMatchHistory(opponent.id));
   const wins = { me: 0, opponent: 0 };
   for (const g of games) {
@@ -484,8 +500,9 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
     <CommentsSection
       userId={userId}
       match={match}
-      opponentName={opponent.username}
+      opponentName={displayName}
       opponentHasLeft={!!opponentLeftAt}
+      zenMode={zenMode}
     />
   );
 
@@ -499,7 +516,7 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
           </div>
         </CardHeader>
         <CardContent className="flex items-center gap-3">
-          {opponent.avatarUrl && (
+          {!zenMode && opponent.avatarUrl && (
             <Image
               src={opponent.avatarUrl}
               alt={opponent.username}
@@ -508,19 +525,21 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
               className="rounded-full"
             />
           )}
-          <div>
-            <p className="flex items-center gap-1.5 font-medium">
-              {opponent.username}
-              {opponentStreak !== 0 && (
-                <Badge variant={opponentStreak > 0 ? "success" : "destructive"} className="tabular-nums">
-                  {Math.abs(opponentStreak)} {opponentStreak > 0 ? "win" : "loss"} streak
-                </Badge>
-              )}
-            </p>
-            {!me?.hideOpponentRating && (
+          <div className={zenMode ? "flex-1" : ""}>
+            {!zenMode && (
+              <p className="flex items-center gap-1.5 font-medium">
+                {displayName}
+                {opponentStreak !== 0 && (
+                  <Badge variant={opponentStreak > 0 ? "success" : "destructive"} className="tabular-nums">
+                    {Math.abs(opponentStreak)} {opponentStreak > 0 ? "win" : "loss"} streak
+                  </Badge>
+                )}
+              </p>
+            )}
+            {!zenMode && !me?.hideOpponentRating && (
               <p className="text-sm text-muted-foreground tabular-nums">{opponent.rating} rating</p>
             )}
-            {topCharacters.length > 0 && (
+            {!zenMode && topCharacters.length > 0 && (
               <div className="group/characters relative mt-1 flex items-center gap-1.5">
                 <span className="pointer-events-none absolute -top-6 left-0 z-10 rounded border border-border bg-popover px-1.5 py-0.5 text-xs whitespace-nowrap text-popover-foreground opacity-0 shadow-sm transition-opacity group-hover/characters:opacity-100">
                   Most played characters
@@ -559,7 +578,7 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
               action={requestDisputeResolutionAction.bind(null, match.id, g.gameNumber)}
               myId={userId}
               opponentId={opponent.id}
-              opponentUsername={opponent.username}
+              opponentUsername={displayName}
             />
           </CardContent>
         ))}
@@ -569,7 +588,7 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
             userId={userId}
             match={match}
             games={games}
-            opponentName={opponent.username}
+            opponentName={displayName}
             myTopCharacter={myTopCharacter}
           />
         )}
@@ -577,13 +596,13 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
         {match.status === "DISPUTED" && (
           <CardContent className="border-t border-border pt-4">
             <p className="text-sm text-muted-foreground">
-              You and {opponent.username} reported different results. This match is awaiting review.
+              You and {displayName} reported different results. This match is awaiting review.
             </p>
           </CardContent>
         )}
 
         {match.status === "PENDING_REPORT" || match.status === "REPORTED" ? (
-          <MatchFooterActions match={match} isPlayer1={isPlayer1} opponentName={opponent.username} />
+          <MatchFooterActions match={match} isPlayer1={isPlayer1} opponentName={displayName} />
         ) : (
           <CardContent className="border-t border-border pt-4">
             <p className="text-sm text-muted-foreground">
@@ -1196,19 +1215,26 @@ async function CommentsSection({
   match,
   opponentName,
   opponentHasLeft,
+  zenMode,
 }: {
   userId: string;
   match: Match;
   opponentName: string;
   opponentHasLeft: boolean;
+  zenMode?: boolean;
 }) {
   const rawComments = await listMatchComments(userId, match.id);
   const opponentTyping = await isOpponentTyping(match.id, userId);
 
+  // Determine opponent's user id for zen mode — replace their name in chat
+  const opponentId = match.player1Id === userId ? match.player2Id : match.player1Id;
+
   // Serialize dates to strings for the client component
   const comments = rawComments.map((c) => ({
     id: c.id,
-    author: { username: c.author.username },
+    author: {
+      username: zenMode && c.author.id === opponentId ? "Opponent" : c.author.username,
+    },
     body: c.body,
     createdAt: c.createdAt.toISOString(),
   }));
