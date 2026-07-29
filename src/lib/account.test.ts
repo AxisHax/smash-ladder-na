@@ -6,10 +6,16 @@ vi.mock("@/generated/prisma/enums", () => ({ UserStatus: {} }));
 import {
   isWiredClaimUntrustworthy,
   isWiredClaimDisputedByOpponents,
+  isCancelWarningThreshold,
+  isCancelSuspendThreshold,
   WIRED_TRUST_MIN_CANCELS,
   WIRED_TRUST_MAX_CANCEL_RATIO,
   WIRED_TRUST_MIN_CONNECTION_REPORTS,
   WIRED_TRUST_MAX_CONNECTION_REPORT_RATIO,
+  CANCEL_WARNING_MIN_CANCELS,
+  CANCEL_WARNING_MAX_RATIO,
+  CANCEL_SUSPEND_MIN_CANCELS,
+  CANCEL_SUSPEND_MAX_RATIO,
 } from "./account";
 
 describe("isWiredClaimUntrustworthy", () => {
@@ -79,6 +85,51 @@ describe("isWiredClaimDisputedByOpponents", () => {
 
   it("trusts long-time players with a handful of reports", () => {
     expect(isWiredClaimDisputedByOpponents(5, 200)).toBe(false);
+  });
+});
+
+describe("isCancelWarningThreshold", () => {
+  it("doesn't warn below the minimum cancel count", () => {
+    expect(isCancelWarningThreshold(CANCEL_WARNING_MIN_CANCELS - 1, 0)).toBe(false);
+  });
+
+  it("warns at the min cancel count with a high ratio", () => {
+    expect(isCancelWarningThreshold(CANCEL_WARNING_MIN_CANCELS, 0)).toBe(true);
+  });
+
+  it("doesn't warn with enough games played to dilute the ratio", () => {
+    expect(isCancelWarningThreshold(CANCEL_WARNING_MIN_CANCELS, 200)).toBe(false);
+  });
+
+  it("is stricter than the suspend threshold — never fires later than it", () => {
+    for (let cancels = 0; cancels <= 20; cancels++) {
+      for (let games = 0; games <= 50; games += 5) {
+        if (isCancelSuspendThreshold(cancels, games)) {
+          expect(isCancelWarningThreshold(cancels, games)).toBe(true);
+        }
+      }
+    }
+  });
+});
+
+describe("isCancelSuspendThreshold", () => {
+  it("doesn't suspend below the minimum cancel count", () => {
+    expect(isCancelSuspendThreshold(CANCEL_SUSPEND_MIN_CANCELS - 1, 0)).toBe(false);
+  });
+
+  it("suspends at the min cancel count with a high ratio", () => {
+    expect(isCancelSuspendThreshold(CANCEL_SUSPEND_MIN_CANCELS, 0)).toBe(true);
+  });
+
+  it("doesn't suspend with enough games played to dilute the ratio", () => {
+    expect(isCancelSuspendThreshold(CANCEL_SUSPEND_MIN_CANCELS, 200)).toBe(false);
+  });
+});
+
+describe("cancel abuse thresholds", () => {
+  it("warning threshold is looser (lower bar) than the suspend threshold", () => {
+    expect(CANCEL_WARNING_MIN_CANCELS).toBeLessThan(CANCEL_SUSPEND_MIN_CANCELS);
+    expect(CANCEL_WARNING_MAX_RATIO).toBeLessThan(CANCEL_SUSPEND_MAX_RATIO);
   });
 });
 

@@ -146,10 +146,47 @@ export async function setAvoidPracticeOpponents(userId: string, avoidPracticeOpp
   await prisma.user.update({ where: { id: userId }, data: { avoidPracticeOpponents } });
 }
 
+// Pure display preference — hides the matched opponent's rating from this
+// player's own lobby view (see PairedView in app/lobby/page.tsx). Doesn't
+// affect matchmaking at all, and has no effect on what the opponent sees.
+export async function setHideOpponentRating(userId: string, hideOpponentRating: boolean) {
+  await prisma.user.update({ where: { id: userId }, data: { hideOpponentRating } });
+}
+
 export function isWiredClaimUntrustworthy(cancelCount: number, gamesPlayed: number) {
   if (cancelCount < WIRED_TRUST_MIN_CANCELS) return false;
   const ratio = cancelCount / (cancelCount + gamesPlayed);
   return ratio > WIRED_TRUST_MAX_CANCEL_RATIO;
+}
+
+// Same ratio-based shape as the wired-trust check above, but for
+// automatically flagging/suspending a pattern of cancelling to dodge
+// matches (bad matchup, rating gap, inconvenient character — see the
+// "Canceling a match" rules copy) rather than legitimate one-offs. Two
+// tiers: a warning DM fires first, at the looser threshold, so a player
+// gets a chance to stop before the stricter threshold actually suspends
+// them. Both are gated by a minimum sample size for the same reason as
+// WIRED_TRUST_MIN_CANCELS — a couple of early cancels shouldn't trip
+// either one.
+export const CANCEL_WARNING_MIN_CANCELS = 5;
+export const CANCEL_WARNING_MAX_RATIO = 0.3;
+export const CANCEL_SUSPEND_MIN_CANCELS = 8;
+export const CANCEL_SUSPEND_MAX_RATIO = 0.4;
+
+// How long an auto-suspend from cancel abuse lasts before lifting itself
+// (see liftExpiredSuspension) — long enough to actually cost something,
+// short enough that it's a cooldown rather than something needing a mod to
+// reverse for a first offense.
+export const CANCEL_SUSPEND_DURATION_HOURS = 24;
+
+export function isCancelWarningThreshold(cancelCount: number, gamesPlayed: number) {
+  if (cancelCount < CANCEL_WARNING_MIN_CANCELS) return false;
+  return cancelCount / (cancelCount + gamesPlayed) > CANCEL_WARNING_MAX_RATIO;
+}
+
+export function isCancelSuspendThreshold(cancelCount: number, gamesPlayed: number) {
+  if (cancelCount < CANCEL_SUSPEND_MIN_CANCELS) return false;
+  return cancelCount / (cancelCount + gamesPlayed) > CANCEL_SUSPEND_MAX_RATIO;
 }
 
 // Same idea as the cancel-based check above, but for opponents filing a

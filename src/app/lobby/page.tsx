@@ -474,6 +474,7 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
   const games = await getMatchGames(match.id);
   const topCharacters = await getTopCharacters(opponent.id);
   const myTopCharacter = (await getTopCharacters(userId, 1))[0] ?? null;
+  const me = await prisma.user.findUnique({ where: { id: userId }, select: { hideOpponentRating: true } });
   const wins = { me: 0, opponent: 0 };
   for (const g of games) {
     if (g.winnerId === userId) wins.me++;
@@ -510,7 +511,9 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
           )}
           <div>
             <p className="font-medium">{opponent.username}</p>
-            <p className="text-sm text-muted-foreground tabular-nums">{opponent.rating} rating</p>
+            {!me?.hideOpponentRating && (
+              <p className="text-sm text-muted-foreground tabular-nums">{opponent.rating} rating</p>
+            )}
             {topCharacters.length > 0 && (
               <div className="group/characters relative mt-1 flex items-center gap-1.5">
                 <span className="pointer-events-none absolute -top-6 left-0 z-10 rounded border border-border bg-popover px-1.5 py-0.5 text-xs whitespace-nowrap text-popover-foreground opacity-0 shadow-sm transition-opacity group-hover/characters:opacity-100">

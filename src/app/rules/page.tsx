@@ -112,7 +112,10 @@ export default function RulesPage() {
             emergency came up, or the connection made the set unplayable. Canceling to dodge a
             bad matchup, a rating gap, or an inconvenient character isn&apos;t a legitimate reason,
             and a pattern of it is reportable. Canceled matches carry no rating impact but are
-            logged against the canceling player&apos;s account.
+            logged against the canceling player&apos;s account. A high enough cancel rate triggers
+            an automatic Discord warning, and canceling well beyond that suspends the account for
+            24 hours — ranked play still works while suspended, but free battle and filing new
+            conduct reports don&apos;t.
           </p>
           <p>
             The one-sided cancel button only works before anything&apos;s happened in the set —

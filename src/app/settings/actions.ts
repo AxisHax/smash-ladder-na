@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
-import { setAvoidPracticeOpponents, setRematchCooldown, setUsername } from "@/lib/account";
+import { setAvoidPracticeOpponents, setHideOpponentRating, setRematchCooldown, setUsername } from "@/lib/account";
 import { setArenaPassword } from "@/lib/arena";
 import { setOwnCharacters } from "@/lib/character-stats";
 import { disconnectStartggAccount } from "@/lib/startgg-oauth";
@@ -46,6 +46,13 @@ export async function updateRematchCooldownSetting(rematchCooldownHours: number 
 export async function updateAvoidPracticeOpponentsSetting(avoid: boolean) {
   const userId = await requireUserId();
   await setAvoidPracticeOpponents(userId, avoid);
+  revalidatePath("/settings");
+  revalidatePath("/lobby");
+}
+
+export async function updateHideOpponentRatingSetting(hide: boolean) {
+  const userId = await requireUserId();
+  await setHideOpponentRating(userId, hide);
   revalidatePath("/settings");
   revalidatePath("/lobby");
 }

@@ -1,10 +1,16 @@
 import { prisma, TX_OPTIONS, withTransientRetry } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
-import { MatchStatus, ConfirmationMethod, PairingMethod } from "@/generated/prisma/enums";
-import { isWiredClaimUntrustworthy } from "@/lib/account";
+import { MatchStatus, ConfirmationMethod, PairingMethod, UserStatus } from "@/generated/prisma/enums";
+import {
+  CANCEL_SUSPEND_DURATION_HOURS,
+  isCancelSuspendThreshold,
+  isCancelWarningThreshold,
+  isWiredClaimUntrustworthy,
+} from "@/lib/account";
 import { getBlockedEitherWayIds } from "@/lib/blocks";
 import { createDirectMatch } from "@/lib/lobby";
 import { recomputeCharacterUsage } from "@/lib/character-stats";
+import { sendDiscordDM } from "@/lib/discord-bot";
 
 // Used as `include`, which already returns every scalar column (leftAt,
 // rematchRequestedAt, etc.) by default — no need to list them here, and
@@ -78,6 +84,38 @@ export async function cancelMatch(userId: string, matchId: string) {
   // pile up — clear it rather than keep pairing others against a stale claim.
   if (updatedUser.wiredConnection && isWiredClaimUntrustworthy(updatedUser.cancelCount, updatedUser.gamesPlayed)) {
     await prisma.user.update({ where: { id: userId }, data: { wiredConnection: false } });
+  }
+
+  // Only fire on the exact cancel that crosses a threshold, not every one
+  // after it — the ratio only climbs from here (gamesPlayed is untouched by
+  // a cancel), so re-checking against the pre-increment count is enough to
+  // catch just the crossing moment. Suspend take priority: skip the warning
+  // DM entirely on the same cancel that already suspends them.
+  const previousCancelCount = updatedUser.cancelCount - 1;
+  const justCrossedSuspend =
+    !isCancelSuspendThreshold(previousCancelCount, updatedUser.gamesPlayed) &&
+    isCancelSuspendThreshold(updatedUser.cancelCount, updatedUser.gamesPlayed);
+  const justCrossedWarning =
+    !isCancelWarningThreshold(previousCancelCount, updatedUser.gamesPlayed) &&
+    isCancelWarningThreshold(updatedUser.cancelCount, updatedUser.gamesPlayed);
+
+  if (justCrossedSuspend && updatedUser.status !== UserStatus.BANNED) {
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        status: UserStatus.SUSPENDED,
+        suspendedUntil: new Date(Date.now() + CANCEL_SUSPEND_DURATION_HOURS * 60 * 60 * 1000),
+      },
+    });
+    await sendDiscordDM(
+      updatedUser.discordId,
+      `🚫 Your account has been suspended for ${CANCEL_SUSPEND_DURATION_HOURS} hours — you've cancelled ${updatedUser.cancelCount} matches, which crosses the threshold for a cancel-abuse pattern. Free battle and filing new conduct reports are unavailable until it lifts; ranked play still works. If you think this is a mistake, contact a mod.`,
+    );
+  } else if (justCrossedWarning) {
+    await sendDiscordDM(
+      updatedUser.discordId,
+      `⚠️ Heads up — you've cancelled ${updatedUser.cancelCount} matches. Canceling to dodge a bad matchup, a rating gap, or an inconvenient character isn't a legitimate reason, and continuing this pattern will get your account automatically suspended. Please only cancel for real issues (opponent disappeared, an emergency, or the connection made the set unplayable).`,
+    );
   }
 }
 

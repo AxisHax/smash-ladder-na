@@ -12,7 +12,8 @@ import {
 } from "@/lib/matches";
 import { blockUser } from "@/lib/blocks";
 import { endActiveSeasonAndStartNext } from "@/lib/seasons";
-import { ConfirmationMethod, LobbyEntryStatus, MatchStatus, PairingMethod } from "@/generated/prisma/enums";
+import { CANCEL_SUSPEND_MIN_CANCELS } from "@/lib/account";
+import { ConfirmationMethod, LobbyEntryStatus, MatchStatus, PairingMethod, UserStatus } from "@/generated/prisma/enums";
 import { createTestUser } from "@/test/factories";
 
 async function createConfirmedMatch(winnerId: string, loserId: string) {
@@ -362,6 +363,66 @@ describe("cancelMatch", () => {
     });
 
     await expect(cancelMatch(p2.id, match.id)).rejects.toThrow(/decided or reported/i);
+  });
+
+  async function cancelPendingMatch(userId: string, opponentId: string) {
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: userId, player2Id: opponentId, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+    await cancelMatch(userId, match.id);
+  }
+
+  it("suspends the account on the exact cancel that crosses the suspend threshold", async () => {
+    const canceller = await createTestUser({ cancelCount: CANCEL_SUSPEND_MIN_CANCELS - 1, gamesPlayed: 0 });
+    const opponent = await createTestUser();
+
+    await cancelPendingMatch(canceller.id, opponent.id);
+
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: canceller.id } });
+    expect(updated.cancelCount).toBe(CANCEL_SUSPEND_MIN_CANCELS);
+    expect(updated.status).toBe(UserStatus.SUSPENDED);
+    expect(updated.suspendedUntil).not.toBeNull();
+    expect(updated.suspendedUntil!.getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it("doesn't suspend a low cancel count relative to games played", async () => {
+    const canceller = await createTestUser({ cancelCount: 0, gamesPlayed: 200 });
+    const opponent = await createTestUser();
+
+    await cancelPendingMatch(canceller.id, opponent.id);
+
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: canceller.id } });
+    expect(updated.status).toBe(UserStatus.ACTIVE);
+  });
+
+  it("doesn't re-suspend (or reset the timer) on a later cancel past the threshold", async () => {
+    const canceller = await createTestUser({ cancelCount: CANCEL_SUSPEND_MIN_CANCELS, gamesPlayed: 0 });
+    const opponent = await createTestUser();
+    // Simulate the suspension already having happened, with the clock ticking down.
+    const originalSuspendedUntil = new Date(Date.now() + 60 * 60 * 1000);
+    await prisma.user.update({
+      where: { id: canceller.id },
+      data: { status: UserStatus.SUSPENDED, suspendedUntil: originalSuspendedUntil },
+    });
+
+    await cancelPendingMatch(canceller.id, opponent.id);
+
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: canceller.id } });
+    expect(updated.suspendedUntil!.getTime()).toBe(originalSuspendedUntil.getTime());
+  });
+
+  it("doesn't downgrade an already-banned account to suspended", async () => {
+    const canceller = await createTestUser({
+      cancelCount: CANCEL_SUSPEND_MIN_CANCELS - 1,
+      gamesPlayed: 0,
+      status: UserStatus.BANNED,
+    });
+    const opponent = await createTestUser();
+
+    await cancelPendingMatch(canceller.id, opponent.id);
+
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: canceller.id } });
+    expect(updated.status).toBe(UserStatus.BANNED);
   });
 });
 
