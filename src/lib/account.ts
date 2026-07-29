@@ -146,13 +146,6 @@ export async function setAvoidPracticeOpponents(userId: string, avoidPracticeOpp
   await prisma.user.update({ where: { id: userId }, data: { avoidPracticeOpponents } });
 }
 
-// Pure display preference — hides the matched opponent's rating from this
-// player's own lobby view (see PairedView in app/lobby/page.tsx). Doesn't
-// affect matchmaking at all, and has no effect on what the opponent sees.
-export async function setHideOpponentRating(userId: string, hideOpponentRating: boolean) {
-  await prisma.user.update({ where: { id: userId }, data: { hideOpponentRating } });
-}
-
 // Expanded display preference — hides the opponent's rating, username,
 // characters, and avatar from this player's own lobby view, and replaces
 // the opponent's name with "Opponent" in chat too.

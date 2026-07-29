@@ -434,7 +434,7 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
   const isPlayer1 = match.player1Id === userId;
   const myLeftAt = isPlayer1 ? match.player1LeftAt : match.player2LeftAt;
   const opponentLeftAt = isPlayer1 ? match.player2LeftAt : match.player1LeftAt;
-  const me = await prisma.user.findUnique({ where: { id: userId }, select: { hideOpponentRating: true, zenMode: true } });
+  const me = await prisma.user.findUnique({ where: { id: userId }, select: { zenMode: true } });
   const zenMode = me?.zenMode ?? false;
   const displayName = zenMode ? "Opponent" : opponent.username;
 
@@ -536,7 +536,7 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
                 )}
               </p>
             )}
-            {!zenMode && !me?.hideOpponentRating && (
+            {!zenMode && (
               <p className="text-sm text-muted-foreground tabular-nums">{opponent.rating} rating</p>
             )}
             {!zenMode && topCharacters.length > 0 && (

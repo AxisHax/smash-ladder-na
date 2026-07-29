@@ -159,8 +159,7 @@ model User {
   practiceRating          Int     @default(1500) // separate Elo track for matches joined with isPracticing — never touches `rating`/`gamesPlayed`
   practiceGamesPlayed     Int     @default(0)
   avoidPracticeOpponents  Boolean @default(false) // self-declared; a non-practicing queuer with this on never pairs with an isPracticing entry
-  hideOpponentRating      Boolean @default(false) // self-declared display preference — hides the matched opponent's rating from this player's own lobby view. Doesn't affect matchmaking or what the opponent sees of THIS player's rating.
-  zenMode                Boolean @default(false) // self-declared display preference — hides the opponent's rating, username, characters, and avatar; replaces opponent's name with "Opponent" in chat too.
+  zenMode                Boolean @default(false) // self-declared display preference — hides the opponent's rating, username, characters, and avatar; replaces opponent's name with "Opponent" in chat too. Superseded the older, narrower hideOpponentRating toggle.
   startggUserId        String?    @unique // start.gg's own user id — set only via OAuth (user.identity scope) in lib/startgg-oauth.ts, replacing the old self-declared URL so a profile can't be claimed by someone else
   startggSlug          String? // e.g. "user/abc123" — builds the profile link (https://start.gg/{slug})
   startggGamerTag      String? // display tag from start.gg's player object, if the account has one
