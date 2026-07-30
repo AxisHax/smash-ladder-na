@@ -7,6 +7,7 @@ import {
   Gamepad2,
   Gauge,
   LogOut,
+  Radio,
   Search,
   Settings,
   Shield,
@@ -128,6 +129,14 @@ export async function SiteHeader() {
             >
               <Swords className="size-3.5" />
               Lobby
+            </Link>
+            <Link
+              href="/sets"
+              prefetch={false}
+              className="flex items-center gap-1.5 hover:text-foreground"
+            >
+              <Radio className="size-3.5" />
+              Sets
             </Link>
             <Link
               href="/leaderboard"

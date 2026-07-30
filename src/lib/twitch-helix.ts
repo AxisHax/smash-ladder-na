@@ -59,3 +59,42 @@ export async function isTwitchLive(username: string): Promise<boolean> {
     return false;
   }
 }
+
+// Helix caps /streams at 100 user_login params per request. Batched version
+// of isTwitchLive above, for checking many usernames (e.g. a match feed) in
+// one or two round trips instead of one call per player — same fail-closed
+// behavior, just per-batch so one bad chunk doesn't blank out the rest.
+const STREAMS_BATCH_SIZE = 100;
+
+export async function getLiveTwitchUsernames(usernames: string[]): Promise<Set<string>> {
+  const clientId = process.env.TWITCH_OAUTH_CLIENT_ID;
+  const clientSecret = process.env.TWITCH_OAUTH_CLIENT_SECRET;
+  const unique = [...new Set(usernames.map((u) => u.toLowerCase()))];
+  if (!clientId || !clientSecret || unique.length === 0) return new Set();
+
+  const token = await getAppAccessToken(clientId, clientSecret);
+  if (!token) return new Set();
+
+  const live = new Set<string>();
+  for (let i = 0; i < unique.length; i += STREAMS_BATCH_SIZE) {
+    const batch = unique.slice(i, i + STREAMS_BATCH_SIZE);
+    const params = new URLSearchParams();
+    for (const username of batch) params.append("user_login", username);
+
+    try {
+      const res = await fetch(`${STREAMS_URL}?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}`, "Client-Id": clientId },
+        cache: "no-store",
+      });
+      if (!res.ok) continue;
+
+      const json = (await res.json()) as { data?: { user_login?: string }[] };
+      for (const stream of json.data ?? []) {
+        if (stream.user_login) live.add(stream.user_login.toLowerCase());
+      }
+    } catch {
+      // Fail closed for this batch only — other batches still get a chance.
+    }
+  }
+  return live;
+}
