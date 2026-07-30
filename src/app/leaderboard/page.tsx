@@ -114,7 +114,18 @@ export default async function LeaderboardPage({
         </Button>
       </form>
 
-      <Card className="mt-6 overflow-hidden py-0">
+      {totalCount > 0 && (
+        <PaginationBar
+          page={page}
+          totalPages={totalPages}
+          totalCount={totalCount}
+          character={isValidCharacter ? character : undefined}
+          query={query || undefined}
+          region={isValidRegion ? region : undefined}
+        />
+      )}
+
+      <Card className="mt-4 overflow-hidden py-0">
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-border text-muted-foreground">
@@ -182,41 +193,73 @@ export default async function LeaderboardPage({
         )}
       </Card>
 
-      {totalCount > 0 && (
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-          <Badge variant="outline">
-            {totalCount} ranked player{totalCount === 1 ? "" : "s"}
-          </Badge>
-          {totalPages > 1 && (
-            <div className="flex items-center gap-2 text-sm">
-              <PageLink
-                page={page - 1}
-                character={isValidCharacter ? character : undefined}
-                query={query || undefined}
-                region={isValidRegion ? region : undefined}
-                disabled={page <= 1}
-              >
-                ← Previous
-              </PageLink>
-              <span className="text-muted-foreground tabular-nums">
-                Page {page} of {totalPages}
-              </span>
-              <PageLink
-                page={page + 1}
-                character={isValidCharacter ? character : undefined}
-                query={query || undefined}
-                region={isValidRegion ? region : undefined}
-                disabled={page >= totalPages}
-              >
-                Next →
-              </PageLink>
-            </div>
-          )}
-        </div>
-      )}
-
       <AdSlot slot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_LEADERBOARD} />
     </main>
+  );
+}
+
+function PaginationBar({
+  page,
+  totalPages,
+  totalCount,
+  character,
+  query,
+  region,
+}: {
+  page: number;
+  totalPages: number;
+  totalCount: number;
+  character?: string;
+  query?: string;
+  region?: string;
+}) {
+  return (
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+      <Badge variant="outline">
+        {totalCount} ranked player{totalCount === 1 ? "" : "s"}
+      </Badge>
+      {totalPages > 1 && (
+        <div className="flex items-center gap-3 text-sm">
+          <div className="flex items-center gap-2">
+            <PageLink page={page - 1} character={character} query={query} region={region} disabled={page <= 1}>
+              ← Previous
+            </PageLink>
+            <span className="text-muted-foreground tabular-nums">
+              Page {page} of {totalPages}
+            </span>
+            <PageLink
+              page={page + 1}
+              character={character}
+              query={query}
+              region={region}
+              disabled={page >= totalPages}
+            >
+              Next →
+            </PageLink>
+          </div>
+          <form method="get" className="flex items-center gap-1.5">
+            {character && <input type="hidden" name="character" value={character} />}
+            {query && <input type="hidden" name="q" value={query} />}
+            {region && <input type="hidden" name="region" value={region} />}
+            <label htmlFor="leaderboard-page-jump" className="sr-only">
+              Jump to page
+            </label>
+            <input
+              id="leaderboard-page-jump"
+              type="number"
+              name="page"
+              min={1}
+              max={totalPages}
+              defaultValue={page}
+              className="h-8 w-16 rounded-lg border border-border bg-background px-2 text-sm text-foreground outline-none tabular-nums focus-visible:border-ring"
+            />
+            <Button type="submit" size="sm" variant="outline">
+              Go
+            </Button>
+          </form>
+        </div>
+      )}
+    </div>
   );
 }
 
