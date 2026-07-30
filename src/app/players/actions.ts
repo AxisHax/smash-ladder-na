@@ -8,6 +8,7 @@ import { adminOverrideMatchResult, requestResultCorrection } from "@/lib/matches
 import { adminCancelMatch } from "@/lib/disputes";
 import { moderateUserDirectly } from "@/lib/reports";
 import { banIp } from "@/lib/ip-bans";
+import { listMatchComments } from "@/lib/match-comments";
 
 async function requireModerator() {
   const session = await auth();
@@ -167,4 +168,21 @@ export async function adminUndoMatchAction(
   }
   revalidatePath(`/players/${viewedPlayerId}`);
   return { error: null };
+}
+
+// Fetched on demand (not preloaded with the rest of match history) — a long
+// career could have hundreds of past matches, and most chat logs never get
+// revisited. listMatchComments already restricts this to the match's two
+// participants regardless of how long ago it confirmed, so no extra check
+// needed here beyond being signed in.
+export async function getMatchChatLogAction(matchId: string) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Not signed in");
+  const comments = await listMatchComments(session.user.id, matchId);
+  return comments.map((c) => ({
+    id: c.id,
+    author: { username: c.author.username },
+    body: c.body,
+    createdAt: c.createdAt.toISOString(),
+  }));
 }

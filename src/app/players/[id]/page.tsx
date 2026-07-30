@@ -25,6 +25,7 @@ import { LocalTime } from "@/components/local-time";
 import { DeleteAccountButton } from "@/components/delete-account-button";
 import { BlockUserButton } from "@/components/block-user-button";
 import { RequestCorrectionForm } from "@/components/request-correction-form";
+import { MatchChatLog } from "@/components/match-chat-log";
 import { AdminMatchOverride, BanIpButton, ModerationStatusForm } from "@/components/moderation-tools";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -39,6 +40,7 @@ import {
   banPlayerIpAction,
   blockUserAction,
   deleteAccountAction,
+  getMatchChatLogAction,
   moderateUserAction,
   requestCorrectionAction,
 } from "../actions";
@@ -326,6 +328,7 @@ export default async function PlayerProfilePage({
                   </span>
                   {match.confirmedAt && <LocalTime iso={match.confirmedAt.toISOString()} />}
                 </div>
+                {isOwnProfile && <MatchChatLog action={getMatchChatLogAction.bind(null, match.id)} />}
                 {isOwnProfile && i === 0 && (
                   <RequestCorrectionForm
                     action={requestCorrectionAction.bind(null, match.id)}
