@@ -176,8 +176,36 @@ function notPracticingFor(userId: string) {
   ];
 }
 
+// Today's win/loss record — used by the stream overlay so viewers see
+// how the player is doing for that session, not their career totals.
+export async function getDailyStats(userId: string) {
+  const todayStart = new Date();
+  todayStart.setUTCHours(0, 0, 0, 0);
+
+  const [wins, losses] = await Promise.all([
+    prisma.ratingMatch.count({
+      where: {
+        status: MatchStatus.CONFIRMED,
+        reportedWinnerId: userId,
+        confirmedAt: { gte: todayStart },
+        OR: notPracticingFor(userId),
+      },
+    }),
+    prisma.ratingMatch.count({
+      where: {
+        status: MatchStatus.CONFIRMED,
+        confirmedAt: { gte: todayStart },
+        OR: notPracticingFor(userId),
+        NOT: { reportedWinnerId: userId },
+      },
+    }),
+  ]);
+
+  return { totalWins: wins, totalLosses: losses };
+}
+
 // Deliberately NOT reset by endActiveSeasonAndStartNext — only rating and
-// gamesPlayed reset there. These read from history that survives forever,
+// gamesPlayed reset there. These read from history that survives everywhere,
 // so a player has something that keeps growing across season resets.
 export async function getCareerStats(userId: string) {
   const [wins, losses, peakRating, seasons, tournaments, resultsInOrder] = await Promise.all([

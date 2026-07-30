@@ -4,7 +4,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { Button } from "@/components/ui/button";
-import { CopyButton } from "@/components/copy-button";
+import { OverlayUrlToggle } from "@/components/overlay-url-toggle";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArenaPasswordForm } from "@/components/arena-password-form";
 import { UsernameForm } from "@/components/username-form";
@@ -170,11 +170,8 @@ function StreamOverlayCard({ userId, host, protocol }: { userId: string; host: s
         Use this URL as an OBS Browser Source (set to <strong>1920 x 1080</strong>) to show your
         rating, recent matches, and current match info on stream.
       </p>
-      <div className="mt-1 flex items-center gap-2">
-        <code className="rounded-md border border-border bg-muted px-2 py-1 text-xs font-mono break-all max-w-full">
-          {overlayUrl}
-        </code>
-        <CopyButton text={overlayUrl} />
+      <div className="mt-3">
+        <OverlayUrlToggle baseUrl={overlayUrl} />
       </div>
     </div>
   );
