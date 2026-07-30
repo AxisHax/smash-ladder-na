@@ -41,6 +41,7 @@ import {
   blockUserAction,
   deleteAccountAction,
   getMatchChatLogAction,
+  getMatchChatLogAsModAction,
   moderateUserAction,
   requestCorrectionAction,
 } from "../actions";
@@ -329,6 +330,9 @@ export default async function PlayerProfilePage({
                   {match.confirmedAt && <LocalTime iso={match.confirmedAt.toISOString()} />}
                 </div>
                 {isOwnProfile && <MatchChatLog action={getMatchChatLogAction.bind(null, match.id)} />}
+                {isModerator && !isOwnProfile && (
+                  <MatchChatLog action={getMatchChatLogAsModAction.bind(null, match.id)} />
+                )}
                 {isOwnProfile && i === 0 && (
                   <RequestCorrectionForm
                     action={requestCorrectionAction.bind(null, match.id)}

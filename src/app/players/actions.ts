@@ -8,7 +8,7 @@ import { adminOverrideMatchResult, requestResultCorrection } from "@/lib/matches
 import { adminCancelMatch } from "@/lib/disputes";
 import { moderateUserDirectly } from "@/lib/reports";
 import { banIp } from "@/lib/ip-bans";
-import { listMatchComments } from "@/lib/match-comments";
+import { listMatchComments, listMatchCommentsAsMod } from "@/lib/match-comments";
 
 async function requireModerator() {
   const session = await auth();
@@ -170,6 +170,15 @@ export async function adminUndoMatchAction(
   return { error: null };
 }
 
+function serializeComments(comments: { id: string; author: { username: string }; body: string; createdAt: Date }[]) {
+  return comments.map((c) => ({
+    id: c.id,
+    author: { username: c.author.username },
+    body: c.body,
+    createdAt: c.createdAt.toISOString(),
+  }));
+}
+
 // Fetched on demand (not preloaded with the rest of match history) — a long
 // career could have hundreds of past matches, and most chat logs never get
 // revisited. listMatchComments already restricts this to the match's two
@@ -179,10 +188,15 @@ export async function getMatchChatLogAction(matchId: string) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Not signed in");
   const comments = await listMatchComments(session.user.id, matchId);
-  return comments.map((c) => ({
-    id: c.id,
-    author: { username: c.author.username },
-    body: c.body,
-    createdAt: c.createdAt.toISOString(),
-  }));
+  return serializeComments(comments);
+}
+
+// Mod spectator path — same reasoning as listMatchCommentsAsMod (used for
+// still-live matches on the Live matches page), just extended to any past
+// match too now that mods can review an already-completed set's chat from
+// the player's profile page, not just while it's in progress.
+export async function getMatchChatLogAsModAction(matchId: string) {
+  await requireModerator();
+  const comments = await listMatchCommentsAsMod(matchId);
+  return serializeComments(comments);
 }
