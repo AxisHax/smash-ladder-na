@@ -4,6 +4,7 @@ import { Loader2, Swords, Users } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { getActiveLobbyEntry, getLobbyActivityStats } from "@/lib/lobby";
+import { getUnresolvedMatchForUser } from "@/lib/matches";
 import { shouldPollLobby } from "@/lib/lobby-poll";
 import { currentStreak, getPlayerMatchHistory, getTopCharacters } from "@/lib/players";
 import {
@@ -439,6 +440,12 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
   const displayName = zenMode ? "Opponent" : opponent.username;
 
   if (match.status === "CONFIRMED" || match.status === "CANCELLED" || match.status === "EXPIRED") {
+    // Opponent may have queued into (and already be playing) a new match since
+    // this one ended — a stale rematch request would otherwise just sit there
+    // showing "Waiting…" forever, since requestRematch silently no-ops in that
+    // case (see the eitherAlreadyPlaying check in lib/matches.ts).
+    const opponentUnavailable =
+      !myLeftAt && !opponentLeftAt ? !!(await getUnresolvedMatchForUser(opponent.id)) : false;
     const chat = (
       <CommentsSection
         userId={userId}
@@ -464,6 +471,7 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
                 myRequestedAt={isPlayer1 ? match.player1RematchRequestedAt : match.player2RematchRequestedAt}
                 opponentRequestedAt={isPlayer1 ? match.player2RematchRequestedAt : match.player1RematchRequestedAt}
                 opponentLeftAt={opponentLeftAt}
+                opponentUnavailable={opponentUnavailable}
               />
               <form action={leaveMatchAction.bind(null, match.id)} className="ml-auto">
                 <Button type="submit" variant="outline" size="sm">
@@ -1138,19 +1146,38 @@ function RematchSection({
   myRequestedAt,
   opponentRequestedAt,
   opponentLeftAt,
+  opponentUnavailable,
 }: {
   matchId: string;
   opponentName: string;
   myRequestedAt: Date | null;
   opponentRequestedAt: Date | null;
   opponentLeftAt: Date | null;
+  opponentUnavailable: boolean;
 }) {
-  if (opponentLeftAt) return null;
+  if (opponentLeftAt) {
+    return <p className="text-xs text-muted-foreground">{opponentName} has left — rematch unavailable.</p>;
+  }
 
   if (myRequestedAt) {
+    if (opponentUnavailable) {
+      return (
+        <p className="text-xs text-muted-foreground">
+          {opponentName} is no longer available — they&apos;ve moved on to another match.
+        </p>
+      );
+    }
     return (
       <p className="text-xs text-muted-foreground">
         Waiting for {opponentName} to accept the rematch…
+      </p>
+    );
+  }
+
+  if (opponentUnavailable) {
+    return (
+      <p className="text-xs text-muted-foreground">
+        {opponentName} is no longer available — they&apos;ve moved on to another match.
       </p>
     );
   }
