@@ -262,9 +262,13 @@ function distanceKm(a: [number, number], b: [number, number]) {
 // `km` values are what's actually stored and compared against, unchanged.
 export const MATCH_DISTANCE_PRESETS = [
   { label: "Same region only", km: 0 },
+  { label: "Very close (~500 mi)", km: 800 },
   { label: "Nearby (~1,250 mi)", km: 2000 },
+  { label: "Moderate (~2,000 mi)", km: 3200 },
   { label: "Extended (~3,100 mi)", km: 5000 },
+  { label: "Wide (~4,500 mi)", km: 7200 },
   { label: "Long-range (~6,200 mi)", km: 10000 },
+  { label: "Very long-range (~9,300 mi)", km: 15000 },
   { label: "Worldwide", km: null },
 ] as const;
 
