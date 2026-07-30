@@ -54,7 +54,12 @@ export async function getLeaderboardPlayers(
     prisma.user.count({ where }),
     prisma.user.findMany({
       where,
-      orderBy: { rating: "desc" },
+      // A rating-only sort leaves ties in DB-dependent (effectively
+      // undefined) order — harmless for a single unpaginated render, but
+      // skip/take pagination over an unstable order can duplicate or drop a
+      // tied row across page boundaries. `id` is a stable, arbitrary
+      // tiebreaker that just needs to be consistent, not meaningful.
+      orderBy: [{ rating: "desc" }, { id: "asc" }],
       select: {
         id: true,
         username: true,
