@@ -41,7 +41,7 @@ export function MatchChatLog({ action }: { action: () => Promise<Comment[]> }) {
   }
 
   return (
-    <div className="mt-1.5 max-h-48 rounded-lg border border-border bg-muted/30 p-2">
+    <div className="mt-1.5 max-h-48 overflow-y-auto rounded-lg border border-border bg-muted/30 p-2">
       {state.status === "loading" && <p className="text-xs text-muted-foreground">Loading…</p>}
       {state.status === "error" && (
         <p className="text-xs text-destructive">Couldn&apos;t load chat log — try again.</p>
