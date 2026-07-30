@@ -4,7 +4,7 @@ import { Loader2, Swords, Users } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { getActiveLobbyEntry, getLobbyActivityStats } from "@/lib/lobby";
-import { getUnresolvedMatchForUser } from "@/lib/matches";
+import { getUnresolvedMatchForUser, hasOpponentEngaged } from "@/lib/matches";
 import { shouldPollLobby } from "@/lib/lobby-poll";
 import { currentStreak, getPlayerMatchHistory, getTopCharacters } from "@/lib/players";
 import {
@@ -37,7 +37,7 @@ import { Countdown } from "@/components/countdown";
 import { LobbyPoller } from "@/components/lobby-poller";
 import { JoinLobbyForm } from "@/components/join-lobby-button";
 import { QueueCooldownGate } from "@/components/queue-cooldown-gate";
-import { CancelMatchButton } from "@/components/cancel-match-button";
+import { CancelOrSurrenderButton } from "@/components/cancel-or-surrender-button";
 import { SameBansButton } from "@/components/same-bans-button";
 import { VictoryCelebration } from "@/components/victory-celebration";
 import { DisputeResolutionForm } from "@/components/dispute-resolution-form";
@@ -66,6 +66,7 @@ import {
   sendMatchCommentAction,
   strikeStage,
   submitRoomCode,
+  surrenderMatchAction,
   unstrikeStage,
   updateAvoidPracticeOpponents,
   updateMaxMatchDistance,
@@ -498,6 +499,7 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
   const topCharacters = await getTopCharacters(opponent.id);
   const myTopCharacter = (await getTopCharacters(userId, 1))[0] ?? null;
   const opponentStreak = currentStreak(await getPlayerMatchHistory(opponent.id));
+  const opponentEngaged = await hasOpponentEngaged(match.id, opponent.id, match.roomCodeSetById);
   const wins = { me: 0, opponent: 0 };
   for (const g of games) {
     if (g.winnerId === userId) wins.me++;
@@ -610,7 +612,12 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
         )}
 
         {match.status === "PENDING_REPORT" || match.status === "REPORTED" ? (
-          <MatchFooterActions match={match} isPlayer1={isPlayer1} opponentName={displayName} />
+          <MatchFooterActions
+            match={match}
+            isPlayer1={isPlayer1}
+            opponentName={displayName}
+            opponentEngaged={opponentEngaged}
+          />
         ) : (
           <CardContent className="border-t border-border pt-4">
             <p className="text-sm text-muted-foreground">
@@ -630,19 +637,26 @@ function MatchFooterActions({
   match,
   isPlayer1,
   opponentName,
+  opponentEngaged,
 }: {
   match: Match;
   isPlayer1: boolean;
   opponentName: string;
+  opponentEngaged: boolean;
 }) {
   return (
     <CardContent className="flex flex-col gap-3 border-t border-border pt-4">
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-muted-foreground">
-          Problem with this match? Cancel it or report your opponent.
+          {opponentEngaged
+            ? `${opponentName} has already started this match, so backing out now counts as a surrender (a loss) instead of a free cancel.`
+            : `${opponentName} hasn't shown up yet — cancelling now is free.`}
         </p>
         {(match.status === "PENDING_REPORT" || match.status === "REPORTED") && (
-          <CancelMatchButton action={cancelMatchInProgress.bind(null, match.id)} />
+          <CancelOrSurrenderButton
+            mode={opponentEngaged ? "surrender" : "cancel"}
+            action={opponentEngaged ? surrenderMatchAction.bind(null, match.id) : cancelMatchInProgress.bind(null, match.id)}
+          />
         )}
       </div>
       <div className="flex items-center justify-between gap-2">

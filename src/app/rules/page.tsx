@@ -111,22 +111,31 @@ export default function RulesPage() {
 
         <Section title="Canceling a match">
           <p>
-            Use the cancel button for legitimate reasons — the opponent disappeared, a real
-            emergency came up, or the connection made the set unplayable. Canceling to dodge a
-            bad matchup, a rating gap, or an inconvenient character isn&apos;t a legitimate reason,
-            and a pattern of it is reportable. Canceled matches carry no rating impact but are
-            logged against the canceling player&apos;s account. A high enough cancel rate triggers
-            an automatic Discord warning, and canceling well beyond that suspends the account for
-            24 hours — ranked play still works while suspended, but free battle and filing new
-            conduct reports don&apos;t.
+            The cancel button is free — no rating impact — but only while your opponent genuinely
+            hasn&apos;t shown up yet (no chat message, no character locked in, no stage strike, no
+            room code entered). The moment they&apos;ve done any of that, the same button becomes
+            <strong> Surrender</strong> instead: backing out from then on counts as an actual loss
+            and moves your rating exactly like losing the set would. This is deliberate — it&apos;s
+            what stops canceling from being a free way to dodge a bad matchup, a rating gap, or an
+            opponent you&apos;d rather not play, while still leaving a real, no-cost way out of a
+            match where the other side never showed up at all. The page always tells you which one
+            you&apos;re about to click.
           </p>
           <p>
-            The one-sided cancel button only works before anything&apos;s happened in the set —
-            once a game has a decided winner, or either side has reported one, it stops working.
-            At that point, report the result or dispute it instead — unless you and your opponent
-            both want to call it off, in which case either of you can request a mutual cancel from
-            the match screen; once the other side agrees, it cancels immediately with no rating
-            impact for either player, no matter how far the set got.
+            A free cancel (opponent hasn&apos;t shown up) is still logged against the canceling
+            player&apos;s account. A high enough cancel rate triggers an automatic Discord warning,
+            and canceling well beyond that suspends the account for 24 hours — ranked play still
+            works while suspended, but free battle and filing new conduct reports don&apos;t.
+            Surrendering doesn&apos;t count toward this — it already costs rating, so there&apos;s
+            no separate penalty on top.
+          </p>
+          <p>
+            Both the free cancel and Surrender only work before anything&apos;s been decided in
+            the set — once a game has a decided winner, or either side has reported one, neither
+            works anymore. At that point, report the result or dispute it instead — unless you and
+            your opponent both want to call it off, in which case either of you can request a
+            mutual cancel from the match screen; once the other side agrees, it cancels immediately
+            with no rating impact for either player, no matter how far the set got.
           </p>
         </Section>
 

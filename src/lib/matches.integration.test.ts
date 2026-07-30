@@ -5,11 +5,13 @@ import {
   adminOverrideMatchResult,
   applyEloAndConfirm,
   cancelMatch,
+  hasOpponentEngaged,
   leaveMatch,
   requestMutualCancel,
   requestRematch,
   requestResultCorrection,
   resolveMatchCorrection,
+  surrenderMatch,
 } from "@/lib/matches";
 import { reportGameResult } from "@/lib/match-games";
 import { blockUser } from "@/lib/blocks";
@@ -425,6 +427,181 @@ describe("cancelMatch", () => {
 
     const updated = await prisma.user.findUniqueOrThrow({ where: { id: canceller.id } });
     expect(updated.status).toBe(UserStatus.BANNED);
+  });
+
+  it("stays free when only the canceller (not the opponent) has acted", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+    // p2 (the canceller) locked in a character; p1 (the opponent) never touched it.
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 1,
+        actorAId: p1.id,
+        actorAStrikes: 1,
+        actorBId: p2.id,
+        actorBStrikes: 2,
+        actorBCharacter: "Mario",
+        stagesRemaining: [],
+      },
+    });
+
+    await cancelMatch(p2.id, match.id);
+
+    const updated = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(updated.status).toBe(MatchStatus.CANCELLED);
+  });
+
+  it("blocks the free cancel once the opponent has locked in a character", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 1,
+        actorAId: p1.id,
+        actorAStrikes: 1,
+        actorBId: p2.id,
+        actorBStrikes: 2,
+        actorBCharacter: "Fox",
+        stagesRemaining: [],
+      },
+    });
+
+    await expect(cancelMatch(p1.id, match.id)).rejects.toThrow(/no longer free/i);
+  });
+
+  it("blocks the free cancel once the opponent has struck a stage", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+    // p1 is actorA (strikes first) — one struck stage means p1 (the opponent
+    // of p2 here) has acted.
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 1,
+        actorAId: p1.id,
+        actorAStrikes: 1,
+        actorBId: p2.id,
+        actorBStrikes: 2,
+        struckStages: ["Battlefield"],
+        stagesRemaining: ["Final Destination"],
+      },
+    });
+
+    await expect(cancelMatch(p2.id, match.id)).rejects.toThrow(/no longer free/i);
+  });
+
+  it("blocks the free cancel once the opponent has sent a chat message", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+    await prisma.matchComment.create({ data: { matchId: match.id, authorId: p2.id, body: "gl hf" } });
+
+    await expect(cancelMatch(p1.id, match.id)).rejects.toThrow(/no longer free/i);
+  });
+
+  it("blocks the free cancel once the opponent has set the room code", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: {
+        player1Id: p1.id,
+        player2Id: p2.id,
+        status: MatchStatus.PENDING_REPORT,
+        expiresAt: new Date(),
+        roomCode: "ABC123",
+        roomCodeSetById: p2.id,
+      },
+    });
+
+    await expect(cancelMatch(p1.id, match.id)).rejects.toThrow(/no longer free/i);
+  });
+});
+
+describe("hasOpponentEngaged", () => {
+  it("returns false for a match with no game, comments, or room code", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+
+    expect(await hasOpponentEngaged(match.id, p2.id, null)).toBe(false);
+  });
+});
+
+describe("surrenderMatch", () => {
+  it("applies Elo as a loss for the surrendering player and a win for the opponent", async () => {
+    const surrenderer = await createTestUser({ rating: 1500, gamesPlayed: 10 });
+    const opponent = await createTestUser({ rating: 1500, gamesPlayed: 10 });
+    const match = await prisma.ratingMatch.create({
+      data: {
+        player1Id: surrenderer.id,
+        player2Id: opponent.id,
+        status: MatchStatus.PENDING_REPORT,
+        expiresAt: new Date(),
+      },
+    });
+
+    await surrenderMatch(surrenderer.id, match.id);
+
+    const updatedMatch = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(updatedMatch.status).toBe(MatchStatus.CONFIRMED);
+    expect(updatedMatch.confirmationMethod).toBe(ConfirmationMethod.SURRENDER);
+    expect(updatedMatch.reportedWinnerId).toBe(opponent.id);
+    expect(updatedMatch.reportedById).toBe(surrenderer.id);
+
+    const updatedSurrenderer = await prisma.user.findUniqueOrThrow({ where: { id: surrenderer.id } });
+    const updatedOpponent = await prisma.user.findUniqueOrThrow({ where: { id: opponent.id } });
+    expect(updatedSurrenderer.rating).toBeLessThan(1500);
+    expect(updatedOpponent.rating).toBeGreaterThan(1500);
+    // A surrender is a real result, not a free dodge — it shouldn't feed the
+    // cancelCount-based warning/suspend machinery on top of the Elo hit.
+    expect(updatedSurrenderer.cancelCount).toBe(0);
+  });
+
+  it("blocks surrendering once a game has been decided", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 1,
+        actorAId: p1.id,
+        actorAStrikes: 1,
+        actorBId: p2.id,
+        actorBStrikes: 2,
+        winnerId: p1.id,
+      },
+    });
+
+    await expect(surrenderMatch(p2.id, match.id)).rejects.toThrow(/decided or reported/i);
+  });
+
+  it("rejects a non-participant", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const outsider = await createTestUser();
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: p1.id, player2Id: p2.id, status: MatchStatus.PENDING_REPORT, expiresAt: new Date() },
+    });
+
+    await expect(surrenderMatch(outsider.id, match.id)).rejects.toThrow(/not a participant/i);
   });
 });
 

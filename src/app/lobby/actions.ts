@@ -26,7 +26,7 @@ import {
   unstrikeLastGameStage,
 } from "@/lib/match-games";
 import { postMatchComment } from "@/lib/match-comments";
-import { cancelMatch, leaveMatch, requestMutualCancel, requestRematch } from "@/lib/matches";
+import { cancelMatch, leaveMatch, requestMutualCancel, requestRematch, surrenderMatch } from "@/lib/matches";
 import { requestDisputeResolution } from "@/lib/disputes";
 import { fileConnectionReport, fileMatchReport } from "@/lib/reports";
 import { prisma } from "@/lib/db";
@@ -255,6 +255,27 @@ export async function cancelMatchInProgress(
   const userId = await requireUserId();
   try {
     await cancelMatch(userId, matchId);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
+  }
+  revalidatePath("/lobby");
+  return { error: null };
+}
+
+// Same (prevState, formData) shape as cancelMatchInProgress above, for the
+// same useActionState reason — surrendering can also be rejected (e.g. a
+// game got decided/reported between render and submit) and needs an inline
+// error instead of crashing to the generic error overlay.
+export async function surrenderMatchAction(
+  matchId: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- required by useActionState's call signature
+  _prevState: CancelMatchState,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- required by useActionState's call signature
+  _formData: FormData,
+): Promise<CancelMatchState> {
+  const userId = await requireUserId();
+  try {
+    await surrenderMatch(userId, matchId);
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Something went wrong — try again." };
   }

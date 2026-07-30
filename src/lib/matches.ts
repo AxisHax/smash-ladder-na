@@ -43,15 +43,53 @@ export async function getLatestMatchForUser(userId: string) {
   });
 }
 
+// Distinguishes a genuinely-empty match (opponent hasn't shown up at all —
+// the legitimate AFK escape hatch cancelMatch exists for) from one where the
+// opponent has clearly engaged, in which case backing out should cost the
+// same as a real loss instead of being free (see surrenderMatch below).
+// Game 1 is the only game that can possibly exist while this is still
+// reachable — cancelMatch's own gameInProgress check already blocks entry
+// once game 1 has a winner, so games 2+ never come into play here.
+export async function hasOpponentEngaged(
+  matchId: string,
+  opponentId: string,
+  roomCodeSetById: string | null,
+): Promise<boolean> {
+  if (roomCodeSetById === opponentId) return true;
+
+  const [comment, game] = await Promise.all([
+    prisma.matchComment.findFirst({ where: { matchId, authorId: opponentId } }),
+    prisma.matchGame.findFirst({ where: { matchId, gameNumber: 1 } }),
+  ]);
+  if (comment) return true;
+  if (!game) return false;
+
+  const opponentIsActorA = game.actorAId === opponentId;
+  const opponentCharacterLocked = opponentIsActorA
+    ? game.actorACharacter !== null
+    : game.actorBCharacter !== null;
+  if (opponentCharacterLocked) return true;
+
+  // actorA always strikes first (see actorForStrike in lib/match-games.ts) —
+  // struckStages.length past actorA's own strike count means actorB has
+  // struck at least once.
+  return opponentIsActorA ? game.struckStages.length > 0 : game.struckStages.length > game.actorAStrikes;
+}
+
 // Either player can back out unilaterally while the set is still in
-// progress and nothing's actually happened yet — no rating impact either
-// way. Once any game has a decided winner OR someone's filed a report on
-// one (even if not yet finalized), cancelling is blocked: a player who's
-// losing (or has just been reported as having lost) shouldn't be able to
-// erase the set out from under a pending/decided result instead of
-// reporting or disputing it. (A real incident: a player down 2 games, with
-// the 4th already reported against them, cancelled instead of letting it
-// confirm — no Elo was ever applied for a match they'd clearly lost.)
+// progress and the opponent genuinely hasn't shown up yet (see
+// hasOpponentEngaged) — no rating impact, this is the AFK escape hatch.
+// Once the opponent has clearly engaged, use surrenderMatch instead — this
+// throws rather than silently charging Elo, since the caller (the lobby UI)
+// is expected to have already swapped to the Surrender button by then and a
+// mismatch here means something's stale. Once any game has a decided winner
+// OR someone's filed a report on one (even if not yet finalized), cancelling
+// is blocked entirely: a player who's losing (or has just been reported as
+// having lost) shouldn't be able to erase the set out from under a
+// pending/decided result instead of reporting or disputing it. (A real
+// incident: a player down 2 games, with the 4th already reported against
+// them, cancelled instead of letting it confirm — no Elo was ever applied
+// for a match they'd clearly lost.)
 export async function cancelMatch(userId: string, matchId: string) {
   const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
   if (!match) throw new Error("Match not found");
@@ -72,6 +110,13 @@ export async function cancelMatch(userId: string, matchId: string) {
   if (gameInProgress) {
     throw new Error(
       "Can't cancel once a game has been decided or reported — report the result or dispute it instead.",
+    );
+  }
+
+  const opponentId = match.player1Id === userId ? match.player2Id : match.player1Id;
+  if (await hasOpponentEngaged(matchId, opponentId, match.roomCodeSetById)) {
+    throw new Error(
+      "Your opponent has already started this match, so cancel is no longer free — use Surrender instead if you want to back out (it counts as a loss).",
     );
   }
 
@@ -117,6 +162,49 @@ export async function cancelMatch(userId: string, matchId: string) {
       `⚠️ Heads up — you've cancelled ${updatedUser.cancelCount} matches. Canceling to dodge a bad matchup, a rating gap, or an inconvenient character isn't a legitimate reason, and continuing this pattern will get your account automatically suspended. Please only cancel for real issues (opponent disappeared, an emergency, or the connection made the set unplayable).`,
     );
   }
+}
+
+// The other half of cancelMatch's split: once the opponent has clearly
+// engaged (hasOpponentEngaged), backing out isn't free anymore — it costs
+// the same Elo as an actual loss, applied through the same
+// applyEloAndConfirm path a real result would use. Doesn't touch
+// cancelCount/wired-trust/warning-suspend at all — that machinery exists to
+// catch free, zero-cost dodging, which this deliberately no longer is.
+// Same gameInProgress gate as cancelMatch: once a game's been decided or
+// reported, report/dispute takes over instead of either exit.
+export async function surrenderMatch(userId: string, matchId: string) {
+  const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
+  if (!match) throw new Error("Match not found");
+  if (match.player1Id !== userId && match.player2Id !== userId) {
+    throw new Error("Not a participant in this match");
+  }
+  if (match.status !== MatchStatus.PENDING_REPORT && match.status !== MatchStatus.REPORTED) {
+    throw new Error("This match can no longer be surrendered");
+  }
+
+  const gameInProgress = await prisma.matchGame.findFirst({
+    where: { matchId, OR: [{ winnerId: { not: null } }, { reportedById: { not: null } }] },
+  });
+  if (gameInProgress) {
+    throw new Error(
+      "Can't surrender once a game has been decided or reported — report the result or dispute it instead.",
+    );
+  }
+
+  const opponentId = match.player1Id === userId ? match.player2Id : match.player1Id;
+
+  await prisma.$transaction(async (tx) => {
+    // reportedWinnerId/reportedById drive getPlayerMatchHistory's win/loss
+    // badge and rivals record — applyEloAndConfirm itself doesn't set them
+    // (see adminForceConfirmMatch below for the same fix-up), so skipping
+    // this would show the winner as a loss on their own profile despite the
+    // rating gain going through correctly.
+    await tx.ratingMatch.update({
+      where: { id: matchId },
+      data: { reportedWinnerId: opponentId, reportedById: userId, reportedAt: new Date() },
+    });
+    await applyEloAndConfirm(tx, match, opponentId, ConfirmationMethod.SURRENDER, null);
+  });
 }
 
 // Once a game's been decided or reported, the one-sided cancelMatch above

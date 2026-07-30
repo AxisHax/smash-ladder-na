@@ -103,6 +103,7 @@ enum ConfirmationMethod {
   ADMIN_RESOLVED
   CORRECTED
   MUTUALLY_RESOLVED
+  SURRENDER
 }
 
 enum PostStatus {
