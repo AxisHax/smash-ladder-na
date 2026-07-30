@@ -1307,7 +1307,12 @@ function RoomCodeSection({
       <RoomCodeForm initialValue={initialValue} action={submitRoomCode.bind(null, matchId)} />
       <p className="text-xs text-muted-foreground">
         Set the in-game room password to{" "}
-        <span className="font-medium text-foreground">{hostArenaPassword}</span>.
+        <span className="font-medium text-foreground">{hostArenaPassword}</span> — this is your
+        default, you can{" "}
+        <Link href="/settings" className="underline hover:text-foreground">
+          change it in Settings
+        </Link>
+        .
       </p>
     </div>
   );

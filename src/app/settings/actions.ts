@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
-import { setAvoidPracticeOpponents, setRematchCooldown, setUsername } from "@/lib/account";
+import { setAvoidPracticeOpponents, setUsername } from "@/lib/account";
 import { setArenaPassword } from "@/lib/arena";
 import { setOwnCharacters } from "@/lib/character-stats";
 import { disconnectStartggAccount } from "@/lib/startgg-oauth";
@@ -34,13 +34,6 @@ export async function updateUsernameAction(
   revalidatePath(`/players/${userId}`);
   revalidatePath("/leaderboard");
   return { error: null, message: "Saved." };
-}
-
-export async function updateRematchCooldownSetting(rematchCooldownHours: number | null) {
-  const userId = await requireUserId();
-  await setRematchCooldown(userId, rematchCooldownHours);
-  revalidatePath("/settings");
-  revalidatePath("/lobby");
 }
 
 export async function updateAvoidPracticeOpponentsSetting(avoid: boolean) {

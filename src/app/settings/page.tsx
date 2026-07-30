@@ -9,7 +9,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ArenaPasswordForm } from "@/components/arena-password-form";
 import { UsernameForm } from "@/components/username-form";
 import { listBlockedUsers } from "@/lib/blocks";
-import { REMATCH_COOLDOWN_PRESETS } from "@/lib/rematch-cooldown";
 import { DEFAULT_ARENA_PASSWORD } from "@/lib/arena";
 import { startggProfileUrl } from "@/lib/startgg-oauth";
 import {
@@ -17,11 +16,8 @@ import {
   disconnectTwitchAction,
   updateArenaPassword,
   updateAvoidPracticeOpponentsSetting,
-  updateRematchCooldownSetting,
   updateUsernameAction,
 } from "./actions";
-
-const ANYTIME_VALUE = "anytime";
 
 export default async function SettingsPage({
   searchParams,
@@ -56,7 +52,6 @@ export default async function SettingsPage({
         twitchUsername: true,
         twitchDisplayName: true,
         twitchProfileImageUrl: true,
-        rematchCooldownHours: true,
         arenaPassword: true,
         avoidPracticeOpponents: true,
         mainCharacter: true,
@@ -108,12 +103,6 @@ export default async function SettingsPage({
             justConnected={startggConnected === "1"}
             error={startggError}
           />
-        </CardContent>
-      </Card>
-
-      <Card className="mt-4">
-        <CardContent className="pt-4">
-          <RematchCooldownForm defaultValue={me?.rematchCooldownHours ?? null} />
         </CardContent>
       </Card>
 
@@ -320,44 +309,6 @@ function AvoidPracticeOpponentsForm({ defaultValue }: { defaultValue: boolean })
             affect their rank — turn this on to skip those matches entirely.
           </span>
         </span>
-      </label>
-      <Button type="submit" size="sm">
-        Save
-      </Button>
-    </form>
-  );
-}
-
-function RematchCooldownForm({ defaultValue }: { defaultValue: number | null }) {
-  async function action(formData: FormData) {
-    "use server";
-    const value = String(formData.get("rematchCooldownHours") ?? "");
-    await updateRematchCooldownSetting(value === ANYTIME_VALUE ? null : Number(value));
-  }
-
-  return (
-    <form action={action} className="flex items-end gap-2">
-      <label className="flex flex-1 flex-col gap-1 text-sm">
-        Rematch cooldown
-        <span className="text-xs font-normal text-muted-foreground">
-          Minimum time before you can be matched with the same opponent again. Matching requires
-          BOTH players&apos; cooldown to have elapsed.
-        </span>
-        <select
-          name="rematchCooldownHours"
-          defaultValue={String(defaultValue ?? ANYTIME_VALUE)}
-          className="h-8 w-52 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
-        >
-          {REMATCH_COOLDOWN_PRESETS.map((preset) => (
-            <option
-              key={preset.label}
-              value={String(preset.hours ?? ANYTIME_VALUE)}
-              className="bg-background text-foreground"
-            >
-              {preset.label}
-            </option>
-          ))}
-        </select>
       </label>
       <Button type="submit" size="sm">
         Save
