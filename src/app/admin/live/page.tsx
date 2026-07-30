@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { ForceConfirmMatchForm } from "@/components/force-confirm-match-form";
 import { EditGameScoreForm } from "@/components/edit-game-score-form";
 import { CancelMatchButton } from "@/components/cancel-match-button";
+import { StreamRefreshPoller } from "@/components/stream-refresh-poller";
 import {
   forceConfirmMatchAction,
   postLiveMatchComment,
@@ -42,9 +43,10 @@ export default async function LiveMatchesPage() {
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
         Sets currently being played, plus recently-expired ones nobody reported — use &quot;Force
-        result&quot; to close out a set stuck with no report from either side. This page
-        doesn&apos;t auto-refresh — reload to see updates.
+        result&quot; to close out a set stuck with no report from either side. Refreshes
+        automatically every 5s, including chat — no need to reload or re-find your spot.
       </p>
+      <StreamRefreshPoller intervalMs={5000} />
 
       {matches.length === 0 && (
         <p className="mt-4 text-sm text-muted-foreground">No matches in progress right now.</p>
