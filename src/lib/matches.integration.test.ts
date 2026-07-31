@@ -572,7 +572,7 @@ describe("surrenderMatch", () => {
     expect(updatedSurrenderer.cancelCount).toBe(0);
   });
 
-  it("blocks surrendering once a game has been decided", async () => {
+  it("allows surrendering even after a game has been decided (unlike cancelMatch)", async () => {
     const p1 = await createTestUser();
     const p2 = await createTestUser();
     const match = await prisma.ratingMatch.create({
@@ -590,7 +590,11 @@ describe("surrenderMatch", () => {
       },
     });
 
-    await expect(surrenderMatch(p2.id, match.id)).rejects.toThrow(/decided or reported/i);
+    await surrenderMatch(p2.id, match.id);
+
+    const updated = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(updated.status).toBe(MatchStatus.CONFIRMED);
+    expect(updated.reportedWinnerId).toBe(p1.id);
   });
 
   it("rejects a non-participant", async () => {

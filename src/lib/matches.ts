@@ -170,8 +170,13 @@ export async function cancelMatch(userId: string, matchId: string) {
 // applyEloAndConfirm path a real result would use. Doesn't touch
 // cancelCount/wired-trust/warning-suspend at all — that machinery exists to
 // catch free, zero-cost dodging, which this deliberately no longer is.
-// Same gameInProgress gate as cancelMatch: once a game's been decided or
-// reported, report/dispute takes over instead of either exit.
+// Unlike cancelMatch, NOT gated on whether a game's been decided/reported —
+// surrendering never erases anything (it's still a real, counted loss), so
+// there's no version of the "dodge a loss by erasing the set" exploit
+// cancelMatch's gameInProgress check exists to block. A player down games
+// can concede immediately instead of playing out a lost set or waiting on
+// the opponent; the winner keeps their earned game wins as the historical
+// score even though the set stops short of a full report.
 export async function surrenderMatch(userId: string, matchId: string) {
   const match = await prisma.ratingMatch.findUnique({ where: { id: matchId } });
   if (!match) throw new Error("Match not found");
@@ -180,15 +185,6 @@ export async function surrenderMatch(userId: string, matchId: string) {
   }
   if (match.status !== MatchStatus.PENDING_REPORT && match.status !== MatchStatus.REPORTED) {
     throw new Error("This match can no longer be surrendered");
-  }
-
-  const gameInProgress = await prisma.matchGame.findFirst({
-    where: { matchId, OR: [{ winnerId: { not: null } }, { reportedById: { not: null } }] },
-  });
-  if (gameInProgress) {
-    throw new Error(
-      "Can't surrender once a game has been decided or reported — report the result or dispute it instead.",
-    );
   }
 
   const opponentId = match.player1Id === userId ? match.player2Id : match.player1Id;

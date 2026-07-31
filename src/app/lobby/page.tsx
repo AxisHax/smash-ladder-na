@@ -499,7 +499,14 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
   const topCharacters = await getTopCharacters(opponent.id);
   const myTopCharacter = (await getTopCharacters(userId, 1))[0] ?? null;
   const opponentStreak = currentStreak(await getPlayerMatchHistory(opponent.id));
-  const opponentEngaged = await hasOpponentEngaged(match.id, opponent.id, match.roomCodeSetById);
+  // Once any game's been decided or reported, cancelMatch is blocked
+  // outright (see its gameInProgress check) — surrenderMatch isn't, so the
+  // button always means "surrender" from that point on, no need to spend a
+  // query re-checking opponent engagement.
+  const gameDecided = games.some((g) => g.winnerId !== null || g.reportedById !== null);
+  const opponentEngaged = gameDecided
+    ? true
+    : await hasOpponentEngaged(match.id, opponent.id, match.roomCodeSetById);
   const wins = { me: 0, opponent: 0 };
   for (const g of games) {
     if (g.winnerId === userId) wins.me++;
@@ -617,6 +624,7 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
             isPlayer1={isPlayer1}
             opponentName={displayName}
             opponentEngaged={opponentEngaged}
+            gameDecided={gameDecided}
           />
         ) : (
           <CardContent className="border-t border-border pt-4">
@@ -638,19 +646,23 @@ function MatchFooterActions({
   isPlayer1,
   opponentName,
   opponentEngaged,
+  gameDecided,
 }: {
   match: Match;
   isPlayer1: boolean;
   opponentName: string;
   opponentEngaged: boolean;
+  gameDecided: boolean;
 }) {
   return (
     <CardContent className="flex flex-col gap-3 border-t border-border pt-4">
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-muted-foreground">
-          {opponentEngaged
-            ? `${opponentName} has already started this match, so backing out now counts as a surrender (a loss) instead of a free cancel.`
-            : `${opponentName} hasn't shown up yet — cancelling now is free.`}
+          {gameDecided
+            ? `A game's already been decided in this set, so backing out now always counts as a surrender (a loss). If ${opponentName} has gone quiet, you don't need to surrender for them — an unresponsive opponent auto-forfeits their turn after a few minutes and the set just continues.`
+            : opponentEngaged
+              ? `${opponentName} has already started this match, so backing out now counts as a surrender (a loss) instead of a free cancel.`
+              : `${opponentName} hasn't shown up yet — cancelling now is free.`}
         </p>
         {(match.status === "PENDING_REPORT" || match.status === "REPORTED") && (
           <CancelOrSurrenderButton
