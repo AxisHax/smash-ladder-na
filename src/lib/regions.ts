@@ -80,6 +80,7 @@ const CANADA_PROVINCES = [
 const REST_OF_WORLD = [
   "Mexico North",
   "Mexico Central",
+  "Caribbean",
   "Central America",
   "South America",
   "Europe West",
@@ -129,6 +130,7 @@ const REGION_COORDINATES: Record<string, [number, number]> = {
   "Canada Pacific": [49.3, -123.1],
   "Mexico North": [25.7, -100.3],
   "Mexico Central": [19.4, -99.1],
+  Caribbean: [18.2, -70.0],
   "Central America": [9.0, -79.5],
   "South America": [-23.5, -46.6],
   "Europe West": [48.9, 2.3],
@@ -222,6 +224,7 @@ export const REGION_REFERENCE_CITY: Partial<Record<MatchRegion, string>> = {
   "Canada Pacific": "Vancouver",
   "Mexico North": "Monterrey",
   "Mexico Central": "Mexico City",
+  Caribbean: "San Juan",
   "Central America": "Panama City",
   "South America": "São Paulo",
   "Europe West": "Paris",
