@@ -88,7 +88,13 @@ export default async function LobbyPage() {
     return (
       <main className="mx-auto max-w-2xl px-6 py-16">
         <PageTitle />
-        <ActivityLine waiting={activity.waiting} inMatch={activity.inMatch} matched={false} poll={false} />
+        <ActivityLine
+          waiting={activity.waiting}
+          inMatch={activity.inMatch}
+          matched={false}
+          isWaiting={false}
+          poll={false}
+        />
         <p className="mt-2 text-sm text-muted-foreground">
           Sign in with Discord (top right) to join the matchmaking lobby.
         </p>
@@ -130,6 +136,7 @@ export default async function LobbyPage() {
         waiting={activity.waiting}
         inMatch={activity.inMatch}
         matched={!!isInActiveMatch}
+        isWaiting={entry?.status === "WAITING"}
         poll={shouldPollLobby({
           isInActiveMatch: !!isInActiveMatch,
           isWaiting: entry?.status === "WAITING",
@@ -215,11 +222,13 @@ function ActivityLine({
   waiting,
   inMatch,
   matched,
+  isWaiting,
   poll,
 }: {
   waiting: number;
   inMatch: number;
   matched: boolean;
+  isWaiting: boolean;
   poll: boolean;
 }) {
   return (
@@ -234,7 +243,7 @@ function ActivityLine({
           </>
         )}
       </span>
-      {poll && <LobbyPoller matched={matched} />}
+      {poll && <LobbyPoller matched={matched} keepPollingInBackground={isWaiting} />}
     </div>
   );
 }
