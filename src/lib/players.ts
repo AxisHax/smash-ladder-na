@@ -61,7 +61,7 @@ export async function getPlayerMatchHistory(userId: string, limit = 20) {
   const matches = await prisma.ratingMatch.findMany({
     where: {
       status: MatchStatus.CONFIRMED,
-      OR: [{ player1Id: userId }, { player2Id: userId }],
+      OR: notPracticingFor(userId),
     },
     orderBy: { confirmedAt: "desc" },
     take: limit,
@@ -266,7 +266,7 @@ export async function getCareerStats(userId: string) {
 // Top opponents by games played against them, with the head-to-head record.
 export async function getTopRivals(userId: string, limit = 3) {
   const matches = await prisma.ratingMatch.findMany({
-    where: { status: MatchStatus.CONFIRMED, OR: [{ player1Id: userId }, { player2Id: userId }] },
+    where: { status: MatchStatus.CONFIRMED, OR: notPracticingFor(userId) },
     select: { player1Id: true, player2Id: true, reportedWinnerId: true },
   });
 

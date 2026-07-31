@@ -5,6 +5,7 @@ import {
   getCharacterUsage,
   getPlayerMatchHistory,
   getTopCharacters,
+  getTopRivals,
   isCurrentlyInMatch,
 } from "@/lib/players";
 import { MatchStatus } from "@/generated/prisma/enums";
@@ -366,5 +367,62 @@ describe("getPlayerMatchHistory", () => {
     expect(entry.score).toEqual({ wins: 0, losses: 0 });
     expect(entry.characters).toEqual([]);
     expect(entry.opponentCharacters).toEqual([]);
+  });
+
+  // Real bug: a practice win showed up in the "Recent matches" record (and
+  // its win-rate/streak badges, which are both derived from this list) even
+  // though it's excluded from getCareerStats' lifetime record — same match
+  // looked like a win in one place and didn't exist in the other, with no
+  // indication why. Practice matches must stay invisible to the main
+  // profile everywhere, not just in career totals.
+  it("excludes matches where the player's own side was practicing", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    await createConfirmedMatch(player.id, opponent.id, {
+      reportedWinnerId: player.id,
+      player1IsPracticing: true,
+    });
+    const realMatch = await createConfirmedMatch(player.id, opponent.id, { reportedWinnerId: opponent.id });
+
+    const history = await getPlayerMatchHistory(player.id);
+    expect(history).toHaveLength(1);
+    expect(history[0].id).toBe(realMatch.id);
+  });
+
+  it("still includes a match where only the opponent's side was practicing", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const match = await createConfirmedMatch(player.id, opponent.id, {
+      reportedWinnerId: player.id,
+      player2IsPracticing: true,
+    });
+
+    const history = await getPlayerMatchHistory(player.id);
+    expect(history).toHaveLength(1);
+    expect(history[0].id).toBe(match.id);
+  });
+});
+
+describe("getTopRivals", () => {
+  it("excludes matches where the player's own side was practicing", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    await createConfirmedMatch(player.id, opponent.id, {
+      reportedWinnerId: player.id,
+      player1IsPracticing: true,
+    });
+
+    const rivals = await getTopRivals(player.id);
+    expect(rivals).toEqual([]);
+  });
+
+  it("tallies wins and losses against the same opponent", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    await createConfirmedMatch(player.id, opponent.id, { reportedWinnerId: player.id });
+    await createConfirmedMatch(player.id, opponent.id, { reportedWinnerId: opponent.id });
+
+    const [rival] = await getTopRivals(player.id);
+    expect(rival).toMatchObject({ opponentId: opponent.id, wins: 1, losses: 1 });
   });
 });
