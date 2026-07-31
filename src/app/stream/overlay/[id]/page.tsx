@@ -165,11 +165,11 @@ export default async function StreamOverlayPage({
               <RankBadge
                 rating={user.rating}
                 gamesPlayed={user.gamesPlayed}
-                className="text-lg px-3 py-1"
+                className="text-lg px-3 py-1 text-white"
               />
             </div>
 
-            <div className="mt-1.5 flex items-center gap-5 text-2xl">
+            <div className="text-white mt-1.5 flex items-center gap-5 text-2xl">
               Today:
               <span className="text-emerald-400 font-semibold">
                 {dailyStats.totalWins}W
@@ -300,21 +300,14 @@ export default async function StreamOverlayPage({
       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1">
         <div className="rounded-2xl border border-white/10 bg-zinc-900/95 px-2 py-2 shadow-2xl backdrop-blur-sm">
           <Image
-            src="/smash_ladder_icon.png"
-            alt=""
-            width={256}
-            height={256}
-            className="size-24 block dark:hidden"
-          />
-          <Image
             src="/smash_ladder_icon_white.png"
             alt=""
             width={256}
             height={256}
-            className="size-24 hidden dark:block"
+            className="size-24 block"
           />
         </div>
-        <span className="rounded-t-2xl border border-white/10 bg-zinc-900/95 px-2 py-2 shadow-2xl backdrop-blur-sm text-3xl font-semibold tracking-tight">
+        <span className="text-white rounded-t-2xl border border-white/10 bg-zinc-900/95 px-2 py-2 shadow-2xl backdrop-blur-sm text-3xl font-semibold tracking-tight">
           Smash Ladder <span className="text-primary">NA</span>
         </span>
       </div>
