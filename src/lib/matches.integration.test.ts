@@ -84,6 +84,33 @@ describe("applyEloAndConfirm", () => {
     expect(history).toHaveLength(2);
   });
 
+  it("caps the rating swing at 30 even for a massive rating-gap upset", async () => {
+    const underdog = await createTestUser({ rating: 1000, gamesPlayed: 0 });
+    const favorite = await createTestUser({ rating: 2500, gamesPlayed: 0 });
+    const match = await prisma.ratingMatch.create({
+      data: {
+        player1Id: underdog.id,
+        player2Id: favorite.id,
+        status: MatchStatus.PENDING_REPORT,
+        expiresAt: new Date(),
+      },
+    });
+
+    await prisma.$transaction((tx) =>
+      applyEloAndConfirm(tx, match, underdog.id, ConfirmationMethod.SELF_CONFIRMED, {
+        winnerId: underdog.id,
+        reporterId: underdog.id,
+      }),
+    );
+
+    const [updatedUnderdog, updatedFavorite] = await Promise.all([
+      prisma.user.findUniqueOrThrow({ where: { id: underdog.id } }),
+      prisma.user.findUniqueOrThrow({ where: { id: favorite.id } }),
+    ]);
+    expect(updatedUnderdog.rating).toBe(1030);
+    expect(updatedFavorite.rating).toBe(2470);
+  });
+
   it("gives a lower-rated provisional winner a bigger swing than an established player", async () => {
     const provisionalWinner = await createTestUser({ rating: 1500, gamesPlayed: 5 });
     const establishedLoser = await createTestUser({ rating: 1500, gamesPlayed: 40 });

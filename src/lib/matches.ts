@@ -352,14 +352,26 @@ export async function requestRematch(userId: string, matchId: string) {
 }
 
 // Provisional players (few games) swing faster so their rating converges quickly.
-function kFactor(gamesPlayed: number) {
+export function kFactor(gamesPlayed: number) {
   if (gamesPlayed < 10) return 40;
   if (gamesPlayed < 30) return 32;
   return 24;
 }
 
-function expectedScore(ratingSelf: number, ratingOpp: number) {
+export function expectedScore(ratingSelf: number, ratingOpp: number) {
   return 1 / (1 + 10 ** ((ratingOpp - ratingSelf) / 400));
+}
+
+// A big enough rating gap pushes expectedScore toward 0 or 1, so an upset
+// (the massive underdog wins, or the heavy favorite loses) swings close to
+// the full kFactor regardless of how lopsided the gap actually was — capped
+// here so no single set can move a rating by more than this no matter how
+// wide the gap or how few games either side has played.
+export const MAX_RATING_DELTA = 30;
+
+export function eloDelta(games: number, score: number, expected: number): number {
+  const raw = kFactor(games) * (score - expected);
+  return Math.max(-MAX_RATING_DELTA, Math.min(MAX_RATING_DELTA, raw));
 }
 
 // Applies the Elo update, marks the match CONFIRMED, and records rating history.
@@ -402,8 +414,8 @@ export async function applyEloAndConfirm(
   const score1 = p1Won ? 1 : 0;
   const score2 = p1Won ? 0 : 1;
 
-  const p1After = Math.round(p1Rating + kFactor(p1Games) * (score1 - expected1));
-  const p2After = Math.round(p2Rating + kFactor(p2Games) * (score2 - expected2));
+  const p1After = Math.round(p1Rating + eloDelta(p1Games, score1, expected1));
+  const p2After = Math.round(p2Rating + eloDelta(p2Games, score2, expected2));
 
   await tx.ratingMatch.update({
     where: { id: match.id },
@@ -495,8 +507,8 @@ export async function applyCorrection(
   const score1 = p1Won ? 1 : 0;
   const score2 = p1Won ? 0 : 1;
 
-  const p1After = Math.round(p1RatingBefore + kFactor(p1GamesBefore) * (score1 - expected1));
-  const p2After = Math.round(p2RatingBefore + kFactor(p2GamesBefore) * (score2 - expected2));
+  const p1After = Math.round(p1RatingBefore + eloDelta(p1GamesBefore, score1, expected1));
+  const p2After = Math.round(p2RatingBefore + eloDelta(p2GamesBefore, score2, expected2));
 
   await tx.ratingMatch.update({
     where: { id: match.id },

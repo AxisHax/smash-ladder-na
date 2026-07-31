@@ -1,19 +1,5 @@
 import { describe, it, expect } from "vitest";
-
-// kFactor and expectedScore are not exported, so we test them indirectly
-// through the Elo math expectations. We can still verify the module's
-// exported pure helpers by re-deriving the math here.
-
-// Mirror the private helpers for verification
-function kFactor(gamesPlayed: number) {
-  if (gamesPlayed < 10) return 40;
-  if (gamesPlayed < 30) return 32;
-  return 24;
-}
-
-function expectedScore(ratingSelf: number, ratingOpp: number) {
-  return 1 / (1 + 10 ** ((ratingOpp - ratingSelf) / 400));
-}
+import { eloDelta, expectedScore, kFactor, MAX_RATING_DELTA } from "@/lib/matches";
 
 describe("Elo helpers", () => {
   describe("kFactor", () => {
@@ -57,29 +43,45 @@ describe("Elo helpers", () => {
     });
   });
 
-  describe("Elo rating update", () => {
+  describe("eloDelta", () => {
     it("winner gains and loser loses symmetrically for equal-games players", () => {
-      const r1 = 1500, r2 = 1500, gp = 30;
-      const e1 = expectedScore(r1, r2);
-      const k = kFactor(gp);
-      const r1After = Math.round(r1 + k * (1 - e1));
-      const r2After = Math.round(r2 + k * (0 - (1 - e1)));
-      expect(r1After).toBe(1512);
-      expect(r2After).toBe(1488);
+      const e1 = expectedScore(1500, 1500);
+      const delta1 = eloDelta(30, 1, e1);
+      const delta2 = eloDelta(30, 0, 1 - e1);
+      expect(Math.round(1500 + delta1)).toBe(1512);
+      expect(Math.round(1500 + delta2)).toBe(1488);
     });
 
-    it("provisional player swings more than an experienced one", () => {
+    it("provisional player swings more than an experienced one, below the cap", () => {
       const e = expectedScore(1500, 1500);
-      const provisionalGain = Math.round(40 * (1 - e));
-      const experiencedGain = Math.round(24 * (1 - e));
+      const provisionalGain = eloDelta(0, 1, e);
+      const experiencedGain = eloDelta(30, 1, e);
       expect(provisionalGain).toBeGreaterThan(experiencedGain);
     });
 
-    it("upset win yields a bigger gain than a favored win", () => {
-      const k = kFactor(30);
-      const upsetGain = Math.round(k * (1 - expectedScore(1300, 1700)));
-      const favoredGain = Math.round(k * (1 - expectedScore(1700, 1300)));
+    it("upset win yields a bigger gain than a favored win, below the cap", () => {
+      const upsetGain = eloDelta(30, 1, expectedScore(1300, 1700));
+      const favoredGain = eloDelta(30, 1, expectedScore(1700, 1300));
       expect(upsetGain).toBeGreaterThan(favoredGain);
+    });
+
+    // The whole point: no rating gap, and no provisional kFactor, should
+    // ever be able to move a rating by more than MAX_RATING_DELTA in one set.
+    it("caps a massive upset at MAX_RATING_DELTA regardless of the rating gap", () => {
+      const hugeUpsetExpected = expectedScore(1000, 2500); // huge underdog
+      expect(eloDelta(0, 1, hugeUpsetExpected)).toBe(MAX_RATING_DELTA);
+    });
+
+    it("caps a massive upset loss at -MAX_RATING_DELTA regardless of the rating gap", () => {
+      const heavyFavoriteExpected = expectedScore(2500, 1000); // huge favorite
+      expect(eloDelta(0, 0, heavyFavoriteExpected)).toBe(-MAX_RATING_DELTA);
+    });
+
+    it("stays uncapped for a modest gap where the raw swing is already under the cap", () => {
+      const e = expectedScore(1500, 1550);
+      const raw = kFactor(30) * (1 - e);
+      expect(raw).toBeLessThan(MAX_RATING_DELTA);
+      expect(eloDelta(30, 1, e)).toBeCloseTo(raw);
     });
   });
 });
