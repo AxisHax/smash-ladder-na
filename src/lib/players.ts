@@ -57,14 +57,33 @@ export async function isCurrentlyInMatch(userId: string) {
   return match !== null;
 }
 
-export async function getPlayerMatchHistory(userId: string, limit = 20) {
+function matchHistoryWhere(userId: string) {
+  return {
+    status: MatchStatus.CONFIRMED,
+    OR: [{ player1Id: userId }, { player2Id: userId }],
+  };
+}
+
+// Paired with getPlayerMatchHistory below for pagination — same where
+// clause (every confirmed match involving this player, practice included),
+// kept as a separate query rather than folded into that function's return
+// shape so the many callers that just want a plain array (lobby's streak
+// badge, the stream overlay's recent-matches panel) don't all need to
+// change to destructure a {entries, totalCount} object just because the
+// player profile page's "Recent matches" section needs a page count.
+export async function getPlayerMatchCount(userId: string) {
+  return prisma.ratingMatch.count({ where: matchHistoryWhere(userId) });
+}
+
+export async function getPlayerMatchHistory(
+  userId: string,
+  { limit = 20, skip = 0 }: { limit?: number; skip?: number } = {},
+) {
   const matches = await prisma.ratingMatch.findMany({
-    where: {
-      status: MatchStatus.CONFIRMED,
-      OR: [{ player1Id: userId }, { player2Id: userId }],
-    },
+    where: matchHistoryWhere(userId),
     orderBy: { confirmedAt: "desc" },
     take: limit,
+    skip,
     include: {
       player1: { select: { id: true, username: true } },
       player2: { select: { id: true, username: true } },

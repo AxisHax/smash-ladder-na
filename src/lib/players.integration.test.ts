@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import {
   getCareerStats,
   getCharacterUsage,
+  getPlayerMatchCount,
   getPlayerMatchHistory,
   getTopCharacters,
   getTopRivals,
@@ -403,6 +404,56 @@ describe("getPlayerMatchHistory", () => {
     const [entry] = await getPlayerMatchHistory(player.id);
     expect(entry.id).toBe(match.id);
     expect(entry.isPracticing).toBe(false);
+  });
+
+  it("paginates with limit/skip, newest first", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const base = Date.now();
+    const matches = [];
+    for (let i = 0; i < 5; i++) {
+      matches.push(
+        await prisma.ratingMatch.create({
+          data: {
+            player1Id: player.id,
+            player2Id: opponent.id,
+            status: MatchStatus.CONFIRMED,
+            expiresAt: new Date(),
+            reportedWinnerId: player.id,
+            confirmedAt: new Date(base + i * 1000),
+          },
+        }),
+      );
+    }
+    // Newest (index 4) first.
+    const expectedOrder = [...matches].reverse().map((m) => m.id);
+
+    const page1 = await getPlayerMatchHistory(player.id, { limit: 2, skip: 0 });
+    const page2 = await getPlayerMatchHistory(player.id, { limit: 2, skip: 2 });
+    const page3 = await getPlayerMatchHistory(player.id, { limit: 2, skip: 4 });
+
+    expect(page1.map((m) => m.id)).toEqual(expectedOrder.slice(0, 2));
+    expect(page2.map((m) => m.id)).toEqual(expectedOrder.slice(2, 4));
+    expect(page3.map((m) => m.id)).toEqual(expectedOrder.slice(4, 5));
+  });
+});
+
+describe("getPlayerMatchCount", () => {
+  it("counts every confirmed match, including practice ones", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    await createConfirmedMatch(player.id, opponent.id, { reportedWinnerId: player.id });
+    await createConfirmedMatch(player.id, opponent.id, {
+      reportedWinnerId: player.id,
+      player1IsPracticing: true,
+    });
+
+    expect(await getPlayerMatchCount(player.id)).toBe(2);
+  });
+
+  it("returns 0 for a player with no confirmed matches", async () => {
+    const player = await createTestUser();
+    expect(await getPlayerMatchCount(player.id)).toBe(0);
   });
 });
 

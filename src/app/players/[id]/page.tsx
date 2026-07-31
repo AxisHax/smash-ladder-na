@@ -8,6 +8,7 @@ import {
   currentStreak,
   getCareerStats,
   getCharacterUsage,
+  getPlayerMatchCount,
   getPlayerMatchHistory,
   getPlayerProfile,
   getRatingChartPoints,
@@ -46,42 +47,68 @@ import {
   requestCorrectionAction,
 } from "../actions";
 
+const MATCH_HISTORY_PAGE_SIZE = 20;
+
 export default async function PlayerProfilePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ page?: string }>;
 }) {
   const { id } = await params;
+  const { page: pageParam } = await searchParams;
+  const requestedPage = Number(pageParam);
+  const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const session = await auth();
   const isOwnProfile = session?.user?.id === id;
   const isModerator = session?.user?.role === "MOD" || session?.user?.role === "ADMIN";
   const player = await getPlayerProfile(id);
   if (!player) notFound();
 
-  const [history, chartPoints, careerStats, rivals, blocked, characterUsage, inMatch, isLiveOnTwitch, matchAchievements] =
-    await Promise.all([
-      getPlayerMatchHistory(id),
-      getRatingChartPoints(id),
-      getCareerStats(id),
-      getTopRivals(id),
-      session?.user?.id && !isOwnProfile ? isBlockedByMe(session.user.id, id) : Promise.resolve(false),
-      getCharacterUsage(id),
-      isCurrentlyInMatch(id),
-      player.twitchUsername ? isTwitchLive(player.twitchUsername) : Promise.resolve(false),
-      getMatchHistoryAchievements(id),
-    ]);
+  const [
+    recentHistory,
+    pageHistory,
+    totalMatchCount,
+    chartPoints,
+    careerStats,
+    rivals,
+    blocked,
+    characterUsage,
+    inMatch,
+    isLiveOnTwitch,
+    matchAchievements,
+  ] = await Promise.all([
+    // Fixed to the true most-recent matches regardless of which page of
+    // history is being viewed — the win-rate/streak badges near the rating
+    // chart, and which match (if any) the correction/admin-override forms
+    // below attach to, all need this to stay put on page 2+, not silently
+    // reflect whatever's on the current page.
+    getPlayerMatchHistory(id),
+    getPlayerMatchHistory(id, { limit: MATCH_HISTORY_PAGE_SIZE, skip: (page - 1) * MATCH_HISTORY_PAGE_SIZE }),
+    getPlayerMatchCount(id),
+    getRatingChartPoints(id),
+    getCareerStats(id),
+    getTopRivals(id),
+    session?.user?.id && !isOwnProfile ? isBlockedByMe(session.user.id, id) : Promise.resolve(false),
+    getCharacterUsage(id),
+    isCurrentlyInMatch(id),
+    player.twitchUsername ? isTwitchLive(player.twitchUsername) : Promise.resolve(false),
+    getMatchHistoryAchievements(id),
+  ]);
   const parentHost = (await headers()).get("host") ?? "smash-ladder-na.vercel.app";
   const reportHistory = isModerator ? await listReportsForUser(id) : [];
   const topCharacters = characterUsage.slice(0, 3).map((u) => u.character);
   // Practice matches still show up in the list below (clearly labeled) but
   // never count toward the record/win-rate/streak — same "never touches
   // your main profile" promise as everywhere else practice mode is handled.
-  const realHistory = history.filter((m) => !m.isPracticing);
-  const wins = realHistory.filter((m) => m.won).length;
-  const losses = realHistory.length - wins;
-  const winRate = realHistory.length > 0 ? Math.round((wins / realHistory.length) * 100) : null;
-  const streak = currentStreak(history);
-  const firstRealMatchIndex = history.findIndex((m) => !m.isPracticing);
+  const realRecentHistory = recentHistory.filter((m) => !m.isPracticing);
+  const realRecentWins = realRecentHistory.filter((m) => m.won).length;
+  const winRate =
+    realRecentHistory.length > 0 ? Math.round((realRecentWins / realRecentHistory.length) * 100) : null;
+  const streak = currentStreak(recentHistory);
+  const mostRecentRealMatchId = recentHistory.find((m) => !m.isPracticing)?.id ?? null;
+  const totalPages = Math.max(1, Math.ceil(totalMatchCount / MATCH_HISTORY_PAGE_SIZE));
   const achievements = [...computeAchievements(careerStats), ...matchAchievements];
 
   return (
@@ -288,22 +315,25 @@ export default async function PlayerProfilePage({
       <CharacterUsageCard usage={characterUsage} mainCharacter={player.mainCharacter} />
 
       <div className="mt-10">
-        <div className="flex items-center gap-2">
-          <h2 className="text-sm font-medium text-muted-foreground">Recent matches</h2>
-          {realHistory.length > 0 && (
-            <Badge variant="outline">
-              {wins}W–{losses}L of last {realHistory.length}
-            </Badge>
-          )}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-medium text-muted-foreground">Match history</h2>
+            {totalMatchCount > 0 && (
+              <Badge variant="outline">
+                {totalMatchCount} confirmed match{totalMatchCount === 1 ? "" : "es"}
+              </Badge>
+            )}
+          </div>
+          {totalPages > 1 && <MatchHistoryPaginationControls playerId={id} page={page} totalPages={totalPages} />}
         </div>
 
-        {history.length === 0 && (
+        {pageHistory.length === 0 && (
           <p className="mt-4 text-sm text-muted-foreground">No confirmed matches yet.</p>
         )}
 
-        {history.length > 0 && (
+        {pageHistory.length > 0 && (
           <Card className="mt-4 divide-y divide-border overflow-hidden py-0">
-            {history.map((match, i) => (
+            {pageHistory.map((match) => (
               <div key={match.id} className="px-4 py-2.5 text-sm">
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-2">
@@ -340,7 +370,7 @@ export default async function PlayerProfilePage({
                 {isModerator && !isOwnProfile && (
                   <MatchChatLog action={getMatchChatLogAsModAction.bind(null, match.id)} />
                 )}
-                {isOwnProfile && i === firstRealMatchIndex && (
+                {isOwnProfile && match.id === mostRecentRealMatchId && (
                   <RequestCorrectionForm
                     action={requestCorrectionAction.bind(null, match.id)}
                     myId={id}
@@ -348,7 +378,7 @@ export default async function PlayerProfilePage({
                     opponentUsername={match.opponent.username}
                   />
                 )}
-                {isModerator && !isOwnProfile && i === firstRealMatchIndex && (
+                {isModerator && !isOwnProfile && match.id === mostRecentRealMatchId && (
                   <AdminMatchOverride
                     player1Username={player.username}
                     player2Username={match.opponent.username}
@@ -418,5 +448,50 @@ export default async function PlayerProfilePage({
         </div>
       )}
     </main>
+  );
+}
+
+function MatchHistoryPaginationControls({
+  playerId,
+  page,
+  totalPages,
+}: {
+  playerId: string;
+  page: number;
+  totalPages: number;
+}) {
+  return (
+    <div className="flex items-center gap-2 text-sm">
+      <MatchHistoryPageLink playerId={playerId} page={page - 1} disabled={page <= 1}>
+        ← Previous
+      </MatchHistoryPageLink>
+      <span className="text-muted-foreground tabular-nums">
+        Page {page} of {totalPages}
+      </span>
+      <MatchHistoryPageLink playerId={playerId} page={page + 1} disabled={page >= totalPages}>
+        Next →
+      </MatchHistoryPageLink>
+    </div>
+  );
+}
+
+function MatchHistoryPageLink({
+  playerId,
+  page,
+  disabled,
+  children,
+}: {
+  playerId: string;
+  page: number;
+  disabled: boolean;
+  children: React.ReactNode;
+}) {
+  if (disabled) {
+    return <span className="text-muted-foreground/40">{children}</span>;
+  }
+  return (
+    <Link href={`/players/${playerId}?page=${page}`} className="hover:underline">
+      {children}
+    </Link>
   );
 }

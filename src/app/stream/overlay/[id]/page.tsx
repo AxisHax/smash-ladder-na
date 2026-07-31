@@ -63,7 +63,7 @@ export default async function StreamOverlayPage({
       : null;
 
   const [recentMatchesRaw, currentMatch, dailyStats] = await Promise.all([
-    getPlayerMatchHistory(user.id, 5),
+    getPlayerMatchHistory(user.id, { limit: 5 }),
     prisma.ratingMatch.findFirst({
       where: {
         OR: [{ player1Id: user.id }, { player2Id: user.id }],
