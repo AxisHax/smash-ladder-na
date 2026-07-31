@@ -48,7 +48,9 @@ export default async function LeaderboardPage({
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
         Ranked players with {LEADERBOARD_MIN_GAMES}+ sets played
-        {isValidCharacter ? ` who main ${echoGroupLabel(character as SmashCharacter)}` : ""}
+        {isValidCharacter
+          ? ` who play ${echoGroupLabel(character as SmashCharacter)} as a main or secondary`
+          : ""}
         {isValidRegion ? ` in ${region}` : ""}
         {query ? ` matching "${query}"` : ""}.
       </p>

@@ -32,12 +32,13 @@ export async function getLeaderboardPlayers(
       not: "Deleted User",
       ...(filters.query ? { contains: filters.query, mode: "insensitive" as const } : {}),
     },
-    // Matches either the peer-reported main character or any accumulated
-    // secondary — otherwise a player who mains two characters only ever
-    // shows up under whichever one an opponent happened to report first.
-    // Echo fighters (Lucina/Marth, Daisy/Peach, etc.) count as the same
-    // character here — filtering by either side of an echo pair pulls in
-    // both, since they're functionally the same fighter.
+    // A character's leaderboard shows its mains and anyone with it as a
+    // secondary. Auto-derived secondaries already require >10% of a
+    // player's games to exist at all (see recomputeCharacterUsage), so this
+    // never grants a spot off a one-off pick. Echo fighters (Lucina/Marth,
+    // Daisy/Peach, etc.) count as the same character here — filtering by
+    // either side of an echo pair pulls in both, since they're functionally
+    // the same fighter.
     ...(filters.character
       ? {
           OR: echoGroupMembers(filters.character as SmashCharacter).flatMap((c) => [
