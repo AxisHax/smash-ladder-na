@@ -51,6 +51,12 @@ export function RatingChart({ points }: { points: Point[] }) {
 
   const gridLines = [yMin + (yMax - yMin) * 0.25, yMin + (yMax - yMin) * 0.5, yMin + (yMax - yMin) * 0.75];
 
+  // Static date labels along the bottom so the timeline reads at a glance —
+  // hovering (below) still gives the exact date+rating for any point, but
+  // that's undiscoverable on touch devices, which don't really have a hover
+  // state. First, last, and (once there's a real middle) one in between.
+  const labelIndices = [...new Set([0, Math.floor((points.length - 1) / 2), points.length - 1])];
+
   const hovered = hoverIndex !== null ? points[hoverIndex] : null;
 
   function handleMove(e: React.MouseEvent<SVGSVGElement>) {
@@ -123,6 +129,19 @@ export function RatingChart({ points }: { points: Point[] }) {
             />
           </g>
         )}
+
+        {labelIndices.map((i, idx) => (
+          <text
+            key={i}
+            x={x(i)}
+            y={HEIGHT - 6}
+            textAnchor={idx === 0 ? "start" : idx === labelIndices.length - 1 ? "end" : "middle"}
+            className="fill-muted-foreground"
+            style={{ fontSize: 9 }}
+          >
+            {formatDate(points[i].date)}
+          </text>
+        ))}
       </svg>
 
       <div className="flex h-5 items-center justify-center text-xs text-muted-foreground">
