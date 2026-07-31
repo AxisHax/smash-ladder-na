@@ -19,6 +19,15 @@ const STATUS_LABEL: Record<string, string> = {
   EXPIRED: "Expired",
 };
 
+const STATUS_VARIANT: Record<string, "success" | "warning" | "outline"> = {
+  PENDING_REPORT: "success",
+  REPORTED: "success",
+  DISPUTED: "warning",
+  CONFIRMED: "outline",
+  CANCELLED: "outline",
+  EXPIRED: "outline",
+};
+
 export default async function SetsFeedPage() {
   const entries = await getMatchFeed();
   const parentHost = (await headers()).get("host") ?? "smash-ladder-na.vercel.app";
@@ -79,7 +88,9 @@ function LiveSetCard({ entry, parentHost }: { entry: MatchFeedEntry; parentHost:
             {streamer.twitchDisplayName ?? streamer.username} is live
             <ExternalLink className="size-3" />
           </a>
-          <Badge variant="outline">{STATUS_LABEL[entry.status] ?? entry.status}</Badge>
+          <Badge variant={STATUS_VARIANT[entry.status] ?? "outline"}>
+            {STATUS_LABEL[entry.status] ?? entry.status}
+          </Badge>
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
           <PlayerLink player={streamer} /> vs <PlayerLink player={opponent} />
@@ -122,9 +133,7 @@ function SetRow({ entry }: { entry: MatchFeedEntry }) {
               {entry.wins.player1}–{entry.wins.player2}
             </span>
           )}
-          <Badge
-            variant={entry.status === "PENDING_REPORT" || entry.status === "REPORTED" ? "success" : "outline"}
-          >
+          <Badge variant={STATUS_VARIANT[entry.status] ?? "outline"}>
             {STATUS_LABEL[entry.status] ?? entry.status}
           </Badge>
         </div>
