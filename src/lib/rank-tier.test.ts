@@ -21,23 +21,19 @@ describe("getRankTier", () => {
     expect(getRankTier(1600, 10)?.name).toBe("Elite");
   });
 
-  it("returns Challenger at 1450–1599", () => {
-    expect(getRankTier(1500, 10)?.name).toBe("Challenger");
+  it("returns Fighter at 1450–1599", () => {
+    expect(getRankTier(1500, 10)?.name).toBe("Fighter");
   });
 
-  it("returns Fighter at 1300–1449", () => {
-    expect(getRankTier(1300, 10)?.name).toBe("Fighter");
+  it("returns Challenger below 1450", () => {
+    expect(getRankTier(1449, 10)?.name).toBe("Challenger");
+    expect(getRankTier(0, 10)?.name).toBe("Challenger");
+    expect(getRankTier(-100, 10)?.name).toBe("Challenger");
   });
 
-  it("returns Novice below 1300", () => {
-    expect(getRankTier(1299, 10)?.name).toBe("Novice");
-    expect(getRankTier(0, 10)?.name).toBe("Novice");
-    expect(getRankTier(-100, 10)?.name).toBe("Novice");
-  });
-
-  it("returns Novice at exact boundary of 1300", () => {
-    expect(getRankTier(1300, 10)?.name).toBe("Fighter");
-    expect(getRankTier(1299, 10)?.name).toBe("Novice");
+  it("returns Challenger at exact boundary of 1450", () => {
+    expect(getRankTier(1450, 10)?.name).toBe("Fighter");
+    expect(getRankTier(1449, 10)?.name).toBe("Challenger");
   });
 });
 
