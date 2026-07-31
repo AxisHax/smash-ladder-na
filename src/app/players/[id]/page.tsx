@@ -73,10 +73,15 @@ export default async function PlayerProfilePage({
   const parentHost = (await headers()).get("host") ?? "smash-ladder-na.vercel.app";
   const reportHistory = isModerator ? await listReportsForUser(id) : [];
   const topCharacters = characterUsage.slice(0, 3).map((u) => u.character);
-  const wins = history.filter((m) => m.won).length;
-  const losses = history.length - wins;
-  const winRate = history.length > 0 ? Math.round((wins / history.length) * 100) : null;
+  // Practice matches still show up in the list below (clearly labeled) but
+  // never count toward the record/win-rate/streak — same "never touches
+  // your main profile" promise as everywhere else practice mode is handled.
+  const realHistory = history.filter((m) => !m.isPracticing);
+  const wins = realHistory.filter((m) => m.won).length;
+  const losses = realHistory.length - wins;
+  const winRate = realHistory.length > 0 ? Math.round((wins / realHistory.length) * 100) : null;
   const streak = currentStreak(history);
+  const firstRealMatchIndex = history.findIndex((m) => !m.isPracticing);
   const achievements = [...computeAchievements(careerStats), ...matchAchievements];
 
   return (
@@ -285,9 +290,9 @@ export default async function PlayerProfilePage({
       <div className="mt-10">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-medium text-muted-foreground">Recent matches</h2>
-          {history.length > 0 && (
+          {realHistory.length > 0 && (
             <Badge variant="outline">
-              {wins}W–{losses}L of last {history.length}
+              {wins}W–{losses}L of last {realHistory.length}
             </Badge>
           )}
         </div>
@@ -305,6 +310,7 @@ export default async function PlayerProfilePage({
                     <Badge variant={match.won ? "success" : "destructive"} className="w-6 justify-center">
                       {match.won ? "W" : "L"}
                     </Badge>
+                    {match.isPracticing && <Badge variant="outline">Practice</Badge>}
                     vs{" "}
                     <Link href={`/players/${match.opponent.id}`} className="hover:underline">
                       {match.opponent.username}
@@ -317,7 +323,8 @@ export default async function PlayerProfilePage({
                   </span>
                   <span className="tabular-nums text-muted-foreground">
                     {match.ratingBefore} → {match.ratingAfter} ({match.delta >= 0 ? "+" : ""}
-                    {match.delta})
+                    {match.delta}
+                    {match.isPracticing ? ", practice" : ""})
                   </span>
                 </div>
                 <div className="mt-0.5 flex items-center justify-between text-xs text-muted-foreground">
@@ -333,7 +340,7 @@ export default async function PlayerProfilePage({
                 {isModerator && !isOwnProfile && (
                   <MatchChatLog action={getMatchChatLogAsModAction.bind(null, match.id)} />
                 )}
-                {isOwnProfile && i === 0 && (
+                {isOwnProfile && i === firstRealMatchIndex && (
                   <RequestCorrectionForm
                     action={requestCorrectionAction.bind(null, match.id)}
                     myId={id}
@@ -341,7 +348,7 @@ export default async function PlayerProfilePage({
                     opponentUsername={match.opponent.username}
                   />
                 )}
-                {isModerator && !isOwnProfile && i === 0 && (
+                {isModerator && !isOwnProfile && i === firstRealMatchIndex && (
                   <AdminMatchOverride
                     player1Username={player.username}
                     player2Username={match.opponent.username}

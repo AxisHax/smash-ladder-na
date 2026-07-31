@@ -375,21 +375,24 @@ describe("getPlayerMatchHistory", () => {
   // looked like a win in one place and didn't exist in the other, with no
   // indication why. Practice matches must stay invisible to the main
   // profile everywhere, not just in career totals.
-  it("excludes matches where the player's own side was practicing", async () => {
+  it("includes a match where the player's own side was practicing, flagged as such", async () => {
     const player = await createTestUser();
     const opponent = await createTestUser();
-    await createConfirmedMatch(player.id, opponent.id, {
+    const practiceMatch = await createConfirmedMatch(player.id, opponent.id, {
       reportedWinnerId: player.id,
       player1IsPracticing: true,
     });
     const realMatch = await createConfirmedMatch(player.id, opponent.id, { reportedWinnerId: opponent.id });
 
     const history = await getPlayerMatchHistory(player.id);
-    expect(history).toHaveLength(1);
-    expect(history[0].id).toBe(realMatch.id);
+    expect(history).toHaveLength(2);
+    const practiceEntry = history.find((m) => m.id === practiceMatch.id);
+    const realEntry = history.find((m) => m.id === realMatch.id);
+    expect(practiceEntry?.isPracticing).toBe(true);
+    expect(realEntry?.isPracticing).toBe(false);
   });
 
-  it("still includes a match where only the opponent's side was practicing", async () => {
+  it("flags isPracticing based on the querying player's own side, not the opponent's", async () => {
     const player = await createTestUser();
     const opponent = await createTestUser();
     const match = await createConfirmedMatch(player.id, opponent.id, {
@@ -397,9 +400,9 @@ describe("getPlayerMatchHistory", () => {
       player2IsPracticing: true,
     });
 
-    const history = await getPlayerMatchHistory(player.id);
-    expect(history).toHaveLength(1);
-    expect(history[0].id).toBe(match.id);
+    const [entry] = await getPlayerMatchHistory(player.id);
+    expect(entry.id).toBe(match.id);
+    expect(entry.isPracticing).toBe(false);
   });
 });
 

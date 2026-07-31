@@ -62,7 +62,7 @@ export default async function StreamOverlayPage({
         })) + 1
       : null;
 
-  const [recentMatches, currentMatch, dailyStats] = await Promise.all([
+  const [recentMatchesRaw, currentMatch, dailyStats] = await Promise.all([
     getPlayerMatchHistory(user.id, 5),
     prisma.ratingMatch.findFirst({
       where: {
@@ -81,6 +81,10 @@ export default async function StreamOverlayPage({
     }),
     getDailyStats(user.id),
   ]);
+  // Practice matches now show up in getPlayerMatchHistory (labeled, on the
+  // profile page) but there's no room for that label in this compact
+  // broadcast graphic — simplest to just leave them off the overlay.
+  const recentMatches = recentMatchesRaw.filter((m) => !m.isPracticing);
 
   const currentMatchGames = currentMatch
     ? await prisma.matchGame.findMany({

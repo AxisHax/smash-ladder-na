@@ -61,7 +61,7 @@ export async function getPlayerMatchHistory(userId: string, limit = 20) {
   const matches = await prisma.ratingMatch.findMany({
     where: {
       status: MatchStatus.CONFIRMED,
-      OR: notPracticingFor(userId),
+      OR: [{ player1Id: userId }, { player2Id: userId }],
     },
     orderBy: { confirmedAt: "desc" },
     take: limit,
@@ -90,6 +90,15 @@ export async function getPlayerMatchHistory(userId: string, limit = 20) {
     const ratingBefore = isPlayer1 ? match.player1RatingBefore : match.player2RatingBefore;
     const ratingAfter = isPlayer1 ? match.player1RatingAfter : match.player2RatingAfter;
     const won = match.reportedWinnerId === userId;
+    // Shown in the list so a practice win/loss reads as what it is instead
+    // of silently vanishing or blending into the real record — the
+    // ratingBefore/After above are still real numbers (practiceRating's,
+    // not rating's, when this is true), just not ones that ever touched
+    // this player's actual rating. Callers must exclude isPracticing
+    // entries from any win/loss tally or streak themselves; this function
+    // no longer does it for them (see notPracticingFor's callers elsewhere
+    // in this file for the "never touches your main profile" filter).
+    const isPracticing = isPlayer1 ? match.player1IsPracticing : match.player2IsPracticing;
 
     const matchGames = gamesByMatch.get(match.id) ?? [];
     let gamesWon = 0;
@@ -111,6 +120,7 @@ export async function getPlayerMatchHistory(userId: string, limit = 20) {
       id: match.id,
       opponent,
       won,
+      isPracticing,
       ratingBefore,
       ratingAfter,
       delta: (ratingAfter ?? 0) - (ratingBefore ?? 0),
@@ -153,11 +163,15 @@ export async function getRatingChartPoints(userId: string, limit = 50) {
 
 // Current streak: how many of the most recent confirmed matches in a row
 // share the same result. Positive = win streak, negative = loss streak.
-export function currentStreak(history: { won: boolean }[]) {
-  if (history.length === 0) return 0;
-  const leadingResult = history[0].won;
+// Practice matches are invisible here too — skipped rather than counted or
+// treated as breaking the streak, since they say nothing about competitive
+// performance either way.
+export function currentStreak(history: { won: boolean; isPracticing?: boolean }[]) {
+  const real = history.filter((m) => !m.isPracticing);
+  if (real.length === 0) return 0;
+  const leadingResult = real[0].won;
   let count = 0;
-  for (const m of history) {
+  for (const m of real) {
     if (m.won !== leadingResult) break;
     count++;
   }
