@@ -27,6 +27,15 @@ export async function getCharacterLeaderboard(character: string) {
 // enough without the profile turning into "plays everyone."
 const MAX_SECONDARY_CHARACTERS = 5;
 
+// A character only counts as an auto-derived secondary once it's a
+// meaningful share of this player's actual games — otherwise a single
+// off-character pick earns a permanent (if minor) spot on that character's
+// leaderboard entry, which reads as "this person mains/co-mains it" to
+// anyone filtering by character. Doesn't apply to self-declared profiles
+// (setOwnCharacters below) — that's a player's own claim, not derived from
+// play, so there's no usage percentage to hold it against.
+const SECONDARY_CHARACTER_MIN_USAGE_PERCENT = 10;
+
 // Players complained the old peer-reported main (see recomputeCharacterUsage
 // below, which replaced it) kept landing on the wrong character — this lets
 // a player take full ownership of their own profile instead. Once set,
@@ -68,7 +77,11 @@ export async function recomputeCharacterUsage(userId: string, tx: Prisma.Transac
 
   const usage = await getCharacterUsage(userId, tx);
   const mainCharacter = usage[0]?.character ?? null;
-  const secondaryCharacters = usage.slice(1, 1 + MAX_SECONDARY_CHARACTERS).map((u) => u.character);
+  const secondaryCharacters = usage
+    .slice(1)
+    .filter((u) => u.usagePercent > SECONDARY_CHARACTER_MIN_USAGE_PERCENT)
+    .slice(0, MAX_SECONDARY_CHARACTERS)
+    .map((u) => u.character);
 
   await tx.user.update({
     where: { id: userId },

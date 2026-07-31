@@ -137,6 +137,41 @@ describe("recomputeCharacterUsage", () => {
     expect(updated.mainCharacter).toBeNull();
     expect(updated.secondaryCharacters).toEqual([]);
   });
+
+  it("excludes a secondary at exactly the usage threshold (must exceed, not just reach, 10%)", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const match = await createConfirmedMatch(player.id, opponent.id);
+    // 9 Fox games + 1 Falco game = 10 total — Falco lands at exactly 10%.
+    for (let i = 1; i <= 9; i++) {
+      await createGame(match.id, i, player.id, "Fox", opponent.id, "Marth", player.id);
+    }
+    await createGame(match.id, 10, player.id, "Falco", opponent.id, "Marth", player.id);
+
+    await prisma.$transaction((tx) => recomputeCharacterUsage(player.id, tx));
+
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: player.id } });
+    expect(updated.mainCharacter).toBe("Fox");
+    expect(updated.secondaryCharacters).toEqual([]);
+  });
+
+  it("includes a secondary once it clears the usage threshold", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const match = await createConfirmedMatch(player.id, opponent.id);
+    // 8 Fox games + 2 Falco games = 10 total — Falco lands at 20%.
+    for (let i = 1; i <= 8; i++) {
+      await createGame(match.id, i, player.id, "Fox", opponent.id, "Marth", player.id);
+    }
+    await createGame(match.id, 9, player.id, "Falco", opponent.id, "Marth", player.id);
+    await createGame(match.id, 10, player.id, "Falco", opponent.id, "Marth", player.id);
+
+    await prisma.$transaction((tx) => recomputeCharacterUsage(player.id, tx));
+
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: player.id } });
+    expect(updated.mainCharacter).toBe("Fox");
+    expect(updated.secondaryCharacters).toEqual(["Falco"]);
+  });
 });
 
 describe("getCharacterLeaderboard", () => {
