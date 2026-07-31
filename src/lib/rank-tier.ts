@@ -10,10 +10,14 @@ export type RankTier = {
 // a player's tolerance for a lopsided match is theirs to set, not something
 // the other side's wider setting should override.
 export const MATCH_RATING_GAP_PRESETS = [
-  { label: "Strict (within 50)", gap: 50 },
-  { label: "Close (within 100)", gap: 100 },
-  { label: "Moderate (within 150)", gap: 150 },
-  { label: "Wide (within 300)", gap: 300 },
+  { label: "Within 25", gap: 25 },
+  { label: "Within 50", gap: 50 },
+  { label: "Within 75", gap: 75 },
+  { label: "Within 100", gap: 100 },
+  { label: "Within 150", gap: 150 },
+  { label: "Within 200", gap: 200 },
+  { label: "Within 300", gap: 300 },
+  { label: "Within 500", gap: 500 },
   { label: "Any rating", gap: null },
 ] as const;
 
