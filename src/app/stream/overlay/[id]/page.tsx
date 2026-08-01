@@ -220,13 +220,13 @@ export default async function StreamOverlayPage({
 
             {/* Score divider */}
             <div className="flex items-center justify-center gap-4 bg-zinc-900 px-10 py-2">
-              <span className="text-5xl font-bold tabular-nums leading-none text-sky-400">
+              <span className="text-5xl font-bold tabular-nums leading-none text-red-400">
                 {userWins}
               </span>
               <span className="text-2xl font-bold tracking-widest text-zinc-500">
                 VS
               </span>
-              <span className="text-5xl font-bold tabular-nums leading-none text-red-400">
+              <span className="text-5xl font-bold tabular-nums leading-none text-sky-400">
                 {opponentWins}
               </span>
             </div>
