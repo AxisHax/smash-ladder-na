@@ -31,13 +31,19 @@ if (typeof window !== "undefined") {
   );
 }
 
-function playTone(ctx: AudioContext, frequency: number, startTime: number, duration: number) {
+function playTone(
+  ctx: AudioContext,
+  frequency: number,
+  startTime: number,
+  duration: number,
+  volume = 0.2,
+) {
   const oscillator = ctx.createOscillator();
   const gain = ctx.createGain();
   oscillator.type = "sine";
   oscillator.frequency.value = frequency;
   gain.gain.setValueAtTime(0.0001, startTime);
-  gain.gain.exponentialRampToValueAtTime(0.2, startTime + 0.02);
+  gain.gain.exponentialRampToValueAtTime(volume, startTime + 0.02);
   gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
   oscillator.connect(gain);
   gain.connect(ctx.destination);
@@ -62,8 +68,8 @@ export function playMatchFoundChime() {
   if (!ctx) return;
   try {
     const now = ctx.currentTime;
-    playTone(ctx, 587, now, 0.12);
-    playTone(ctx, 740, now + 0.1, 0.2);
+    playTone(ctx, 587, now, 0.12, 0.5);
+    playTone(ctx, 740, now + 0.1, 0.2, 0.5);
   } catch {
     // Autoplay restrictions, unsupported browser, etc. — silently skip.
   }
