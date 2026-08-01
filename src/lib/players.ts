@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { MatchStatus } from "@/generated/prisma/enums";
 import { liftExpiredSuspension } from "@/lib/account";
+import { startOfDayInTimeZone } from "@/lib/timezone";
 
 export async function getPlayerProfile(userId: string) {
   const player = await prisma.user.findUnique({
@@ -214,8 +215,7 @@ function notPracticingFor(userId: string) {
 // Today's win/loss record — used by the stream overlay so viewers see
 // how the player is doing for that session, not their career totals.
 export async function getDailyStats(userId: string) {
-  const todayStart = new Date();
-  todayStart.setUTCHours(0, 0, 0, 0);
+  const todayStart = startOfDayInTimeZone(new Date());
 
   const [wins, losses] = await Promise.all([
     prisma.ratingMatch.count({
