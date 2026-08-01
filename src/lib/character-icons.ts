@@ -95,6 +95,7 @@ export const CHARACTER_ICON_SLUGS: Partial<Record<SmashCharacter, string>> = {
   "Pyra/Mythra": "eflame",
   Kazuya: "demon",
   Sora: "trail",
+  Random: "random",
 };
 
 export function characterIconSlug(name: string): string | undefined {

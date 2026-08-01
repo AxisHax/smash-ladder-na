@@ -40,20 +40,6 @@ export function CharacterIcon({
   size?: number;
   className?: string;
 }) {
-  // Matches the "?" random-select icon from the game itself — clearer at a
-  // glance than the initials fallback ("RA") every other unmapped name gets.
-  if (name === "Random") {
-    return (
-      <span
-        className={`inline-flex shrink-0 items-center justify-center rounded-full bg-muted-foreground/70 text-background ${className}`}
-        style={{ width: size, height: size }}
-        title={name}
-        aria-hidden="true"
-      >
-        <HelpCircle size={size * 0.7} />
-      </span>
-    );
-  }
 
   const slug = characterIconSlug(name);
   if (slug) {
