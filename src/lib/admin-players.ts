@@ -26,6 +26,7 @@ export async function searchPlayersForAdmin(query: string, page = 1) {
         status: true,
         role: true,
         region: true,
+        isSupporter: true,
         createdAt: true,
       },
       skip: (page - 1) * PAGE_SIZE,

@@ -171,6 +171,7 @@ model User {
   twitchProfileImageUrl String? // Twitch profile image URL
   twitchConnectedAt     DateTime?
   role                 UserRole   @default(USER)
+  isSupporter          Boolean    @default(false) // manually flagged by an admin (see admin/players) — hides AdSense ads for this account. No payment processing wired up yet; this is a bare flag.
   status               UserStatus @default(ACTIVE)
   createdAt            DateTime   @default(now())
   updatedAt            DateTime   @updatedAt

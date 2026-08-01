@@ -16,6 +16,7 @@ declare module "next-auth" {
     user: {
       id: string;
       role: UserRole;
+      isSupporter: boolean;
     } & DefaultSession["user"];
   }
 }
@@ -134,12 +135,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // reasoning for username: session.user.name otherwise stays
         // whatever it was at sign-in forever, so renaming yourself on the
         // site wouldn't be reflected anywhere reading the session (e.g. the
-        // header) until a fresh sign-in.
+        // header) until a fresh sign-in. Same for isSupporter: an admin
+        // toggling it off should hide ads again immediately, not on next login.
         const dbUser = await prisma.user.findUnique({
           where: { id: token.userId },
-          select: { role: true, username: true },
+          select: { role: true, username: true, isSupporter: true },
         });
         session.user.role = dbUser?.role ?? "USER";
+        session.user.isSupporter = dbUser?.isSupporter ?? false;
         if (dbUser?.username) session.user.name = dbUser.username;
       }
       return session;

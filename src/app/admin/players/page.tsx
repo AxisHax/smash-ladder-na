@@ -5,6 +5,7 @@ import { searchPlayersForAdmin } from "@/lib/admin-players";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { setSupporter } from "./actions";
 
 export default async function AdminPlayersPage({
   searchParams,
@@ -71,6 +72,7 @@ export default async function AdminPlayersPage({
               <th className="py-2 font-medium">Region</th>
               <th className="py-2 font-medium text-right tabular-nums">Rating</th>
               <th className="py-2 font-medium text-right tabular-nums">Sets</th>
+              <th className="py-2 font-medium text-center">Ad-free</th>
               <th className="py-2 pr-4 font-medium text-right">Joined</th>
             </tr>
           </thead>
@@ -100,6 +102,18 @@ export default async function AdminPlayersPage({
                 <td className="py-2 text-right font-medium tabular-nums">{player.rating}</td>
                 <td className="py-2 text-right tabular-nums text-muted-foreground">
                   {player.gamesPlayed}
+                </td>
+                <td className="py-2 text-center">
+                  <form action={setSupporter.bind(null, player.id, !player.isSupporter)}>
+                    <Button
+                      type="submit"
+                      size="sm"
+                      variant={player.isSupporter ? "default" : "outline"}
+                      className="h-6 px-2 text-xs"
+                    >
+                      {player.isSupporter ? "Supporter" : "—"}
+                    </Button>
+                  </form>
                 </td>
                 <td className="py-2 pr-4 text-right text-xs text-muted-foreground">
                   {player.createdAt.toLocaleDateString("en-US", { dateStyle: "medium" })}

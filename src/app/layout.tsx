@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
+import { auth } from "@/auth";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { RegionSetupBanner } from "@/components/region-setup-banner";
@@ -40,6 +41,11 @@ export default async function RootLayout({
   // whatever's underneath instead of blocking it with a solid box.
   const pathname = (await headers()).get("x-pathname") ?? "";
   const isStreamOverlay = pathname.startsWith("/stream");
+  // Supporters (see User.isSupporter) don't just get the ad slots hidden —
+  // the adsbygoogle.js script itself is skipped so no ad request/tracking
+  // ever fires for them at all.
+  const session = await auth();
+  const showAds = !isStreamOverlay && !session?.user?.isSupporter;
 
   return (
     <html
@@ -69,7 +75,7 @@ export default async function RootLayout({
           }}
         />
         <ThemeSync />
-        {!isStreamOverlay && ADSENSE_CLIENT_ID && (
+        {showAds && ADSENSE_CLIENT_ID && (
           <script
             async
             src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT_ID}`}
