@@ -165,7 +165,7 @@ export default async function StreamOverlayPage({
               <RankBadge
                 rating={user.rating}
                 gamesPlayed={user.gamesPlayed}
-                className="text-lg px-3 py-1 text-white"
+                className="text-lg px-3 py-1"
               />
             </div>
 

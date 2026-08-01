@@ -211,11 +211,11 @@ function notPracticingFor(userId: string) {
   ];
 }
 
-// Today's win/loss record — used by the stream overlay so viewers see
-// how the player is doing for that session, not their career totals.
+// Rolling 12-hour win/loss record — used by the stream overlay so
+// viewers see how the player is doing for that session, not their
+// career totals.
 export async function getDailyStats(userId: string) {
-  const todayStart = new Date();
-  todayStart.setUTCHours(0, 0, 0, 0);
+  const todayStart = new Date(Date.now() - 12 * 60 * 60 * 1000);
 
   const [wins, losses] = await Promise.all([
     prisma.ratingMatch.count({
