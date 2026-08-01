@@ -151,6 +151,11 @@ export default async function PlayerProfilePage({
                 </>
               )}
             </p>
+            {player.practiceGamesPlayed > 0 && (
+              <p className="text-xs tabular-nums text-muted-foreground">
+                {player.practiceRating} practice rating · {player.practiceGamesPlayed} practice sets
+              </p>
+            )}
             <div className="mt-1.5 flex items-center gap-1.5">
               <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} />
               {inMatch && (

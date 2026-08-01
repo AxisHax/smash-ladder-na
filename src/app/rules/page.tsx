@@ -151,12 +151,6 @@ export default function RulesPage() {
             same 1500 baseline and uses the same math, but it&apos;s a fully independent track.
           </p>
           <p>
-            While practicing, your reported main character (shown on your profile) is banned for
-            you for that set — the point is to actually practice something other than your go-to
-            pick, not to farm easy practice-mode wins with it. Only your own main is banned; your
-            opponent picks freely, whether or not they&apos;re also practicing.
-          </p>
-          <p>
             Practicing is set per player, not per match — you can queue as practicing against
             someone who isn&apos;t, and vice versa. If you&apos;d rather not face practicing
             opponents at all, turn on &quot;Don&apos;t match me with opponents who are

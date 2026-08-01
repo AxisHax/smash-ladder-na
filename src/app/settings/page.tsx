@@ -302,8 +302,8 @@ function AvoidPracticeOpponentsForm({ defaultValue }: { defaultValue: boolean })
         <span>
           Don&apos;t match me with opponents who are practicing
           <span className="block text-xs font-normal text-muted-foreground">
-            A practicing opponent&apos;s main character is banned for them and their result won&apos;t
-            affect their rank — turn this on to skip those matches entirely.
+            A practicing opponent&apos;s result won&apos;t affect their rank — turn this on to skip
+            those matches entirely.
           </span>
         </span>
       </label>

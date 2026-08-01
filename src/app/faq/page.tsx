@@ -58,11 +58,6 @@ export default function FaqPage() {
         </Category>
 
         <Category title="Practicing">
-          <QA q="Why can't I pick my main character?">
-            You queued that match with &quot;Practicing&quot; checked — your reported main
-            character is banned for you for that set specifically. Uncheck &quot;Practicing&quot;
-            next time you join the queue if you want your full roster available.
-          </QA>
           <QA q="Does a practicing match affect my ladder rating?">
             No. Practicing results go entirely to a separate practice rating — your regular
             ladder rating and sets-played count don&apos;t move, whether you win or lose.

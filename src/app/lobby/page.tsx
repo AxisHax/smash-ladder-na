@@ -763,22 +763,18 @@ function GameSection({
 
   const turn = gameTurnState(current);
   const isPracticing = userId === match.player1Id ? match.player1IsPracticing : match.player2IsPracticing;
-  const bannedCharacter = isPracticing
-    ? (userId === match.player1Id ? match.player1.mainCharacter : match.player2.mainCharacter)
-    : null;
   // Game 1 has no in-match history yet, so lastUsedCharacter falls through to
   // null and this defaults to the player's most-played character instead;
   // every later game already has a locked-in character from the prior game,
   // so this fallback is effectively game-1-only.
-  const priorCharacter = lastUsedCharacter(games, userId) ?? myTopCharacter;
-  const defaultCharacter = priorCharacter === bannedCharacter ? null : priorCharacter;
+  const defaultCharacter = lastUsedCharacter(games, userId) ?? myTopCharacter;
   const characterSection = (
     <CharacterPickSection
       userId={userId}
       matchId={match.id}
       game={current}
       opponentName={opponentName}
-      bannedCharacter={bannedCharacter}
+      isPracticing={isPracticing}
       defaultCharacter={defaultCharacter}
     />
   );
@@ -954,7 +950,7 @@ function CharacterPickSection({
   matchId,
   game,
   opponentName,
-  bannedCharacter,
+  isPracticing,
   defaultCharacter,
 }: {
   userId: string;
@@ -969,7 +965,7 @@ function CharacterPickSection({
   };
   opponentName: string;
   defaultCharacter: string | null;
-  bannedCharacter: string | null;
+  isPracticing: boolean;
 }) {
   const { yourCharacter, opponentCharacter, canPickNow } = characterPickState(game, userId);
   // Silent from the player's point of view otherwise — autoResolveStaleCharacterPick
@@ -1038,11 +1034,10 @@ function CharacterPickSection({
           </span>
         )}
       </p>
-      {bannedCharacter && (
+      {isPracticing && (
         <p className="mt-2 text-xs text-muted-foreground">
-          You queued this match as Practicing, so {bannedCharacter} (your reported main) is
-          banned for you this set — pick something else. This set only affects your separate
-          practice rating, not your ladder rating.
+          You queued this match as Practicing — this set only affects your separate practice
+          rating, not your ladder rating.
         </p>
       )}
       <form action={pickCharacter.bind(null, matchId, game.gameNumber)} className="mt-3 flex items-end gap-2">
@@ -1051,7 +1046,6 @@ function CharacterPickSection({
           name="character"
           defaultValue={defaultCharacter ?? ""}
           placeholder="Select character"
-          excludeCharacter={bannedCharacter}
         />
         <Button type="submit" size="sm" variant="outline">
           Lock in

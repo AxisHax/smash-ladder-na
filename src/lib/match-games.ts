@@ -275,10 +275,7 @@ export function characterPickState(
 // Most players stick with the same character for the whole set — pre-fills
 // the picker with whatever this player last locked in, most-recent game
 // first, so game 1 (no prior game) and a fresh counterpick both just fall
-// through to no default. Doesn't account for a practice-mode ban; the
-// caller clears the default back to null if it matches bannedCharacter,
-// since CharacterSelect's excludeCharacter already drops it from the
-// roster and a defaultValue outside the roster wouldn't submit correctly.
+// through to no default.
 export function lastUsedCharacter(games: CharacterPickGame[], userId: string): string | null {
   const sorted = [...games].sort((a, b) => b.gameNumber - a.gameNumber);
   for (const game of sorted) {
@@ -320,23 +317,6 @@ export function lastPlayedStage(
   return games.find((g) => g.gameNumber === currentGameNumber - 1)?.finalStage ?? null;
 }
 
-// A player queued with isPracticing bans their own self-declared
-// mainCharacter for the whole match — the point is practicing something
-// else, so their usual pick has to actually be off the table, not just
-// discouraged. Only their own side is restricted; the opponent's roster is
-// untouched regardless of the opponent's own practicing status.
-export async function bannedPracticeCharacter(matchId: string, userId: string) {
-  const match = await prisma.ratingMatch.findUniqueOrThrow({
-    where: { id: matchId },
-    select: { player1Id: true, player1IsPracticing: true, player2IsPracticing: true },
-  });
-  const isPracticing = userId === match.player1Id ? match.player1IsPracticing : match.player2IsPracticing;
-  if (!isPracticing) return null;
-
-  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { mainCharacter: true } });
-  return user.mainCharacter;
-}
-
 export async function pickGameCharacter(
   userId: string,
   matchId: string,
@@ -349,10 +329,6 @@ export async function pickGameCharacter(
   }
   if (!(SMASH_CHARACTERS as readonly string[]).includes(character)) {
     throw new Error("Not a recognized character");
-  }
-  const banned = await bannedPracticeCharacter(matchId, userId);
-  if (banned && banned === character) {
-    throw new Error(`${character} is banned while practicing — pick a different character`);
   }
 
   const { canPickNow, yourCharacter } = characterPickState(game, userId);

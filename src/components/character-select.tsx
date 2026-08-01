@@ -23,7 +23,6 @@ export function CharacterSelect({
   placeholder = "Select character",
   className,
   name,
-  excludeCharacter,
   clearLabel,
 }: {
   value?: string;
@@ -35,9 +34,6 @@ export function CharacterSelect({
    *  flows into the parent <form>'s FormData (useful with server actions).
    *  In this mode the component manages its own state internally. */
   name?: string;
-  /** Hides this one character from the roster entirely — used to enforce a
-   *  practice-mode ban on the player's own main character. */
-  excludeCharacter?: string | null;
   /** When set, pins an extra option at the top of the list that clears the
    *  selection back to none — e.g. "All Characters" for a filter dropdown. */
   clearLabel?: string;
@@ -53,9 +49,7 @@ export function CharacterSelect({
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const roster = excludeCharacter
-    ? (SMASH_CHARACTERS as readonly string[]).filter((c) => c !== excludeCharacter)
-    : SMASH_CHARACTERS;
+  const roster = SMASH_CHARACTERS;
   const filtered = query
     ? roster.filter((c) => c.toLowerCase().includes(query.toLowerCase()))
     : roster;

@@ -13,6 +13,8 @@ export async function getPlayerProfile(userId: string) {
       avatarUrl: true,
       rating: true,
       gamesPlayed: true,
+      practiceRating: true,
+      practiceGamesPlayed: true,
       createdAt: true,
       region: true,
       wiredConnection: true,

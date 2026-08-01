@@ -17,10 +17,10 @@ import { sendDiscordDM } from "@/lib/discord-bot";
 // doing so breaks the query since `include` only accepts relation fields.
 export const matchWithPlayers = {
   player1: {
-    select: { id: true, username: true, avatarUrl: true, rating: true, arenaPassword: true, mainCharacter: true },
+    select: { id: true, username: true, avatarUrl: true, rating: true, arenaPassword: true },
   },
   player2: {
-    select: { id: true, username: true, avatarUrl: true, rating: true, arenaPassword: true, mainCharacter: true },
+    select: { id: true, username: true, avatarUrl: true, rating: true, arenaPassword: true },
   },
 } as const;
 

@@ -21,9 +21,8 @@ export function JoinLobbyForm({
         <span>
           Practicing this session
           <span className="block text-xs">
-            Your reported main character is banned for you this session, and results count toward
-            a separate practice rating — your regular ladder rating and sets played don&apos;t
-            move at all.
+            Results count toward a separate practice rating — your regular ladder rating and sets
+            played don&apos;t move at all.
           </span>
         </span>
       </label>
