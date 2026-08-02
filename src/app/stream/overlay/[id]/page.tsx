@@ -106,16 +106,27 @@ export default async function StreamOverlayPage({
   // (counterpick games rotate who is actorA).
   const isUserPlayer1 = currentMatch?.player1.id === user.id;
   const currentGame = currentMatchGames.at(-1);
-  const userCharacter = currentGame
-    ? currentGame.actorAId === user.id
-      ? currentGame.actorACharacter
-      : currentGame.actorBCharacter
-    : null;
-  const opponentCharacter = currentGame
-    ? currentGame.actorAId === user.id
-      ? currentGame.actorBCharacter
-      : currentGame.actorACharacter
-    : null;
+  // Game 1 is a blind pick — neither side's character is shown on the
+  // overlay until both players have locked one in. Games 2-5 are
+  // sequential (actorA locks in first, then actorB reacts), so each icon
+  // can appear as soon as its pick is set there.
+  const game1BlindPickPending =
+    currentGame?.gameNumber === 1 &&
+    (!currentGame.actorACharacter || !currentGame.actorBCharacter);
+  const userCharacter = game1BlindPickPending
+    ? null
+    : currentGame
+      ? currentGame.actorAId === user.id
+        ? currentGame.actorACharacter
+        : currentGame.actorBCharacter
+      : null;
+  const opponentCharacter = game1BlindPickPending
+    ? null
+    : currentGame
+      ? currentGame.actorAId === user.id
+        ? currentGame.actorBCharacter
+        : currentGame.actorACharacter
+      : null;
 
   // Count games won by each player
   const userWins = currentMatchGames.filter(
