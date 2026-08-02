@@ -151,7 +151,11 @@ export default async function StreamOverlayPage({
   const showRatingCard = hideRatingCard !== "1";
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-transparent font-sans">
+    // The overlay is always a dark broadcast graphic (zinc panels, white
+    // text), so force the dark theme here — otherwise the RankBadge's
+    // light-mode colors show through when the OBS browser source runs in
+    // light mode.
+    <div className="dark relative h-screen w-screen overflow-hidden bg-transparent font-sans">
       <StreamRefreshPoller intervalMs={10000} />
 
       {/* Top-left: Player info panel */}
