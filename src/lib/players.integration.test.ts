@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import {
   getCareerStats,
   getCharacterUsage,
+  getCurrentStreak,
   getPlayerMatchCount,
   getPlayerMatchHistory,
   getTopCharacters,
@@ -329,6 +330,74 @@ describe("getCareerStats", () => {
     const stats = await getCareerStats(player.id);
     // Only the two non-practice wins should count toward the streak.
     expect(stats.bestWinStreak).toBe(2);
+  });
+});
+
+describe("getCurrentStreak", () => {
+  async function createConfirmedMatchAt(
+    p1: string,
+    p2: string,
+    reportedWinnerId: string,
+    confirmedAt: Date,
+  ) {
+    return prisma.ratingMatch.create({
+      data: { player1Id: p1, player2Id: p2, status: MatchStatus.CONFIRMED, expiresAt: new Date(), reportedWinnerId, confirmedAt },
+    });
+  }
+
+  // Regression: the profile page used to feed currentStreak with the same
+  // 20-match history it paginates with, so any streak longer than 20 read
+  // as exactly 20. The DB-backed version must not have that ceiling.
+  it("reports streaks longer than 20 in full", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const base = Date.now();
+    // One loss, then 25 wins after it, so the current streak is 25.
+    await createConfirmedMatchAt(player.id, opponent.id, opponent.id, new Date(base));
+    for (let i = 1; i <= 25; i++) {
+      await createConfirmedMatchAt(player.id, opponent.id, player.id, new Date(base + i * 1000));
+    }
+
+    expect(await getCurrentStreak(player.id)).toBe(25);
+  });
+
+  it("counts a leading run of losses as negative", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const base = Date.now();
+    await createConfirmedMatchAt(player.id, opponent.id, player.id, new Date(base));
+    await createConfirmedMatchAt(player.id, opponent.id, opponent.id, new Date(base + 1000));
+    await createConfirmedMatchAt(player.id, opponent.id, opponent.id, new Date(base + 2000));
+    await createConfirmedMatchAt(player.id, opponent.id, opponent.id, new Date(base + 3000));
+
+    expect(await getCurrentStreak(player.id)).toBe(-3);
+  });
+
+  it("skips practice matches instead of counting them or breaking the streak", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const base = Date.now();
+    await createConfirmedMatchAt(player.id, opponent.id, opponent.id, new Date(base));
+    await createConfirmedMatchAt(player.id, opponent.id, player.id, new Date(base + 1000));
+    await createConfirmedMatch(player.id, opponent.id, {
+      reportedWinnerId: player.id,
+      player1IsPracticing: true,
+    });
+    await createConfirmedMatchAt(player.id, opponent.id, player.id, new Date(base + 2000));
+
+    expect(await getCurrentStreak(player.id)).toBe(2);
+  });
+
+  it("is 0 for a player with no matches or only practice matches", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    expect(await getCurrentStreak(player.id)).toBe(0);
+
+    await createConfirmedMatch(player.id, opponent.id, {
+      reportedWinnerId: player.id,
+      player1IsPracticing: true,
+    });
+    expect(await getCurrentStreak(player.id)).toBe(0);
   });
 });
 

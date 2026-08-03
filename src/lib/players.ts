@@ -200,6 +200,52 @@ export function currentStreak(history: { won: boolean; isPracticing?: boolean }[
   return leadingResult ? count : -count;
 }
 
+// Same semantics as currentStreak, but computed in the database so a long
+// run isn't silently truncated by whichever `limit` a caller passed to
+// getPlayerMatchHistory (the profile page's default 20 used to cap the
+// streak badge at 20). Peeks backwards through history in batches until
+// the streak breaks or the player's whole history is exhausted, so an
+// undefeated player reports their true, possibly unbounded streak.
+export async function getCurrentStreak(userId: string) {
+  const BATCH_SIZE = 50;
+  let leadingResult: boolean | null = null;
+  let count = 0;
+  let skip = 0;
+  while (true) {
+    const matches = await prisma.ratingMatch.findMany({
+      where: matchHistoryWhere(userId),
+      orderBy: { confirmedAt: "desc" },
+      take: BATCH_SIZE,
+      skip,
+      select: {
+        player1Id: true,
+        player2Id: true,
+        player1IsPracticing: true,
+        player2IsPracticing: true,
+        reportedWinnerId: true,
+      },
+    });
+    if (matches.length === 0) break;
+    for (const m of matches) {
+      const isPracticing = m.player1Id === userId ? m.player1IsPracticing : m.player2IsPracticing;
+      if (isPracticing) continue;
+      const won = m.reportedWinnerId === userId;
+      if (leadingResult === null) {
+        leadingResult = won;
+        count = 1;
+      } else if (won !== leadingResult) {
+        return leadingResult ? count : -count;
+      } else {
+        count++;
+      }
+    }
+    if (matches.length < BATCH_SIZE) break;
+    skip += BATCH_SIZE;
+  }
+  if (leadingResult === null) return 0;
+  return leadingResult ? count : -count;
+}
+
 // A match where this player's own side queued isPracticing doesn't count
 // toward their real win/loss record or character usage — same "never
 // touches your main profile" promise the separate practiceRating makes for

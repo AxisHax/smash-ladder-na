@@ -5,9 +5,9 @@ import { notFound } from "next/navigation";
 import { Award, Cable, ExternalLink, MapPin, Swords } from "lucide-react";
 import { auth } from "@/auth";
 import {
-  currentStreak,
   getCareerStats,
   getCharacterUsage,
+  getCurrentStreak,
   getPlayerMatchCount,
   getPlayerMatchHistory,
   getPlayerProfile,
@@ -78,6 +78,7 @@ export default async function PlayerProfilePage({
     inMatch,
     isLiveOnTwitch,
     matchAchievements,
+    streak,
   ] = await Promise.all([
     // Fixed to the true most-recent matches regardless of which page of
     // history is being viewed — the win-rate/streak badges near the rating
@@ -95,6 +96,7 @@ export default async function PlayerProfilePage({
     isCurrentlyInMatch(id),
     player.twitchUsername ? isTwitchLive(player.twitchUsername) : Promise.resolve(false),
     getMatchHistoryAchievements(id),
+    getCurrentStreak(id),
   ]);
   const parentHost = (await headers()).get("host") ?? "smash-ladder-na.vercel.app";
   const reportHistory = isModerator ? await listReportsForUser(id) : [];
@@ -106,7 +108,6 @@ export default async function PlayerProfilePage({
   const realRecentWins = realRecentHistory.filter((m) => m.won).length;
   const winRate =
     realRecentHistory.length > 0 ? Math.round((realRecentWins / realRecentHistory.length) * 100) : null;
-  const streak = currentStreak(recentHistory);
   const mostRecentRealMatchId = recentHistory.find((m) => !m.isPracticing)?.id ?? null;
   const totalPages = Math.max(1, Math.ceil(totalMatchCount / MATCH_HISTORY_PAGE_SIZE));
   const achievements = [...computeAchievements(careerStats), ...matchAchievements];
