@@ -26,6 +26,11 @@ export const MATCH_RATING_GAP_PRESETS = [
 // account lands around Challenger rather than at the bottom of the ladder.
 const TIERS: RankTier[] = [
   {
+    name: "Legend",
+    minRating: 2100,
+    className: "bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-400",
+  },
+  {
     name: "Grandmaster",
     minRating: 1900,
     className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-500/15 dark:text-yellow-400",
@@ -116,6 +121,12 @@ export function computeAchievements(stats: {
       label: "Reached Grandmaster",
       description: `Reach a rating of ${minRatingFor("Grandmaster")}.`,
       achieved: peak >= minRatingFor("Grandmaster"),
+    },
+    {
+      id: "legend",
+      label: "Reached Legend",
+      description: `Reach a rating of ${minRatingFor("Legend")}.`,
+      achieved: peak >= minRatingFor("Legend"),
     },
     {
       id: "veteran",

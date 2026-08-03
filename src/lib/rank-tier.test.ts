@@ -7,9 +7,14 @@ describe("getRankTier", () => {
     expect(getRankTier(1500, 0)).toBeNull();
   });
 
-  it("returns Grandmaster at 1900+", () => {
+  it("returns Legend at 2100+", () => {
+    expect(getRankTier(2100, 10)?.name).toBe("Legend");
+    expect(getRankTier(2500, 50)?.name).toBe("Legend");
+  });
+
+  it("returns Grandmaster at 1900–2099", () => {
     expect(getRankTier(1900, 10)?.name).toBe("Grandmaster");
-    expect(getRankTier(2200, 50)?.name).toBe("Grandmaster");
+    expect(getRankTier(2099, 50)?.name).toBe("Grandmaster");
   });
 
   it("returns Master at 1750–1899", () => {
@@ -41,6 +46,7 @@ describe("didTierUp", () => {
   it("returns true when crossing into a higher tier", () => {
     expect(didTierUp(1740, 1760, 20)).toBe(true); // Elite -> Master
     expect(didTierUp(1890, 1910, 20)).toBe(true); // Master -> Grandmaster
+    expect(didTierUp(2090, 2110, 20)).toBe(true); // Grandmaster -> Legend
   });
 
   it("returns false when staying in the same tier", () => {
