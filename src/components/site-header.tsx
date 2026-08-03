@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import {
+  AlertTriangle,
   CalendarClock,
   ChevronDown,
   Flag,
@@ -192,6 +193,16 @@ export async function SiteHeader() {
               >
                 <Flag className="size-3.5" />
                 Reports
+              </Link>
+            )}
+            {(user?.role === "MOD" || user?.role === "ADMIN") && (
+              <Link
+                href="/admin/watchlist"
+                prefetch={false}
+                className="flex items-center gap-1.5 hover:text-foreground"
+              >
+                <AlertTriangle className="size-3.5" />
+                Watchlist
               </Link>
             )}
             {(user?.role === "MOD" || user?.role === "ADMIN") && (

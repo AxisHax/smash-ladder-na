@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   Activity,
+  AlertTriangle,
   Ban,
   Flag,
   Gauge,
@@ -11,6 +12,7 @@ import {
 } from "lucide-react";
 import { auth } from "@/auth";
 import { getAdminOverview } from "@/lib/admin-stats";
+import { getSuspendWatchlist } from "@/lib/admin-watchlist";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -74,6 +76,7 @@ export default async function AdminOverviewPage() {
   }
 
   const stats = await getAdminOverview();
+  const watchlist = await getSuspendWatchlist();
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
@@ -122,6 +125,13 @@ export default async function AdminOverviewPage() {
           value={stats.suspendedUsers + stats.bannedUsers}
           tone={stats.suspendedUsers + stats.bannedUsers > 0 ? "destructive" : undefined}
         />
+        <StatCard
+          icon={AlertTriangle}
+          label="Watchlist (suspend threshold)"
+          value={watchlist.suspendThreshold.length}
+          href="/admin/watchlist"
+          tone={watchlist.suspendThreshold.length > 0 ? "destructive" : undefined}
+        />
       </div>
 
       <div className="mt-8 flex flex-wrap gap-2">
@@ -142,6 +152,9 @@ export default async function AdminOverviewPage() {
         </Link>
         <Link href="/admin/reports" className="text-muted-foreground hover:text-foreground hover:underline">
           Go to Reports →
+        </Link>
+        <Link href="/admin/watchlist" className="text-muted-foreground hover:text-foreground hover:underline">
+          Go to Watchlist →
         </Link>
         <Link href="/admin/seasons" className="text-muted-foreground hover:text-foreground hover:underline">
           Go to Seasons →
