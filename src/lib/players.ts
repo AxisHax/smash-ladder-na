@@ -78,10 +78,41 @@ export async function getPlayerMatchCount(userId: string) {
   return prisma.ratingMatch.count({ where: matchHistoryWhere(userId) });
 }
 
+// One game within a history entry — the per-game detail behind the profile
+// page's match-details modal. Games with no decided winner (disputed or
+// admin-reset) are included with won: null so the modal reflects the full
+// set, but they're ignored by the score/characters summary above.
+export interface MatchHistoryGame {
+  gameNumber: number;
+  /** The querying player's character this game, if one was locked in. */
+  character: string | null;
+  /** The opponent's character this game, if one was locked in. */
+  opponentCharacter: string | null;
+  /** The stage the game was played on, once picked. */
+  stage: string | null;
+  /** Whether the querying player won. null = no decided winner. */
+  won: boolean | null;
+}
+
+export interface MatchHistoryEntryData {
+  id: string;
+  opponent: { id: string; username: string };
+  won: boolean;
+  isPracticing: boolean;
+  ratingBefore: number | null;
+  ratingAfter: number | null;
+  delta: number;
+  confirmedAt: Date | null;
+  score: { wins: number; losses: number };
+  characters: string[];
+  opponentCharacters: string[];
+  games: MatchHistoryGame[];
+}
+
 export async function getPlayerMatchHistory(
   userId: string,
   { limit = 20, skip = 0 }: { limit?: number; skip?: number } = {},
-) {
+): Promise<MatchHistoryEntryData[]> {
   const matches = await prisma.ratingMatch.findMany({
     where: matchHistoryWhere(userId),
     orderBy: { confirmedAt: "desc" },
@@ -93,11 +124,23 @@ export async function getPlayerMatchHistory(
     },
   });
 
-  // Batched rather than per-match, since this list can be up to `limit` long.
+  // Batched rather than per-match, since this list can be up to `limit`
+  // long. Every game is fetched — decided ones drive the score/characters
+  // summary, and the rest still appear (as undecided) in the per-game
+  // details the modal shows.
   const games = await prisma.matchGame.findMany({
-    where: { matchId: { in: matches.map((m) => m.id) }, winnerId: { not: null } },
+    where: { matchId: { in: matches.map((m) => m.id) } },
     orderBy: { gameNumber: "asc" },
-    select: { matchId: true, actorAId: true, actorACharacter: true, actorBId: true, actorBCharacter: true, winnerId: true },
+    select: {
+      matchId: true,
+      gameNumber: true,
+      actorAId: true,
+      actorACharacter: true,
+      actorBId: true,
+      actorBCharacter: true,
+      finalStage: true,
+      winnerId: true,
+    },
   });
   const gamesByMatch = new Map<string, typeof games>();
   for (const g of games) {
@@ -127,15 +170,29 @@ export async function getPlayerMatchHistory(
     let gamesLost = 0;
     const characters: string[] = [];
     const opponentCharacters: string[] = [];
+    const games: MatchHistoryGame[] = [];
     for (const g of matchGames) {
-      if (g.winnerId === userId) gamesWon++;
-      else gamesLost++;
       const character = g.actorAId === userId ? g.actorACharacter : g.actorBCharacter;
-      if (character && !characters.includes(character)) characters.push(character);
       const opponentCharacter = g.actorAId === userId ? g.actorBCharacter : g.actorACharacter;
-      if (opponentCharacter && !opponentCharacters.includes(opponentCharacter)) {
-        opponentCharacters.push(opponentCharacter);
+      // Games with no decided winner (disputed/void) don't count toward the
+      // score or the aggregated character list — same rule the score test
+      // enforces — but they're still listed in the per-game details so a
+      // closed-out set's modal shows the full picture.
+      if (g.winnerId !== null) {
+        if (g.winnerId === userId) gamesWon++;
+        else gamesLost++;
+        if (character && !characters.includes(character)) characters.push(character);
+        if (opponentCharacter && !opponentCharacters.includes(opponentCharacter)) {
+          opponentCharacters.push(opponentCharacter);
+        }
       }
+      games.push({
+        gameNumber: g.gameNumber,
+        character,
+        opponentCharacter,
+        stage: g.finalStage,
+        won: g.winnerId === null ? null : g.winnerId === userId,
+      });
     }
 
     return {
@@ -150,6 +207,7 @@ export async function getPlayerMatchHistory(
       score: { wins: gamesWon, losses: gamesLost },
       characters,
       opponentCharacters,
+      games,
     };
   });
 }
