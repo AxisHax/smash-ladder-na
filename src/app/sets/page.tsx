@@ -172,6 +172,7 @@ function SetPlayer({
             </span>
           )}
         </span>
+        <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} className="mt-0.5 shrink self-start sm:hidden" />
       </span>
     </Link>
   );
