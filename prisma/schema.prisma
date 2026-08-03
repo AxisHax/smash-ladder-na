@@ -151,7 +151,7 @@ model User {
   secondaryCharacters  String[]   @default([]) // same source as mainCharacter — auto-computed until self-declared, then player-controlled
   charactersSelfDeclared Boolean  @default(false) // once true, recomputeCharacterUsage no-ops — players complained the old peer-report mechanism kept landing on the wrong main, so self-declaration (once made) is authoritative
   region               String? // self-declared match region; drives distance-based matchmaking
-  maxMatchDistanceKm   Int?       @default(5000) // self-declared match radius; null means worldwide. Matching requires BOTH sides' radius to cover the actual distance.
+  maxMatchDistanceKm   Int?       @default(2400) // self-declared match radius; null means worldwide. Matching requires BOTH sides' radius to cover the actual distance. Default matches MATCH_DISTANCE_PRESETS' "Moderate" tier.
   maxRatingGap         Int? // self-declared rating-gap tolerance; null means any rating (the default, to not shrink an already-small pool). Matching requires BOTH sides' gap to cover the actual difference.
   rematchCooldownHours Int? // self-declared minimum time before rematching the same opponent; null means anytime (the default). Matching requires BOTH sides' cooldown to have elapsed since their last match.
   wiredConnection      Boolean    @default(false) // self-declared LAN vs wireless, shown on profile like Smashmate's LAN badge
