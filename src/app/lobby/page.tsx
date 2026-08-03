@@ -14,6 +14,7 @@ import {
 import {
   STRIKE_TIMEOUT_MS,
   CHARACTER_TIMEOUT_MS,
+  REPORT_TIMEOUT_MS,
   bothCharactersLocked,
   characterPickState,
   getMatchGames,
@@ -1238,11 +1239,33 @@ function ReportGameSection({
   game: Awaited<ReturnType<typeof getMatchGames>>[number];
   opponentName: string;
 }) {
+  // The report clock starts when the game's final stage is picked — the pick
+  // actions reset turnStartedAt — and autoResolveStaleGameReport accepts a
+  // lone hanging report once REPORT_TIMEOUT_MS elapses, so both sides see the
+  // same countdown here.
+  const reportDeadline = new Date(
+    game.turnStartedAt.getTime() + REPORT_TIMEOUT_MS,
+  );
+  const secondsLeft = secondsUntil(reportDeadline);
+  const deadline = reportDeadline.toISOString();
+
   if (!game.reportedById) {
     return (
       <CardContent className="border-t border-border pt-4">
         <p className="text-sm text-muted-foreground">
-          Report game {game.gameNumber}&apos;s result once you&apos;ve played.
+          Report game {game.gameNumber}&apos;s result once you&apos;ve played.{" "}
+          {secondsLeft > 0 ? (
+            <>
+              You have <Countdown deadline={deadline} />s left to report — if
+              only one of you reports, it auto-confirms when the clock runs out
+              and the silent player is charged a no-show.
+            </>
+          ) : (
+            <>
+              The 15-minute window to report has passed — if only one of you
+              reported, it&apos;ll auto-confirm on the next refresh.
+            </>
+          )}
         </p>
         <div className="mt-4 flex gap-2">
           <ConfirmSubmitButton
@@ -1268,7 +1291,14 @@ function ReportGameSection({
       <CardContent className="border-t border-border pt-4">
         <p className="text-sm text-muted-foreground">
           Waiting for {opponentName} to confirm game {game.gameNumber}&apos;s
-          result…
+          result…{" "}
+          {secondsLeft > 0 ? (
+            <>
+              It auto-confirms in <Countdown deadline={deadline} />s.
+            </>
+          ) : (
+            "They're past the deadline — this should resolve in your favor shortly."
+          )}
         </p>
       </CardContent>
     );
@@ -1280,7 +1310,15 @@ function ReportGameSection({
       <p className="text-sm text-muted-foreground">
         {opponentName} reported that{" "}
         {theyClaimedTheyWon ? "they won" : "you won"} game {game.gameNumber}.
-        Does that match what happened?
+        Does that match what happened?{" "}
+        {secondsLeft > 0 ? (
+          <>
+            Confirm or dispute within <Countdown deadline={deadline} />s, or it
+            auto-confirms.
+          </>
+        ) : (
+          "You're past the deadline — this should resolve shortly."
+        )}
       </p>
       <div className="mt-4 flex gap-2">
         <form

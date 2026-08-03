@@ -12,6 +12,7 @@ import {
   getMatchGames,
   reportGameResult,
   CHARACTER_TIMEOUT_MS,
+  REPORT_TIMEOUT_MS,
 } from "@/lib/match-games";
 import { GAME_ONE_STAGES, COUNTERPICK_STAGES } from "@/lib/stages";
 
@@ -96,6 +97,108 @@ describe("auto-forfeit for a stale character pick", () => {
     await prisma.matchGame.update({
       where: { id: game.id },
       data: { createdAt: new Date(Date.now() - CHARACTER_TIMEOUT_MS - 1000) },
+    });
+
+    const games = await getMatchGames(match.id);
+    expect(games.find((g) => g.gameNumber === 1)?.winnerId).toBeNull();
+  });
+});
+
+describe("auto-confirm for a stale game report", () => {
+  it("does nothing before REPORT_TIMEOUT_MS has elapsed since the stage was picked", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await startFirstGame(p1.id, match.id);
+    const game = await getCurrentGame(match.id);
+    if (!game) throw new Error("expected game 1 to exist");
+    await prisma.matchGame.update({
+      where: { id: game.id },
+      data: {
+        finalStage: "Final Destination",
+        reportedById: p1.id,
+        reportedWinnerId: p1.id,
+        reportedAt: new Date(),
+      },
+    });
+
+    const games = await getMatchGames(match.id);
+    expect(games.find((g) => g.gameNumber === 1)?.winnerId).toBeNull();
+  });
+
+  it("auto-confirms a lone hanging report once REPORT_TIMEOUT_MS has elapsed, charging the silent side a no-show", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await startFirstGame(p1.id, match.id);
+    const game = await getCurrentGame(match.id);
+    if (!game) throw new Error("expected game 1 to exist");
+    await prisma.matchGame.update({
+      where: { id: game.id },
+      data: {
+        finalStage: "Final Destination",
+        turnStartedAt: new Date(Date.now() - REPORT_TIMEOUT_MS - 1000),
+        reportedById: p1.id,
+        reportedWinnerId: p1.id,
+        reportedAt: new Date(Date.now() - REPORT_TIMEOUT_MS - 1000),
+      },
+    });
+
+    const games = await getMatchGames(match.id);
+    const resolved = games.find((g) => g.gameNumber === 1);
+    expect(resolved?.winnerId).toBe(p1.id);
+
+    // The set isn't decided, so game 2 gets created and the match gets a fresh
+    // deadline rather than expiring mid-set on the original one.
+    expect(games.find((g) => g.gameNumber === 2)).toBeDefined();
+    const updatedMatch = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(updatedMatch.expiresAt.getTime()).toBeGreaterThan(Date.now());
+
+    const ghost = await prisma.user.findUniqueOrThrow({ where: { id: p2.id } });
+    expect(ghost.noShowCount).toBe(1);
+    expect(ghost.recentTimeoutCount).toBe(1);
+    expect(ghost.queueCooldownUntil).not.toBeNull();
+    expect(ghost.queueCooldownUntil!.getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it("does nothing when nobody reported, even past the deadline", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await startFirstGame(p1.id, match.id);
+    const game = await getCurrentGame(match.id);
+    if (!game) throw new Error("expected game 1 to exist");
+    await prisma.matchGame.update({
+      where: { id: game.id },
+      data: {
+        finalStage: "Final Destination",
+        turnStartedAt: new Date(Date.now() - REPORT_TIMEOUT_MS - 1000),
+      },
+    });
+
+    const games = await getMatchGames(match.id);
+    expect(games.find((g) => g.gameNumber === 1)?.winnerId).toBeNull();
+  });
+
+  it("does nothing for a disputed game, even past the deadline", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await startFirstGame(p1.id, match.id);
+    const game = await getCurrentGame(match.id);
+    if (!game) throw new Error("expected game 1 to exist");
+    await prisma.matchGame.update({
+      where: { id: game.id },
+      data: {
+        finalStage: "Final Destination",
+        turnStartedAt: new Date(Date.now() - REPORT_TIMEOUT_MS - 1000),
+        reportedById: p1.id,
+        reportedWinnerId: p1.id,
+        reportedAt: new Date(Date.now() - REPORT_TIMEOUT_MS - 1000),
+        secondReportById: p2.id,
+        secondReportWinnerId: p2.id,
+        secondReportAt: new Date(Date.now() - REPORT_TIMEOUT_MS - 1000),
+      },
     });
 
     const games = await getMatchGames(match.id);

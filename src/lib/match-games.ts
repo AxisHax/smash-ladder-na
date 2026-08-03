@@ -1,6 +1,6 @@
 import { prisma, TX_OPTIONS, withTransientRetry } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
-import { ConfirmationMethod, UserRole } from "@/generated/prisma/enums";
+import { ConfirmationMethod, MatchStatus, UserRole } from "@/generated/prisma/enums";
 import { applyEloAndConfirm } from "@/lib/matches";
 import { GAME_ONE_STAGES, COUNTERPICK_STAGES } from "@/lib/stages";
 import { SMASH_CHARACTERS } from "@/lib/characters";
@@ -34,6 +34,15 @@ export const STRIKE_TIMEOUT_MS = 60 * 1000;
 // a batch of sets sat all night with a losing player just never reporting
 // — a shorter window means the honest side isn't stuck till the next day.
 export const MATCH_TTL_MS = 3 * 60 * 60 * 1000;
+
+// How long a player has to report a finished game's result once its stage is
+// decided. Short like STRIKE_TIMEOUT_MS — a live in-session clock, distinct
+// from the 3h match-level no-report fallback above: if one side reported and
+// the other never confirms, autoResolveStaleGameReport accepts the report and
+// charges the silent side a no-show once this elapses. Long enough to actually
+// play the game out (a single Smash set game runs ~5 minutes) with time to
+// spare for reporting afterwards.
+export const REPORT_TIMEOUT_MS = 15 * 60 * 1000;
 
 // Lazy, not cron-driven (the finalize cron only runs daily — far too coarse
 // for a live in-session timer): checked on every read, same idea as
@@ -71,7 +80,12 @@ async function autoResolveStaleTurn(matchId: string) {
 
   const stage = game.stagesRemaining[Math.floor(Math.random() * game.stagesRemaining.length)];
   if (!stage) return;
-  await prisma.matchGame.updateMany({ where: { id: game.id, finalStage: null }, data: { finalStage: stage } });
+  // turnStartedAt marks when the current phase began — resetting it here (and
+  // in the pick actions) is what anchors the report clock for the game.
+  await prisma.matchGame.updateMany({
+    where: { id: game.id, finalStage: null },
+    data: { finalStage: stage, turnStartedAt: new Date() },
+  });
 }
 
 // How long a player has to lock in a character before it costs them the
@@ -148,13 +162,98 @@ async function autoResolveStaleCharacterPick(match: { id: string; player1Id: str
   ]);
 }
 
+// Lazy, same pattern as autoResolveStaleTurn / autoResolveStaleCharacterPick
+// — the finalize cron only runs daily, far too coarse for an in-session
+// deadline. Once a game's stage is decided, both players have REPORT_TIMEOUT_MS
+// to report the result. If exactly one side reported and the other never
+// confirmed, accept the report — mirrors autoConfirmStaleGameReport's "accept
+// whoever showed up, penalize the ghost" philosophy at game granularity and
+// 15-minute scale. If nobody reported, deliberately do nothing: there's no
+// fair way to pick a winner from two silent sides, so that falls through to
+// the match-level TTL (closeOutUnansweredLead / plain expiry) instead.
+// Disputed games (secondReportById set) are a mod's call and are never
+// touched here.
+async function autoResolveStaleGameReport(match: {
+  id: string;
+  player1Id: string;
+  player2Id: string;
+  status: MatchStatus;
+}) {
+  if (
+    match.status !== MatchStatus.PENDING_REPORT &&
+    match.status !== MatchStatus.REPORTED
+  ) {
+    return; // mod-ruled or finished matches shouldn't shift under anyone
+  }
+
+  const game = await prisma.matchGame.findFirst({
+    where: { matchId: match.id, winnerId: null, finalStage: { not: null } },
+    orderBy: { gameNumber: "desc" },
+  });
+  if (!game) return;
+  if (game.secondReportById) return; // disputed — a mod resolves it
+  if (!game.reportedById || !game.reportedWinnerId) return; // nobody reported yet
+  if (Date.now() - game.turnStartedAt.getTime() < REPORT_TIMEOUT_MS) return;
+
+  const reportedWinnerId = game.reportedWinnerId;
+  const nonReporterId =
+    game.reportedById === match.player1Id ? match.player2Id : match.player1Id;
+
+  const confirmed = await withTransientRetry(() =>
+    prisma.$transaction(async (tx) => {
+      const claim = await tx.matchGame.updateMany({
+        where: { id: game.id, winnerId: null, reportedById: { not: null } },
+        data: { winnerId: reportedWinnerId },
+      });
+      if (claim.count === 0) return false; // already decided by a racing request
+      // If this doesn't decide the whole set, give the match a fresh deadline
+      // so it can continue rather than expiring mid-way (same as the cron
+      // path in autoConfirmStaleGameReport).
+      await tx.ratingMatch.update({
+        where: { id: match.id },
+        data: { expiresAt: new Date(Date.now() + MATCH_TTL_MS) },
+      });
+      await progressSet(tx, match, game.gameNumber, reportedWinnerId, ConfirmationMethod.AUTO_TIMEOUT);
+      await applyTimeoutCooldown(tx, nonReporterId);
+      return true;
+    }, TX_OPTIONS),
+  );
+  if (!confirmed) return;
+
+  // Ghost gets a DM, mods get pinged — same as the character-pick forfeit;
+  // this is exactly the kind of silent, easy-to-miss resolution that slips by
+  // unnoticed otherwise (see adminSetGameWinner/adminResetMatchToZero in
+  // disputes.ts for the tools to review or undo it).
+  const [winner, ghost, mods] = await Promise.all([
+    prisma.user.findUnique({ where: { id: reportedWinnerId }, select: { username: true } }),
+    prisma.user.findUnique({ where: { id: nonReporterId }, select: { username: true, discordId: true } }),
+    prisma.user.findMany({ where: { role: { in: [UserRole.MOD, UserRole.ADMIN] } }, select: { discordId: true } }),
+  ]);
+  if (!winner || !ghost) return;
+  await Promise.all([
+    sendDiscordDM(
+      ghost.discordId,
+      `⏱️ Game ${game.gameNumber} vs ${winner.username} was auto-confirmed from their report — you didn't confirm the result in time. If that's wrong (site issue, disconnect, etc.), flag it to a mod.`,
+    ),
+    ...mods.map((mod) =>
+      sendDiscordDM(
+        mod.discordId,
+        `⏱️ Auto-confirmed report: ${winner.username} awarded game ${game.gameNumber} over ${ghost.username} (match ${match.id}) after they didn't confirm in time. Review at /admin/live if this looks unfair.`,
+      ),
+    ),
+  ]);
+}
+
 export async function getMatchGames(matchId: string) {
   await autoResolveStaleTurn(matchId);
   const match = await prisma.ratingMatch.findUnique({
     where: { id: matchId },
-    select: { id: true, player1Id: true, player2Id: true },
+    select: { id: true, player1Id: true, player2Id: true, status: true },
   });
-  if (match) await autoResolveStaleCharacterPick(match);
+  if (match) {
+    await autoResolveStaleCharacterPick(match);
+    await autoResolveStaleGameReport(match);
+  }
   return prisma.matchGame.findMany({ where: { matchId }, orderBy: { gameNumber: "asc" } });
 }
 
@@ -456,9 +555,11 @@ export async function pickGameStage(
   if (!bothCharactersLocked(game)) throw new Error("Both players must lock in their character before picking a stage");
   if (!game.stagesRemaining.includes(stage)) throw new Error("Not a valid remaining stage");
 
+  // turnStartedAt is the report clock's anchor: whoever picks the final stage
+  // starts the REPORT_TIMEOUT_MS window to report this game's result.
   await prisma.matchGame.updateMany({
     where: { id: game.id, finalStage: null },
-    data: { finalStage: stage },
+    data: { finalStage: stage, turnStartedAt: new Date() },
   });
 }
 
@@ -480,7 +581,7 @@ export async function pickSameStage(userId: string, matchId: string, gameNumber:
 
   await prisma.matchGame.updateMany({
     where: { id: game.id, finalStage: null },
-    data: { finalStage: stage },
+    data: { finalStage: stage, turnStartedAt: new Date() },
   });
 }
 
@@ -579,8 +680,6 @@ export async function reportGameResult(
   await notifyReportOutcome(outcome, gameNumber);
 }
 
-const MATCH_TTL_HOURS = MATCH_TTL_MS / (60 * 60 * 1000);
-
 // Disputes and a fresh report both get a DM — the report reminder exists
 // so a player who's just genuinely forgotten to open the site gets nudged
 // before the no-report timeout charges them a no-show, rather than the
@@ -596,7 +695,7 @@ async function notifyReportOutcome(outcome: ReportOutcome, gameNumber: number) {
     if (opponent && reporter) {
       await sendDiscordDM(
         opponent.discordId,
-        `⏱️ ${reporter.username} reported game ${gameNumber}'s result. Confirm or dispute it in the Lobby — if you don't respond within ${MATCH_TTL_HOURS} hours it auto-confirms and you're charged a no-show.`,
+        `⏱️ ${reporter.username} reported game ${gameNumber}'s result. Confirm or dispute it in the Lobby — if you don't respond within ${REPORT_TIMEOUT_MS / 60_000} minutes it auto-confirms and you're charged a no-show.`,
       );
     }
     return;
