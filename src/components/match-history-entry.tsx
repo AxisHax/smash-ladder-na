@@ -178,7 +178,10 @@ function MatchDetailsModal({
           )}
           {match.games.map((game) => (
             <div key={game.gameNumber} className="rounded-lg border border-border bg-muted/30 p-3">
-              <p className="text-xs font-medium text-muted-foreground">Game {game.gameNumber}</p>
+              <p className="text-xs font-medium text-muted-foreground">
+                Game {game.gameNumber}
+                {game.stage ? `: ${game.stage}` : ""}
+              </p>
               <div className="mt-2 flex items-center justify-between gap-2">
                 <div className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
                   <span className="text-xs font-medium text-foreground">{viewedPlayerName}</span>
@@ -212,9 +215,7 @@ function MatchDetailsModal({
                   </span>
                 </div>
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Stage: <span className="text-foreground">{game.stage ?? "—"}</span>
-              </p>
+
             </div>
           ))}
         </div>
