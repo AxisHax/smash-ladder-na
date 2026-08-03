@@ -154,24 +154,11 @@ export async function getPlayerMatchHistory(
   });
 }
 
-// Collapses same-(UTC calendar day) points into one, keeping the rating
-// from the last match of that day — so a chart point represents "rating
-// after that day's session" rather than every individual game. Points must
-// already be in ascending date order.
-export function condenseByDay<T extends { date: Date; rating: number }>(points: T[]): T[] {
-  const result: T[] = [];
-  for (const point of points) {
-    const last = result[result.length - 1];
-    const sameDay = last && last.date.toISOString().slice(0, 10) === point.date.toISOString().slice(0, 10);
-    if (sameDay) {
-      result[result.length - 1] = point;
-    } else {
-      result.push(point);
-    }
-  }
-  return result;
-}
-
+// Returns the most recent rating snapshots, raw — one per match, ascending.
+// The client condenses these into one point per *viewer-local* calendar day:
+// the server doesn't know the viewer's timezone, and UTC day boundaries can
+// merge matches that fall on different local days (e.g. 10pm and midnight in
+// a timezone behind UTC).
 export async function getRatingChartPoints(userId: string, limit = 50) {
   const rows = await prisma.ratingHistory.findMany({
     where: { userId },
@@ -179,8 +166,7 @@ export async function getRatingChartPoints(userId: string, limit = 50) {
     take: limit,
     select: { ratingAfter: true, createdAt: true },
   });
-  const points = rows.reverse().map((r) => ({ date: r.createdAt, rating: r.ratingAfter }));
-  return condenseByDay(points);
+  return rows.reverse().map((r) => ({ date: r.createdAt, rating: r.ratingAfter }));
 }
 
 // Current streak: how many of the most recent confirmed matches in a row
