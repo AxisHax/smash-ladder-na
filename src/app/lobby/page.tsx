@@ -46,6 +46,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { CharacterIcon } from "@/components/character-icon";
 import { CharacterSelect } from "@/components/character-select";
+import { OptionSelect, type OptionSelectOption } from "@/components/option-select";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { RoomCodeForm } from "@/components/room-code-form";
 import { FlashOnChange } from "@/components/flash-on-change";
@@ -287,6 +288,14 @@ const WORLDWIDE_VALUE = "worldwide";
 const ANY_RATING_VALUE = "any";
 const ANYTIME_VALUE = "anytime";
 
+const REGION_OPTIONS: OptionSelectOption[] = MATCH_REGION_GROUPS.flatMap((group) =>
+  group.regions.map((r) => ({
+    value: r,
+    label: REGION_REFERENCE_CITY[r] ? `${r} (${REGION_REFERENCE_CITY[r]})` : r,
+    group: group.label,
+  })),
+);
+
 async function MatchmakingForm({ userId }: { userId: string }) {
   const me = await prisma.user.findUnique({
     where: { id: userId },
@@ -354,31 +363,17 @@ async function MatchmakingForm({ userId }: { userId: string }) {
           your own country. Other has no location, so it only ever matches other
           Other players.
         </span>
-        <select
+        <OptionSelect
           key={me?.region ?? ""}
           name="region"
           defaultValue={me?.region ?? ""}
-          className="h-8 w-52 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
-        >
-          <option value="" className="bg-background text-foreground">
-            Not set
-          </option>
-          {MATCH_REGION_GROUPS.map((group) => (
-            <optgroup key={group.label} label={group.label}>
-              {group.regions.map((r) => (
-                <option
-                  key={r}
-                  value={r}
-                  className="bg-background text-foreground"
-                >
-                  {REGION_REFERENCE_CITY[r]
-                    ? `${r} (${REGION_REFERENCE_CITY[r]})`
-                    : r}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
+          placeholder="Not set"
+          clearLabel="Not set"
+          className="w-52"
+          searchable
+          searchPlaceholder="Search regions…"
+          options={REGION_OPTIONS}
+        />
       </label>
       <label className="flex flex-col gap-1 text-sm">
         Match distance
@@ -387,22 +382,16 @@ async function MatchmakingForm({ userId }: { userId: string }) {
           actual distance between them — widening yours doesn&apos;t override
           the other side&apos;s.
         </span>
-        <select
+        <OptionSelect
           key={String(me?.maxMatchDistanceKm ?? WORLDWIDE_VALUE)}
           name="maxMatchDistanceKm"
           defaultValue={String(me?.maxMatchDistanceKm ?? WORLDWIDE_VALUE)}
-          className="h-8 w-48 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
-        >
-          {MATCH_DISTANCE_PRESETS.map((preset) => (
-            <option
-              key={preset.label}
-              value={String(preset.km ?? WORLDWIDE_VALUE)}
-              className="bg-background text-foreground"
-            >
-              {preset.label}
-            </option>
-          ))}
-        </select>
+          className="w-48"
+          options={MATCH_DISTANCE_PRESETS.map((preset) => ({
+            value: String(preset.km ?? WORLDWIDE_VALUE),
+            label: preset.label,
+          }))}
+        />
       </label>
       <label className="flex flex-col gap-1 text-sm">
         Rating gap
@@ -410,22 +399,16 @@ async function MatchmakingForm({ userId }: { userId: string }) {
           Matching requires BOTH players&apos; rating-gap setting to cover the
           actual difference in rating.
         </span>
-        <select
+        <OptionSelect
           key={String(me?.maxRatingGap ?? ANY_RATING_VALUE)}
           name="maxRatingGap"
           defaultValue={String(me?.maxRatingGap ?? ANY_RATING_VALUE)}
-          className="h-8 w-48 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
-        >
-          {MATCH_RATING_GAP_PRESETS.map((preset) => (
-            <option
-              key={preset.label}
-              value={String(preset.gap ?? ANY_RATING_VALUE)}
-              className="bg-background text-foreground"
-            >
-              {preset.label}
-            </option>
-          ))}
-        </select>
+          className="w-48"
+          options={MATCH_RATING_GAP_PRESETS.map((preset) => ({
+            value: String(preset.gap ?? ANY_RATING_VALUE),
+            label: preset.label,
+          }))}
+        />
       </label>
       <label className="flex flex-col gap-1 text-sm">
         Rematch cooldown
@@ -433,22 +416,16 @@ async function MatchmakingForm({ userId }: { userId: string }) {
           Matching requires BOTH players&apos; cooldown to have elapsed since
           you two last played.
         </span>
-        <select
+        <OptionSelect
           key={String(me?.rematchCooldownHours ?? ANYTIME_VALUE)}
           name="rematchCooldownHours"
           defaultValue={String(me?.rematchCooldownHours ?? ANYTIME_VALUE)}
-          className="h-8 w-48 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
-        >
-          {REMATCH_COOLDOWN_PRESETS.map((preset) => (
-            <option
-              key={preset.label}
-              value={String(preset.hours ?? ANYTIME_VALUE)}
-              className="bg-background text-foreground"
-            >
-              {preset.label}
-            </option>
-          ))}
-        </select>
+          className="w-48"
+          options={REMATCH_COOLDOWN_PRESETS.map((preset) => ({
+            value: String(preset.hours ?? ANYTIME_VALUE),
+            label: preset.label,
+          }))}
+        />
       </label>
       <label className="mt-1 flex items-center gap-2 text-sm">
         <input

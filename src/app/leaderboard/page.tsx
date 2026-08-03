@@ -8,6 +8,7 @@ import { ensureActiveSeason, PRE_SEASON_DURATION_MONTHS, PRE_SEASON_EXPECTED_END
 import { SEASON_PRIZE_POOL_USD, prizeForPlace } from "@/lib/prizes";
 import { CharacterIcon } from "@/components/character-icon";
 import { CharacterFilterSelect } from "@/components/character-filter-select";
+import { OptionSelect, type OptionSelectOption } from "@/components/option-select";
 import { RankBadge } from "@/components/rank-badge";
 import { AdSlot } from "@/components/ad-slot";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +17,10 @@ import { Card } from "@/components/ui/card";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 const PAGE_SIZE = 50;
+
+const REGION_OPTIONS: OptionSelectOption[] = MATCH_REGION_GROUPS.flatMap((group) =>
+  group.regions.map((r) => ({ value: r, label: r, group: group.label })),
+);
 
 export default async function LeaderboardPage({
   searchParams,
@@ -40,7 +45,7 @@ export default async function LeaderboardPage({
   const rankOffset = (page - 1) * PAGE_SIZE;
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-16">
+    <main className="mx-auto max-w-3xl px-6 py-16">
       <div className="flex items-center gap-2">
         <Trophy className="size-5 text-muted-foreground" />
         <h1 className="text-2xl font-semibold tracking-tight">Leaderboard</h1>
@@ -90,26 +95,19 @@ export default async function LeaderboardPage({
         />
         <label className="flex flex-col gap-1 text-sm">
           Region
-          <select
+          <OptionSelect
+            key={isValidRegion ? region : ""}
             name="region"
             defaultValue={isValidRegion ? region : ""}
-            className="h-8 w-48 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
-          >
-            <option value="" className="bg-background text-foreground">
-              All regions
-            </option>
-            {MATCH_REGION_GROUPS.map((group) => (
-              <optgroup key={group.label} label={group.label}>
-                {group.regions.map((r) => (
-                  <option key={r} value={r} className="bg-background text-foreground">
-                    {r}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
+            placeholder="All regions"
+            clearLabel="All regions"
+            className="w-48"
+            searchable
+            searchPlaceholder="Search regions…"
+            options={REGION_OPTIONS}
+          />
         </label>
-        <Button type="submit" size="sm" variant="outline">
+        <Button type="submit" size="sm" variant="outline" className="h-8">
           Filter
         </Button>
       </form>
