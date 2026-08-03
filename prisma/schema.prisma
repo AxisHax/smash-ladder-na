@@ -315,6 +315,15 @@ model MatchGame {
   secondReportAt       DateTime?
   winnerId             String?
 
+  // Contested-report reconciliation: when the two reports disagree, the game
+  // isn't escalated straight to mods — each player is asked to re-confirm
+  // their claim (or dispute it). These record who has re-confirmed; once
+  // both have and still disagree, the game escalates to mod review
+  // (disputeRequestedAt set).
+  reporterConfirmedAt       DateTime?
+  secondReporterConfirmedAt DateTime?
+  disputeRequestedAt        DateTime?
+
   // Self-service re-agreement after a dispute (reportedWinnerId !=
   // secondReportWinnerId) — see requestDisputeResolution. Only one slot
   // needed: the first voter's pick lands here, and the second voter's pick
