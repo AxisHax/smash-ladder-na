@@ -5,12 +5,8 @@ import { SMASH_CHARACTERS } from "@/lib/characters";
 import { CHARACTER_ICON_SLUGS, characterIconSlug } from "@/lib/character-icons";
 
 describe("CHARACTER_ICON_SLUGS", () => {
-  it("maps every roster character to a slug, except Random (no real fighter art to map)", () => {
+  it("maps every roster character to a slug", () => {
     for (const character of SMASH_CHARACTERS) {
-      if (character === "Random") {
-        expect(CHARACTER_ICON_SLUGS[character]).toBeUndefined();
-        continue;
-      }
       expect(CHARACTER_ICON_SLUGS[character], character).toBeTruthy();
     }
   });
