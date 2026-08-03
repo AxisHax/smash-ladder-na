@@ -21,6 +21,7 @@ export async function getPlayerProfile(userId: string) {
       wiredConnection: true,
       mainCharacter: true,
       secondaryCharacters: true,
+      zenMode: true,
       startggSlug: true,
       startggGamerTag: true,
       twitchUsername: true,
@@ -58,6 +59,41 @@ export async function isCurrentlyInMatch(userId: string) {
     select: { id: true },
   });
   return match !== null;
+}
+
+// Full active-match snapshot for the profile page's "currently in a match"
+// card (opponent + games). Deliberately a pure read — no autoResolveStale*
+// side effects like getMatchGames in the lobby — since profile pages get
+// viewed by people who aren't in the session, so they shouldn't advance the
+// match. Same PENDING_REPORT/REPORTED filter as isCurrentlyInMatch.
+export async function getCurrentMatchForUser(userId: string) {
+  return prisma.ratingMatch.findFirst({
+    where: {
+      OR: [{ player1Id: userId }, { player2Id: userId }],
+      status: { in: [MatchStatus.PENDING_REPORT, MatchStatus.REPORTED] },
+    },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      player1Id: true,
+      player2Id: true,
+      player1: { select: { id: true, username: true, avatarUrl: true, rating: true } },
+      player2: { select: { id: true, username: true, avatarUrl: true, rating: true } },
+      games: {
+        orderBy: { gameNumber: "asc" },
+        select: {
+          gameNumber: true,
+          actorAId: true,
+          actorBId: true,
+          actorACharacter: true,
+          actorBCharacter: true,
+          winnerId: true,
+          reportedWinnerId: true,
+          secondReportWinnerId: true,
+        },
+      },
+    },
+  });
 }
 
 function matchHistoryWhere(userId: string) {
