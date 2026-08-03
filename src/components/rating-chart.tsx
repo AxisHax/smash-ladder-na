@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore, useState } from "react";
 
 type Point = { date: string; rating: number };
 
@@ -22,15 +22,26 @@ const PAD_BOTTOM = 24;
 const LABEL_GAP = 6;
 const DAY_MS = 86_400_000;
 
+// Server-rendered pages don't know the visitor's timezone, so dates render in
+// UTC for the first paint — identical to SSR, so no hydration mismatch — and
+// switch to the browser's real timezone once mounted. useSyncExternalStore's
+// server snapshot (null → UTC) is used for that first paint; React swaps in
+// the client snapshot during the post-hydration re-render, avoiding the
+// cascading render that a setState-in-effect would trigger.
+const subscribe = () => () => {};
+
+function useBrowserTimeZone(): string | null {
+  return useSyncExternalStore(
+    subscribe,
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone,
+    () => null,
+  );
+}
+
 export function RatingChart({ points }: { points: Point[] }) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
-  const [timeZone, setTimeZone] = useState<string | null>(null);
 
-  useEffect(() => {
-    setTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone);
-  }, []);
-
-  const tz = timeZone ?? "UTC";
+  const tz = useBrowserTimeZone() ?? "UTC";
 
   // Group into one point per viewer-local calendar day (the last match that
   // day). This must happen here, not server-side: UTC day boundaries can
