@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import {
   getCareerStats,
   getCharacterUsage,
+  getCurrentMatchForUser,
   getPlayerMatchCount,
   getPlayerMatchHistory,
   getTopCharacters,
@@ -88,6 +89,36 @@ describe("isCurrentlyInMatch", () => {
   it("is false for a player with no matches at all", async () => {
     const player = await createTestUser();
     expect(await isCurrentlyInMatch(player.id)).toBe(false);
+  });
+});
+
+describe("getCurrentMatchForUser", () => {
+  it("returns the active match with the opponent and games", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createPendingMatch(p1.id, p2.id);
+    await createGame(match.id, 1, p1.id, "Mario", p2.id, null, null);
+
+    const current = await getCurrentMatchForUser(p1.id);
+    expect(current).not.toBeNull();
+    expect(current!.player2Id).toBe(p2.id);
+    expect(current!.player2.username).toBe(p2.username);
+    expect(current!.games).toHaveLength(1);
+    expect(current!.games[0].actorACharacter).toBe("Mario");
+    expect(current!.games[0].actorBCharacter).toBeNull();
+  });
+
+  it("returns null once the match is confirmed", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    await createConfirmedMatch(p1.id, p2.id, { reportedWinnerId: p1.id });
+
+    expect(await getCurrentMatchForUser(p1.id)).toBeNull();
+  });
+
+  it("returns null for a player with no active match", async () => {
+    const player = await createTestUser();
+    expect(await getCurrentMatchForUser(player.id)).toBeNull();
   });
 });
 

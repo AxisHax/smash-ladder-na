@@ -13,7 +13,7 @@ import {
   getPlayerProfile,
   getRatingChartPoints,
   getTopRivals,
-  isCurrentlyInMatch,
+  getCurrentMatchForUser,
 } from "@/lib/players";
 import { isTwitchLive } from "@/lib/twitch-helix";
 import { getMatchHistoryAchievements } from "@/lib/match-achievements";
@@ -74,7 +74,7 @@ export default async function PlayerProfilePage({
     rivals,
     blocked,
     characterUsage,
-    inMatch,
+    currentMatch,
     isLiveOnTwitch,
     matchAchievements,
   ] = await Promise.all([
@@ -91,10 +91,11 @@ export default async function PlayerProfilePage({
     getTopRivals(id),
     session?.user?.id && !isOwnProfile ? isBlockedByMe(session.user.id, id) : Promise.resolve(false),
     getCharacterUsage(id),
-    isCurrentlyInMatch(id),
+    getCurrentMatchForUser(id),
     player.twitchUsername ? isTwitchLive(player.twitchUsername) : Promise.resolve(false),
     getMatchHistoryAchievements(id),
   ]);
+  const inMatch = currentMatch !== null;
   const parentHost = (await headers()).get("host") ?? "smash-ladder-na.vercel.app";
   const reportHistory = isModerator ? await listReportsForUser(id) : [];
   const topCharacters = characterUsage.slice(0, 3).map((u) => u.character);
@@ -157,12 +158,6 @@ export default async function PlayerProfilePage({
             )}
             <div className="mt-1.5 flex items-center gap-1.5">
               <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} />
-              {inMatch && (
-                <Badge variant="success">
-                  <Swords className="size-3" />
-                  In a match
-                </Badge>
-              )}
               {player.region && (
                 <Badge variant="outline">
                   <MapPin className="size-3" />
@@ -215,6 +210,14 @@ export default async function PlayerProfilePage({
 
       {inMatch && isLiveOnTwitch && player.twitchUsername && (
         <TwitchLiveEmbed username={player.twitchUsername} parentHost={parentHost} />
+      )}
+
+      {currentMatch && (
+        <CurrentMatchCard
+          userId={id}
+          match={currentMatch}
+          zenMode={isOwnProfile && player.zenMode}
+        />
       )}
 
       {chartPoints.length >= 2 && (
@@ -436,6 +439,111 @@ export default async function PlayerProfilePage({
         </div>
       )}
     </main>
+  );
+}
+
+function isDisputedGame(game: {
+  winnerId: string | null;
+  reportedWinnerId: string | null;
+  secondReportWinnerId: string | null;
+}) {
+  return !game.winnerId && !!game.secondReportWinnerId && game.secondReportWinnerId !== game.reportedWinnerId;
+}
+
+function CurrentMatchCard({
+  userId,
+  match,
+  zenMode,
+}: {
+  userId: string;
+  match: NonNullable<Awaited<ReturnType<typeof getCurrentMatchForUser>>>;
+  zenMode: boolean;
+}) {
+  const isPlayer1 = match.player1Id === userId;
+  const opponent = isPlayer1 ? match.player2 : match.player1;
+  const myName = isPlayer1 ? match.player1.username : match.player2.username;
+  const myRating = isPlayer1 ? match.player1.rating : match.player2.rating;
+
+  const wins = { me: 0, opponent: 0 };
+  for (const game of match.games) {
+    if (game.winnerId === userId) wins.me++;
+    else if (game.winnerId) wins.opponent++;
+  }
+  // A disputed game keeps winnerId null while a mod resolves it, but it
+  // doesn't block the set — progressSet immediately creates the next game —
+  // so it must be skipped here the same way the lobby does, or the card
+  // shows a stale game number.
+  const currentGame = match.games.find((game) => !game.winnerId && !isDisputedGame(game)) ?? null;
+  const lastGame = match.games[match.games.length - 1];
+  const gameNumber = currentGame?.gameNumber ??
+    (lastGame && isDisputedGame(lastGame) ? lastGame.gameNumber : match.games.length + 1);
+  const myCharacter = currentGame
+    ? currentGame.actorAId === userId
+      ? currentGame.actorACharacter
+      : currentGame.actorBCharacter
+    : null;
+  const opponentCharacter = currentGame
+    ? currentGame.actorAId === userId
+      ? currentGame.actorBCharacter
+      : currentGame.actorACharacter
+    : null;
+  // Game 1 is a blind pick — characters stay hidden until both sides have
+  // locked in, same as the in-lobby pick UI.
+  const showCharacters =
+    currentGame !== null &&
+    (currentGame.gameNumber !== 1 || (myCharacter !== null && opponentCharacter !== null));
+
+  return (
+    <Card className="mt-8">
+      <CardContent className="pt-4">
+        <p className="flex items-center gap-2 text-sm font-medium">
+          <Swords className="size-4 text-muted-foreground" />
+          Currently in a match
+        </p>
+
+        <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            {showCharacters && myCharacter ? (
+              <CharacterIcon name={myCharacter} size={32} />
+            ) : (
+              <span aria-hidden className="size-8 shrink-0 rounded-full border border-dashed border-border" />
+            )}
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">{myName}</p>
+              <p className="text-xs text-muted-foreground tabular-nums">{myRating} rating</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col items-center">
+            <p className="text-lg font-semibold tabular-nums">
+              {wins.me}–{wins.opponent}
+            </p>
+            <p className="text-xs text-muted-foreground">Game {gameNumber} of 5</p>
+          </div>
+
+          <div className="flex min-w-0 items-center justify-end gap-2.5">
+            {!zenMode &&
+              (showCharacters && opponentCharacter ? (
+                <CharacterIcon name={opponentCharacter} size={32} />
+              ) : (
+                <span aria-hidden className="size-8 shrink-0 rounded-full border border-dashed border-border" />
+              ))}
+            <div className="min-w-0">
+              {zenMode ? (
+                <p className="truncate text-right text-sm font-medium">Opponent</p>
+              ) : (
+                <Link href={`/players/${opponent.id}`} className="block truncate text-right text-sm font-medium hover:underline">
+                  {opponent.username}
+                </Link>
+              )}
+              {!zenMode && (
+                <p className="text-right text-xs text-muted-foreground tabular-nums">{opponent.rating} rating</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
