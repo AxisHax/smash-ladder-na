@@ -60,17 +60,44 @@ describe("getLeaderboardPlayers", () => {
     expect(ids).not.toContain(banned.id);
   });
 
-  it("matches a secondary character, not just mainCharacter", async () => {
-    const target = await createTestUser({
+  it("includes a player whose mainCharacter matches", async () => {
+    const player = await createTestUser({ gamesPlayed: 5, mainCharacter: "Fox" });
+
+    const { players } = await getLeaderboardPlayers({ character: "Fox" });
+    expect(players.map((p) => p.id)).toContain(player.id);
+  });
+
+  it("includes a player who has the character as a secondary", async () => {
+    const player = await createTestUser({
       gamesPlayed: 5,
-      mainCharacter: "Inkling",
-      secondaryCharacters: ["Cloud"],
-      username: `Secondary${Date.now()}`,
+      mainCharacter: "Fox",
+      secondaryCharacters: ["Falco"],
     });
 
+    const { players } = await getLeaderboardPlayers({ character: "Falco" });
+    expect(players.map((p) => p.id)).toContain(player.id);
+  });
+
+  it("excludes a player who neither mains nor secondaries the character", async () => {
+    await createTestUser({ gamesPlayed: 5, mainCharacter: "Fox", secondaryCharacters: ["Falco"] });
+
     const { players, totalCount } = await getLeaderboardPlayers({ character: "Cloud" });
-    expect(totalCount).toBe(1);
-    expect(players[0].id).toBe(target.id);
+    expect(totalCount).toBe(0);
+    expect(players).toEqual([]);
+  });
+
+  it("counts echo fighters as the same character", async () => {
+    const daisyMain = await createTestUser({ gamesPlayed: 5, mainCharacter: "Daisy" });
+    const foxSecondary = await createTestUser({
+      gamesPlayed: 5,
+      mainCharacter: "Fox",
+      secondaryCharacters: ["Daisy"],
+    });
+
+    const { players } = await getLeaderboardPlayers({ character: "Peach" });
+    const ids = players.map((p) => p.id);
+    expect(ids).toContain(daisyMain.id);
+    expect(ids).toContain(foxSecondary.id);
   });
 
   it("excludes an ACTIVE account still named 'Deleted User' (Discord self-deletion, not a ban)", async () => {
