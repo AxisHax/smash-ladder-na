@@ -165,6 +165,11 @@ export default async function StreamOverlayPage({
             <span className="text-base font-semibold tracking-[0.15em] text-white/50 uppercase">
               Rating
             </span>
+            <RankBadge
+              rating={user.rating}
+              gamesPlayed={user.gamesPlayed}
+              className="text-md mx-3 px-3 py-1"
+            />
             <div className="mt-1 flex items-baseline gap-4">
               <Trophy className="size-8 text-white drop-shadow-lg" />
               <span className="text-5xl font-bold tabular-nums text-white drop-shadow-lg">
@@ -177,11 +182,6 @@ export default async function StreamOverlayPage({
                   Rank #{rank}/{totalPlayers}
                 </span>
               )}
-              <RankBadge
-                rating={user.rating}
-                gamesPlayed={user.gamesPlayed}
-                className="text-md px-3 py-1"
-              />
             </div>
 
             <div className="text-white mt-1.5 flex items-center gap-5 text-xl">
