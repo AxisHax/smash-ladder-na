@@ -157,6 +157,61 @@ describe("finalizeExpiredMatches", () => {
     expect(updatedMatch.reportedWinnerId).toBe(leader.id);
   });
 
+  it("does NOT auto-confirm or award a match whose current game is contested", async () => {
+    const a = await createTestUser({ rating: 1500 });
+    const b = await createTestUser({ rating: 1500 });
+    const match = await prisma.ratingMatch.create({
+      data: { player1Id: a.id, player2Id: b.id, status: MatchStatus.PENDING_REPORT, expiresAt: past },
+    });
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 1,
+        actorAId: a.id,
+        actorAStrikes: 1,
+        actorBId: b.id,
+        actorBStrikes: 2,
+        finalStage: "Battlefield",
+        winnerId: a.id,
+      },
+    });
+    // Game 2: both sides reported, disagreed — contested, not escalated. The
+    // finalizer must neither accept the first reporter's claim (autoConfirm)
+    // nor hand the set to the leader (closeOutUnansweredLead), since the
+    // trailing side DID respond — they just disagree on the winner.
+    await prisma.matchGame.create({
+      data: {
+        matchId: match.id,
+        gameNumber: 2,
+        actorAId: a.id,
+        actorAStrikes: 3,
+        actorBId: b.id,
+        actorBStrikes: 0,
+        finalStage: "Battlefield",
+        reportedWinnerId: a.id,
+        reportedById: a.id,
+        reportedAt: past,
+        secondReportWinnerId: b.id,
+        secondReportById: b.id,
+        secondReportAt: past,
+      },
+    });
+
+    const result = await finalizeExpiredMatches(new Date());
+
+    expect(result.autoConfirmed).toBe(0);
+    expect(result.closedOutOnLead).toBe(0);
+    expect(result.expiredNoReport).toBe(1);
+    const updatedMatch = await prisma.ratingMatch.findUniqueOrThrow({ where: { id: match.id } });
+    expect(updatedMatch.status).toBe(MatchStatus.EXPIRED);
+    const [userA, userB] = await Promise.all([
+      prisma.user.findUniqueOrThrow({ where: { id: a.id } }),
+      prisma.user.findUniqueOrThrow({ where: { id: b.id } }),
+    ]);
+    expect(userA.rating).toBe(1500);
+    expect(userB.rating).toBe(1500);
+  });
+
   it("does NOT auto-close a genuinely contested score (both sides have a win)", async () => {
     const a = await createTestUser({ rating: 1500 });
     const b = await createTestUser({ rating: 1500 });
