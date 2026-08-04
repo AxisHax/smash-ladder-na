@@ -49,6 +49,7 @@ async function createGame(
   actorBId: string,
   actorBCharacter: string | null,
   winnerId: string | null,
+  stage?: string | null,
 ) {
   return prisma.matchGame.create({
     data: {
@@ -61,6 +62,7 @@ async function createGame(
       actorBStrikes: 2,
       actorBCharacter,
       winnerId,
+      finalStage: stage ?? null,
     },
   });
 }
@@ -368,6 +370,38 @@ describe("getPlayerMatchHistory", () => {
     expect(entry.score).toEqual({ wins: 0, losses: 0 });
     expect(entry.characters).toEqual([]);
     expect(entry.opponentCharacters).toEqual([]);
+    expect(entry.games).toEqual([]);
+  });
+
+  it("includes per-game characters, stage, and winner for each game", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const match = await createConfirmedMatch(player.id, opponent.id);
+    await createGame(match.id, 1, player.id, "Terry", opponent.id, "Ken", player.id, "Pokémon Stadium 2");
+    await createGame(match.id, 2, player.id, "Terry", opponent.id, "Ken", opponent.id, "Final Destination");
+    await createGame(match.id, 3, player.id, "Cloud", opponent.id, "Ken", player.id);
+
+    const [entry] = await getPlayerMatchHistory(player.id);
+    expect(entry.games).toEqual([
+      { gameNumber: 1, character: "Terry", opponentCharacter: "Ken", stage: "Pokémon Stadium 2", won: true },
+      { gameNumber: 2, character: "Terry", opponentCharacter: "Ken", stage: "Final Destination", won: false },
+      { gameNumber: 3, character: "Cloud", opponentCharacter: "Ken", stage: null, won: true },
+    ]);
+  });
+
+  it("lists undecided games in the per-game details but excludes them from the score", async () => {
+    const player = await createTestUser();
+    const opponent = await createTestUser();
+    const match = await createConfirmedMatch(player.id, opponent.id);
+    await createGame(match.id, 1, player.id, "Terry", opponent.id, "Ken", player.id, "Small Battlefield");
+    await createGame(match.id, 2, player.id, "Mario", opponent.id, "Kirby", null, "Final Destination");
+
+    const [entry] = await getPlayerMatchHistory(player.id);
+    expect(entry.score).toEqual({ wins: 1, losses: 0 });
+    expect(entry.games).toEqual([
+      { gameNumber: 1, character: "Terry", opponentCharacter: "Ken", stage: "Small Battlefield", won: true },
+      { gameNumber: 2, character: "Mario", opponentCharacter: "Kirby", stage: "Final Destination", won: null },
+    ]);
   });
 
   // Real bug: a practice win showed up in the "Recent matches" record (and
