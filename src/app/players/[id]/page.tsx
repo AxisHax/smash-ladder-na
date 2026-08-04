@@ -22,11 +22,10 @@ import { CharacterIcon } from "@/components/character-icon";
 import { CharacterUsageCard } from "@/components/character-usage-card";
 import { RankBadge } from "@/components/rank-badge";
 import { RatingChart } from "@/components/rating-chart";
-import { LocalTime } from "@/components/local-time";
 import { DeleteAccountButton } from "@/components/delete-account-button";
 import { BlockUserButton } from "@/components/block-user-button";
 import { RequestCorrectionForm } from "@/components/request-correction-form";
-import { MatchChatLog } from "@/components/match-chat-log";
+import { MatchHistoryEntry } from "@/components/match-history-entry";
 import { AdminMatchOverride, BanIpButton, ModerationStatusForm } from "@/components/moderation-tools";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -229,9 +228,9 @@ export default async function PlayerProfilePage({
                     {winRate}% win rate
                   </Badge>
                 )}
-                {streak !== 0 && (
-                  <Badge variant={streak > 0 ? "success" : "destructive"} className="tabular-nums">
-                    {Math.abs(streak)} {streak > 0 ? "win" : "loss"} streak
+                {streak > 0 && (
+                  <Badge variant="success" className="tabular-nums">
+                    {streak} win streak
                   </Badge>
                 )}
               </div>
@@ -339,42 +338,26 @@ export default async function PlayerProfilePage({
         {pageHistory.length > 0 && (
           <Card className="mt-4 divide-y divide-border overflow-hidden py-0">
             {pageHistory.map((match) => (
-              <div key={match.id} className="px-4 py-2.5 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-2">
-                    <Badge variant={match.won ? "success" : "destructive"} className="w-6 justify-center">
-                      {match.won ? "W" : "L"}
-                    </Badge>
-                    {match.isPracticing && <Badge variant="outline">Practice</Badge>}
-                    vs{" "}
-                    <Link href={`/players/${match.opponent.id}`} className="hover:underline">
-                      {match.opponent.username}
-                    </Link>
-                    {(match.score.wins > 0 || match.score.losses > 0) && (
-                      <span className="tabular-nums text-muted-foreground">
-                        {match.score.wins}–{match.score.losses}
-                      </span>
-                    )}
-                  </span>
-                  <span className="tabular-nums text-muted-foreground">
-                    {match.ratingBefore} → {match.ratingAfter} ({match.delta >= 0 ? "+" : ""}
-                    {match.delta}
-                    {match.isPracticing ? ", practice" : ""})
-                  </span>
-                </div>
-                <div className="mt-0.5 flex items-center justify-between text-xs text-muted-foreground">
-                  <span>
-                    {match.characters.length > 0 ? match.characters.join(", ") : "—"}
-                    {match.opponentCharacters.length > 0 && (
-                      <> vs {match.opponentCharacters.join(", ")}</>
-                    )}
-                  </span>
-                  {match.confirmedAt && <LocalTime iso={match.confirmedAt.toISOString()} />}
-                </div>
-                {isOwnProfile && <MatchChatLog action={getMatchChatLogAction.bind(null, match.id)} />}
-                {isModerator && !isOwnProfile && (
-                  <MatchChatLog action={getMatchChatLogAsModAction.bind(null, match.id)} />
-                )}
+              <MatchHistoryEntry
+                key={match.id}
+                match={{
+                  ...match,
+                  // Dates can't cross the server→client boundary; the
+                  // modal renders it back with LocalTime.
+                  confirmedAt: match.confirmedAt?.toISOString() ?? null,
+                }}
+                viewedPlayerName={player.username}
+                // Own profile reads their own chat log; a mod reviewing
+                // someone else's profile gets the mod spectator path. The
+                // modal is the only place this renders now.
+                chatLogAction={
+                  isOwnProfile
+                    ? getMatchChatLogAction.bind(null, match.id)
+                    : isModerator
+                      ? getMatchChatLogAsModAction.bind(null, match.id)
+                      : undefined
+                }
+              >
                 {isOwnProfile && match.id === mostRecentRealMatchId && (
                   <RequestCorrectionForm
                     action={requestCorrectionAction.bind(null, match.id)}
@@ -392,7 +375,7 @@ export default async function PlayerProfilePage({
                     undoAction={adminUndoMatchAction.bind(null, match.id, id)}
                   />
                 )}
-              </div>
+              </MatchHistoryEntry>
             ))}
           </Card>
         )}
