@@ -263,19 +263,25 @@ function distanceKm(a: [number, number], b: [number, number]) {
 //
 // Displayed in miles since the target audience is NA — the underlying
 // `km` values are what's actually stored and compared against, unchanged.
+// Reworked 2026-08-03 after player feedback that "Moderate" (formerly
+// 3,200km) was wide enough to span Canada to Mexico, or the US west coast
+// to the east coast — the mid tiers were too coarse to actually express
+// "I want someone reasonably close." More steps under ~800mi now let
+// players narrow that down; everything that used to be spread across
+// Wide/Long-range/Very long-range (7,200–15,000km) collapses into one
+// coarser top step instead, since that distinction rarely mattered in
+// practice — past a few thousand miles, ping is bad either way.
 export const MATCH_DISTANCE_PRESETS = [
   { label: "Same region only", km: 0 },
-  { label: "Very close (~500 mi)", km: 800 },
-  { label: "Nearby (~1,250 mi)", km: 2000 },
-  { label: "Moderate (~2,000 mi)", km: 3200 },
-  { label: "Extended (~3,100 mi)", km: 5000 },
-  { label: "Wide (~4,500 mi)", km: 7200 },
-  { label: "Long-range (~6,200 mi)", km: 10000 },
-  { label: "Very long-range (~9,300 mi)", km: 15000 },
+  { label: "Very close (~150 mi)", km: 240 },
+  { label: "Close (~400 mi)", km: 640 },
+  { label: "Nearby (~800 mi)", km: 1300 },
+  { label: "Moderate (~1,500 mi)", km: 2400 },
+  { label: "Extended (~3,500 mi)", km: 5600 },
   { label: "Worldwide", km: null },
 ] as const;
 
-export const DEFAULT_MATCH_DISTANCE_KM = 5000;
+export const DEFAULT_MATCH_DISTANCE_KM = 2400;
 
 // Includes the region itself, so callers can treat this as the whole set of
 // regions worth matching against without a separate same-region check.

@@ -57,11 +57,14 @@ const TIERS: RankTier[] = [
   },
 ];
 
-// Rating is noisy under 10 games (the K-factor tapering matches this same
-// threshold elsewhere), so a provisional player gets no tier yet rather
-// than a misleadingly precise one.
+// Rating is noisy under this many games (the K-factor tapering matches this
+// same threshold elsewhere), so a provisional player gets no tier yet rather
+// than a misleadingly precise one. Also used by lobby.ts to cap how wide a
+// rating gap a provisional player can be matched across.
+export const PROVISIONAL_GAMES_THRESHOLD = 10;
+
 export function getRankTier(rating: number, gamesPlayed: number): RankTier | null {
-  if (gamesPlayed < 10) return null;
+  if (gamesPlayed < PROVISIONAL_GAMES_THRESHOLD) return null;
   return TIERS.find((t) => rating >= t.minRating) ?? TIERS[TIERS.length - 1];
 }
 
