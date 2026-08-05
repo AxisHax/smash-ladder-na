@@ -17,7 +17,7 @@ import {
 } from "@/lib/players";
 import { isTwitchLive } from "@/lib/twitch-helix";
 import { getMatchHistoryAchievements } from "@/lib/match-achievements";
-import { computeAchievements } from "@/lib/rank-tier";
+import { computeAchievements, pointsToNextTier } from "@/lib/rank-tier";
 import { CharacterIcon } from "@/components/character-icon";
 import { CharacterUsageCard } from "@/components/character-usage-card";
 import { RankBadge } from "@/components/rank-badge";
@@ -111,6 +111,7 @@ export default async function PlayerProfilePage({
   const mostRecentRealMatchId = recentHistory.find((m) => !m.isPracticing)?.id ?? null;
   const totalPages = Math.max(1, Math.ceil(totalMatchCount / MATCH_HISTORY_PAGE_SIZE));
   const achievements = [...computeAchievements(careerStats), ...matchAchievements];
+  const nextTier = pointsToNextTier(player.rating, player.gamesPlayed);
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
@@ -159,6 +160,11 @@ export default async function PlayerProfilePage({
             )}
             <div className="mt-1.5 flex items-center gap-1.5">
               <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} />
+              {nextTier && (
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {nextTier.pointsNeeded} to {nextTier.nextTier.name}
+                </span>
+              )}
               {player.region && (
                 <Badge variant="outline">
                   <MapPin className="size-3" />

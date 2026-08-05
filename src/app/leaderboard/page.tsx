@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Trophy } from "lucide-react";
+import { auth } from "@/auth";
 import { SMASH_CHARACTERS, echoGroupLabel, type SmashCharacter } from "@/lib/characters";
 import { MATCH_REGIONS, MATCH_REGION_GROUPS, MATCH_COUNTRIES } from "@/lib/regions";
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
@@ -40,18 +41,22 @@ export default async function LeaderboardPage({
   const requestedPage = Number(pageParam);
   const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
 
-  const season = await ensureActiveSeason();
-  const { players, totalCount } = await getLeaderboardPlayers(
-    {
-      character: isValidCharacter ? character : null,
-      query,
-      region: isValidRegion ? region : null,
-      country: isValidCountry ? (country as (typeof MATCH_COUNTRIES)[number]) : null,
-    },
-    { skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE },
-  );
+  const [session, season, { players, totalCount }] = await Promise.all([
+    auth(),
+    ensureActiveSeason(),
+    getLeaderboardPlayers(
+      {
+        character: isValidCharacter ? character : null,
+        query,
+        region: isValidRegion ? region : null,
+        country: isValidCountry ? (country as (typeof MATCH_COUNTRIES)[number]) : null,
+      },
+      { skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE },
+    ),
+  ]);
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const rankOffset = (page - 1) * PAGE_SIZE;
+  const viewerId = session?.user?.id ?? null;
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-16">
@@ -169,11 +174,17 @@ export default async function LeaderboardPage({
           <tbody>
             {players.map((player, index) => {
               const rank = rankOffset + index;
+              const isViewer = player.id === viewerId;
+              // Only meaningful within the loaded page — the player directly
+              // above in the same array, not a cross-page lookup (index 0
+              // never gets a gap shown, even on page 2+, since we don't have
+              // the previous page's last row loaded to compare against).
+              const gapToNext = isViewer && index > 0 ? players[index - 1].rating - player.rating : null;
               return (
                 <tr
                   key={player.id}
                   className={`border-b border-border/60 last:border-0 ${
-                    rank < 3 ? "bg-primary/[0.04]" : ""
+                    isViewer ? "bg-primary/10" : rank < 3 ? "bg-primary/[0.04]" : ""
                   }`}
                 >
                   <td className="py-2 pl-4 tabular-nums text-muted-foreground">
@@ -189,6 +200,11 @@ export default async function LeaderboardPage({
                         <CharacterIcon key={c} name={c} size={16} className="opacity-60" />
                       ))}
                       {player.username}
+                      {gapToNext !== null && gapToNext > 0 && (
+                        <span className="text-xs font-normal text-muted-foreground">
+                          {gapToNext} to pass {players[index - 1].username}
+                        </span>
+                      )}
                     </Link>
                   </td>
                   <td className="py-2">

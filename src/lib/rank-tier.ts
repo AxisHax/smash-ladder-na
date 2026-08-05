@@ -115,6 +115,22 @@ export function rankTierRatingRange(tier: RankTier): string {
   return `${tier.minRating} – ${tierAbove.minRating - 1}`;
 }
 
+// How close a player is to tiering up — the "just one more push" signal on
+// their own profile. Provisional players (no tier yet) and players already
+// at the top tier (nowhere higher to go) both get null; everyone else gets
+// a strictly positive point gap, since getRankTier already puts them below
+// the next tier's floor by definition.
+export function pointsToNextTier(
+  rating: number,
+  gamesPlayed: number,
+): { nextTier: RankTier; pointsNeeded: number } | null {
+  const current = getRankTier(rating, gamesPlayed);
+  if (!current) return null;
+  const nextTier = RANK_TIERS[RANK_TIERS.indexOf(current) - 1];
+  if (!nextTier) return null;
+  return { nextTier, pointsNeeded: nextTier.minRating - rating };
+}
+
 // Separate from the tier/K-factor threshold above: public leaderboards
 // (site-wide, per-character, season standings) just need enough games to
 // rule out a one-win fluke, not full rating convergence — a lower bar so
