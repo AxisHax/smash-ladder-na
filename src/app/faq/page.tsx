@@ -159,6 +159,12 @@ export default function FaqPage() {
             No — this is an independent, separately-run project built for the NA scene. Any
             naming similarity to existing Japanese matchmaking platforms is coincidental.
           </QA>
+          <QA q="Do you use AI to help build and run this site?">
+            Yes. A lot of the code, bug fixes, and day-to-day maintenance (deploys, moderation
+            tooling, this FAQ entry included) is done with AI assistance. We&apos;re not hiding
+            that — if you&apos;re curious how something specific was built, ask in the Discord
+            server above.
+          </QA>
         </Category>
       </div>
     </main>
