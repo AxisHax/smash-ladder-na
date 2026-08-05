@@ -130,6 +130,17 @@ export default function RulesPage() {
             no separate penalty on top.
           </p>
           <p>
+            Cancelling a lot also affects a self-declared <strong>wired connection</strong> badge
+            specifically, at a lower bar than the warning/suspend thresholds above: once your
+            cancels make up more than a quarter of your combined cancels-and-games-played (and
+            you&apos;ve cancelled at least 3 times), the badge is cleared automatically and you
+            can&apos;t re-declare it until that ratio drops back down. The reasoning is that too
+            many cancels make a &quot;my connection is stable&quot; claim unreliable, not that
+            cancelling itself is being punished twice — this is separate from, and on top of, the
+            warning/suspend system above. The same thing happens if enough opponents file a
+            connection report against you, independent of your own cancel history.
+          </p>
+          <p>
             The free cancel stops working the moment a game has a decided winner or either side
             has reported one — at that point backing out always means Surrender, from either side,
             for the rest of the set. If your opponent goes quiet mid-set instead of surrendering

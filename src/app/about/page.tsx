@@ -44,6 +44,27 @@ export default function AboutPage() {
         </section>
 
         <section>
+          <h2 className="text-sm font-medium text-foreground">How can I contribute?</h2>
+          <p className="mt-2">
+            The codebase is public on{" "}
+            <a
+              href="https://github.com/abcmouce-jpg/smash-ladder-na"
+              className="underline"
+              target="_blank"
+              rel="noreferrer"
+            >
+              GitHub
+            </a>
+            . Bug reports and feature ideas are welcome as issues, and pull requests get reviewed —
+            several of the site&apos;s features shipped from community PRs. Not a coder? The{" "}
+            <a href={DISCORD_SERVER_URL} className="underline" target="_blank" rel="noreferrer">
+              Discord server
+            </a>{" "}
+            is just as useful: reporting bugs, suggesting changes, or helping out as a mod all count.
+          </p>
+        </section>
+
+        <section>
           <h2 className="text-sm font-medium text-foreground">Get in touch</h2>
           <p className="mt-2">
             The{" "}
