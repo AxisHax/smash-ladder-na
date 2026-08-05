@@ -429,16 +429,23 @@ async function MatchmakingForm({ userId }: { userId: string }) {
           }))}
         />
       </label>
-      <label className="mt-1 flex items-center gap-2 text-sm">
-        <input
-          key={String(me?.wiredConnection ?? false)}
-          type="checkbox"
-          name="wired"
-          defaultChecked={me?.wiredConnection ?? false}
-          className="size-4 rounded border-border"
-        />
-        On a wired (LAN) connection
-      </label>
+      <div className="mt-1 flex flex-col gap-1">
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            key={String(me?.wiredConnection ?? false)}
+            type="checkbox"
+            name="wired"
+            defaultChecked={me?.wiredConnection ?? false}
+            className="size-4 rounded border-border"
+          />
+          On a wired (LAN) connection
+        </label>
+        <span className="pl-6 text-xs text-muted-foreground">
+          Auto-clears (and can&apos;t be re-checked until it recovers) if your cancels pass 25% of
+          your cancels-plus-games-played, or if enough opponents report a connection issue with
+          you — see the Rules page.
+        </span>
+      </div>
       <label className="flex items-center gap-2 text-sm">
         <input
           key={String(me?.requireWiredOpponent ?? false)}
