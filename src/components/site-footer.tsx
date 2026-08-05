@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { DISCORD_SERVER_URL } from "@/lib/links";
+import { Coffee } from "lucide-react";
+import { DISCORD_SERVER_URL, KOFI_URL } from "@/lib/links";
 
 export function SiteFooter() {
   return (
@@ -29,6 +30,15 @@ export function SiteFooter() {
             className="hover:text-foreground hover:underline"
           >
             Discord
+          </a>
+          <a
+            href={KOFI_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-1 hover:text-foreground hover:underline"
+          >
+            <Coffee className="size-3.5" />
+            Support us
           </a>
         </nav>
       </div>

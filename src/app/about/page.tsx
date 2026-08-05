@@ -1,4 +1,4 @@
-import { DISCORD_SERVER_URL } from "@/lib/links";
+import { DISCORD_SERVER_URL, KOFI_URL } from "@/lib/links";
 
 export const metadata = { title: "About — Smash Ladder NA" };
 
@@ -61,6 +61,18 @@ export default function AboutPage() {
               Discord server
             </a>{" "}
             is just as useful: reporting bugs, suggesting changes, or helping out as a mod all count.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-sm font-medium text-foreground">Support the project</h2>
+          <p className="mt-2">
+            Hosting and domain costs come out of pocket. If you&apos;d like to help cover that,
+            there&apos;s a{" "}
+            <a href={KOFI_URL} className="underline" target="_blank" rel="noreferrer">
+              Ko-fi page
+            </a>{" "}
+            — entirely optional, and no in-site perks are tied to it today.
           </p>
         </section>
 
