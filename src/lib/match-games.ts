@@ -889,20 +889,30 @@ export async function autoConfirmStaleGameReport(
   const nonReporterId =
     hangingGame.reportedById === match.player1Id ? match.player2Id : match.player1Id;
 
-  await withTransientRetry(() =>
+  const claimed = await withTransientRetry(() =>
     prisma.$transaction(async (tx) => {
-      await tx.matchGame.update({
-        where: { id: hangingGame.id },
+      // Atomic claim: the cron finalizer can overlap with itself (a slow run
+      // still in flight when the next scheduled one starts) or run alongside
+      // a lazy autoResolve* triggered by someone loading the lobby. Without
+      // this, two callers racing on the same stale game would both see
+      // winnerId: null, both "win", and both fire progressSet/DM/cooldown —
+      // duplicate rating changes and duplicate mod DMs for one event. The
+      // conditional updateMany makes only the first one actually claim it.
+      const claim = await tx.matchGame.updateMany({
+        where: { id: hangingGame.id, winnerId: null },
         data: { winnerId: reportedWinnerId },
       });
+      if (claim.count === 0) return false;
       await tx.ratingMatch.update({
         where: { id: match.id },
         data: { expiresAt: new Date(now.getTime() + MATCH_TTL_MS) },
       });
       await progressSet(tx, match, hangingGame.gameNumber, reportedWinnerId, ConfirmationMethod.AUTO_TIMEOUT);
       await applyTimeoutCooldown(tx, nonReporterId, now);
+      return true;
     }, TX_OPTIONS),
   );
+  if (!claimed) return null;
 
   return { nonReporterId, reporterId: hangingGame.reportedById, gameNumber: hangingGame.gameNumber };
 }
@@ -940,16 +950,27 @@ export async function closeOutUnansweredLead(
   if (!winnerId) return null;
   const loserId = winnerId === match.player1Id ? match.player2Id : match.player1Id;
 
-  await withTransientRetry(() =>
+  const claimed = await withTransientRetry(() =>
     prisma.$transaction(async (tx) => {
-      await tx.ratingMatch.update({
-        where: { id: match.id },
+      // Same overlap risk as autoConfirmStaleGameReport above, plus one more:
+      // if a concurrent autoConfirmStaleGameReport call won the race on this
+      // same match first, it bumps expiresAt into the future (the set isn't
+      // over, just progressing) and returns null to its own caller — which
+      // then falls through to closeOutUnansweredLead here. reportedWinnerId
+      // alone wouldn't catch that (autoConfirm never touches it), so also
+      // require expiresAt to still be <= now: if it's been pushed out, this
+      // match was already handled and there's nothing left to close out.
+      const claim = await tx.ratingMatch.updateMany({
+        where: { id: match.id, reportedWinnerId: null, expiresAt: { lte: now } },
         data: { reportedWinnerId: winnerId, reportedById: winnerId, reportedAt: now },
       });
+      if (claim.count === 0) return false;
       await applyEloAndConfirm(tx, match, winnerId, ConfirmationMethod.AUTO_TIMEOUT, null);
       await applyTimeoutCooldown(tx, loserId, now);
+      return true;
     }, TX_OPTIONS),
   );
+  if (!claimed) return null;
 
   return { winnerId, loserId };
 }
