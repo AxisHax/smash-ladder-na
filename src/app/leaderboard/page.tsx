@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Trophy } from "lucide-react";
 import { auth } from "@/auth";
 import { SMASH_CHARACTERS, echoGroupLabel, type SmashCharacter } from "@/lib/characters";
-import { MATCH_REGIONS, MATCH_REGION_GROUPS, MATCH_COUNTRIES } from "@/lib/regions";
+import { MATCH_REGIONS, MATCH_REGION_GROUPS, MATCH_COUNTRIES, expandCountryForSearch, type MatchCountry } from "@/lib/regions";
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
 import { getLeaderboardPlayers } from "@/lib/leaderboard";
 import { ensureActiveSeason, PRE_SEASON_DURATION_MONTHS, PRE_SEASON_EXPECTED_END_AT } from "@/lib/seasons";
@@ -32,14 +32,28 @@ export default async function LeaderboardPage({
 }) {
   const { character, page: pageParam, q, region, country } = await searchParams;
   const isValidCharacter = character && (SMASH_CHARACTERS as readonly string[]).includes(character);
-  const isValidRegion = region && (MATCH_REGIONS as readonly string[]).includes(region);
   const isValidCountry = country && (MATCH_COUNTRIES as readonly string[]).includes(country);
+  const effectiveCountry = isValidCountry ? (country as MatchCountry) : null;
+  // A region only stays selected if it actually belongs to the chosen
+  // country — otherwise a stale region from before the country was changed
+  // (or narrowed) would keep silently filtering by itself even though the
+  // Region dropdown no longer shows it as an option, the same "invisible
+  // leftover selection" trap the match-distance presets bug hit on 2026-08-05.
+  const countryRegions = effectiveCountry ? new Set(expandCountryForSearch(effectiveCountry)) : null;
+  const isValidRegion =
+    region && (MATCH_REGIONS as readonly string[]).includes(region) && (!countryRegions || countryRegions.has(region));
   const query = (q ?? "").trim().slice(0, 32);
   const isFiltered =
     Boolean(isValidCharacter) || query.length > 0 || Boolean(isValidRegion) || Boolean(isValidCountry);
 
   const requestedPage = Number(pageParam);
   const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+
+  // Narrowed to the selected country's regions once one is picked, so the
+  // dropdown can't offer a region that'd just get silently ignored.
+  const regionOptions = countryRegions
+    ? REGION_OPTIONS.filter((opt) => countryRegions.has(opt.value))
+    : REGION_OPTIONS;
 
   const [session, season, { players, totalCount }] = await Promise.all([
     auth(),
@@ -49,7 +63,7 @@ export default async function LeaderboardPage({
         character: isValidCharacter ? character : null,
         query,
         region: isValidRegion ? region : null,
-        country: isValidCountry ? (country as (typeof MATCH_COUNTRIES)[number]) : null,
+        country: effectiveCountry,
       },
       { skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE },
     ),
@@ -124,10 +138,11 @@ export default async function LeaderboardPage({
         </label>
         <label className="flex flex-col gap-1 text-sm">
           Region
-          {/* Picking a specific region narrows further than country — if both
-              end up set, region wins server-side (see getLeaderboardPlayers). */}
+          {/* Narrowed to the chosen country's regions once one is picked
+              (see regionOptions above) — pick a country, hit Filter, and
+              the list here only offers regions that actually belong to it. */}
           <OptionSelect
-            key={isValidRegion ? region : ""}
+            key={isValidRegion ? region : effectiveCountry ?? ""}
             name="region"
             defaultValue={isValidRegion ? region : ""}
             placeholder="All regions"
@@ -135,7 +150,7 @@ export default async function LeaderboardPage({
             className="w-48"
             searchable
             searchPlaceholder="Search regions…"
-            options={REGION_OPTIONS}
+            options={regionOptions}
           />
         </label>
         <Button type="submit" size="sm" variant="outline" className="h-8">
