@@ -27,7 +27,7 @@ export function InfoPopup() {
           which starts at 1500 and moves after every confirmed ranked set.
         </DialogDescription>
 
-        <RankTierList className="mt-8" />
+        <RankTierList className="mt-5" />
       </DialogContent>
     </Dialog>
   );
