@@ -134,6 +134,7 @@ export default async function LeaderboardPage({
             clearLabel="All countries"
             className="w-40"
             options={COUNTRY_OPTIONS}
+            autoSubmit
           />
         </label>
         <label className="flex flex-col gap-1 text-sm">
