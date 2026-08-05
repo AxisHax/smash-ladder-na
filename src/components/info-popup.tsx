@@ -22,7 +22,7 @@ export function InfoPopup() {
           <Info className="size-5 text-muted-foreground" />
           <DialogTitle>How Tiers Work</DialogTitle>
         </div>
-        <DialogDescription className="mt-1">
+        <DialogDescription className="mt-3">
           Every rank a player can hold, highest first. Your rank comes from your ladder rating,
           which starts at 1500 and moves after every confirmed ranked set.
         </DialogDescription>
