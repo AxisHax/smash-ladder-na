@@ -263,6 +263,18 @@ function distanceKm(a: [number, number], b: [number, number]) {
 //
 // Displayed in miles since the target audience is NA — the underlying
 // `km` values are what's actually stored and compared against, unchanged.
+//
+// WARNING: setMaxMatchDistance validates against this exact list, so any
+// km value not in it gets rejected outright. Changing these values (adding,
+// removing, or renumbering a step) orphans every user already storing an
+// old value — every settings save then fails validation, on whichever
+// field happens to be checked first, until that data is migrated. This bit
+// us on 2026-08-03's rework (71% of users silently blocked from saving any
+// lobby setting for two days) — see
+// engineering/debug-log/2026-08-05-orphaned-match-distance-presets.md in
+// the company notes. Any future change here MUST ship with a migration
+// that snaps existing stored values to the nearest new preset.
+//
 // Reworked 2026-08-03 after player feedback that "Moderate" (formerly
 // 3,200km) was wide enough to span Canada to Mexico, or the US west coast
 // to the east coast — the mid tiers were too coarse to actually express

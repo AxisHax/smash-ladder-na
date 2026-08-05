@@ -15,6 +15,11 @@ export type RankTier = {
 // the actual |ratingA - ratingB| difference — same reasoning as distance:
 // a player's tolerance for a lopsided match is theirs to set, not something
 // the other side's wider setting should override.
+//
+// WARNING: removing or renumbering a value here orphans anyone already
+// storing it — see the equivalent warning on MATCH_DISTANCE_PRESETS in
+// regions.ts. Any future change MUST ship with a migration for existing
+// stored values.
 export const MATCH_RATING_GAP_PRESETS = [
   { label: "Within 25", gap: 25 },
   { label: "Within 50", gap: 50 },
