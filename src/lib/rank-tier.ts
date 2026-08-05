@@ -2,6 +2,12 @@ export type RankTier = {
   name: string;
   minRating: number;
   className: string;
+  // Player-facing blurb for the Info popup's rank list. Colocated with the
+  // threshold it describes — same reasoning as className living here — so
+  // a new tier cannot ship with a stale or missing explanation. Deliberately
+  // states no rating numbers: rankTierRatingRange derives those, and
+  // repeating them in prose is exactly how the two drift apart.
+  description: string;
 };
 
 // Self-declared rating-gap radius, like MATCH_DISTANCE_PRESETS for region.
@@ -24,38 +30,62 @@ export const MATCH_RATING_GAP_PRESETS = [
 // Ordered highest to lowest; the first tier whose floor the rating clears
 // wins. Centered on the 1500 starting rating so a fresh, actively-playing
 // account lands around Challenger rather than at the bottom of the ladder.
-const TIERS: RankTier[] = [
+  
+// Exported (and readonly) so the Info popup's rank list renders straight off
+// same array getRankTier reads, rather than keeping a parallel copy that
+// can silently fall out of date.
+export const RANK_TIERS: readonly RankTier[] = [
   {
     name: "Legend",
     minRating: 2100,
     className: "bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-400",
+    description:
+      "The peak of the ladder. Reserved for the players who define the meta at the very top of competition.",
   },
   {
     name: "Grandmaster",
     minRating: 1900,
     className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-500/15 dark:text-yellow-400",
+    description:
+      "The top of the ladder. Held by the handful of players who consistently beat Master-level opposition.",
   },
   {
     name: "Master",
     minRating: 1750,
     className: "bg-violet-100 text-violet-800 dark:bg-violet-500/15 dark:text-violet-400",
+    description:
+      "Consistently beating Elite players, and realistically in contention for a top-5 finish when the season ends.",
   },
   {
     name: "Elite",
     minRating: 1600,
     className: "bg-blue-100 text-blue-800 dark:bg-blue-500/15 dark:text-blue-400",
+    description:
+      "Well clear of the starting rating, with a proven winning record against the rest of the field.",
   },
   {
     name: "Fighter",
     minRating: 1450,
     className: "bg-sky-100 text-sky-800 dark:bg-sky-500/15 dark:text-sky-400",
+    description:
+      "The band the 1500 starting rating sits in, and where most players land once their rating settles.",
   },
   {
     name: "Challenger",
     minRating: -Infinity,
     className: "bg-orange-100 text-orange-800 dark:bg-orange-500/15 dark:text-orange-400",
+    description:
+      "Below the starting rating. Every rank above is reachable from here, and ratings reset when a season ends.",
   },
 ];
+
+// Sets played before a rating is trusted enough to name a tier. Named here
+// rather than left as a literal so the Info popup can state the number
+// without hardcoding a second copy of it. Deliberately NOT shared with
+// kFactor in matches.ts, which happens to use the same 10 today but is a
+// separate rating-math decision — collapsing them would silently couple two
+// unrelated rules together.
+export const PROVISIONAL_MIN_GAMES = 10;
 
 // Rating is noisy under this many games (the K-factor tapering matches this
 // same threshold elsewhere), so a provisional player gets no tier yet rather
@@ -65,7 +95,19 @@ export const PROVISIONAL_GAMES_THRESHOLD = 10;
 
 export function getRankTier(rating: number, gamesPlayed: number): RankTier | null {
   if (gamesPlayed < PROVISIONAL_GAMES_THRESHOLD) return null;
-  return TIERS.find((t) => rating >= t.minRating) ?? TIERS[TIERS.length - 1];
+  return RANK_TIERS.find((t) => rating >= t.minRating) ?? RANK_TIERS[RANK_TIERS.length - 1];
+}
+
+// The rating window a tier covers, formatted for display. Derived from the
+// neighbouring tier's floor instead of a second hardcoded list, so the
+// ranges shown to players can never drift away from the thresholds
+// getRankTier actually applies. The top tier has no ceiling and the bottom
+// tier has no floor, so each gets an open-ended label instead.
+export function rankTierRatingRange(tier: RankTier): string {
+  const tierAbove = RANK_TIERS[RANK_TIERS.indexOf(tier) - 1];
+  if (!tierAbove) return `${tier.minRating}+`;
+  if (tier.minRating === -Infinity) return `Under ${tierAbove.minRating}`;
+  return `${tier.minRating} – ${tierAbove.minRating - 1}`;
 }
 
 // Separate from the tier/K-factor threshold above: public leaderboards
@@ -84,11 +126,11 @@ export function didTierUp(ratingBefore: number, ratingAfter: number, gamesPlayed
   const before = getRankTier(ratingBefore, gamesPlayed);
   const after = getRankTier(ratingAfter, gamesPlayed);
   if (!before || !after) return false;
-  return TIERS.indexOf(after) < TIERS.indexOf(before);
+  return RANK_TIERS.indexOf(after) < RANK_TIERS.indexOf(before);
 }
 
 function minRatingFor(tierName: string) {
-  return TIERS.find((t) => t.name === tierName)!.minRating;
+  return RANK_TIERS.find((t) => t.name === tierName)!.minRating;
 }
 
 export type Achievement = { id: string; label: string; description: string; achieved: boolean };
