@@ -2,12 +2,13 @@ import { prisma } from "@/lib/db";
 import { UserStatus } from "@/generated/prisma/enums";
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
 import { echoGroupMembers, type SmashCharacter } from "@/lib/characters";
-import { expandRegionForSearch } from "@/lib/regions";
+import { expandRegionForSearch, expandCountryForSearch, type MatchCountry } from "@/lib/regions";
 
 export interface LeaderboardFilters {
   character?: string | null;
   query?: string | null;
   region?: string | null;
+  country?: MatchCountry | null;
 }
 
 // Shared by the interactive /leaderboard page and the /stream broadcast
@@ -49,7 +50,14 @@ export async function getLeaderboardPlayers(
       : {}),
     // A broad region (e.g. "USA East") also matches players who set a
     // specific state/province within it, not just an exact string match.
-    ...(filters.region ? { region: { in: expandRegionForSearch(filters.region) } } : {}),
+    // Region and country are mutually exclusive in the UI (picking one
+    // clears the other) — region wins here only as a defensive fallback if
+    // both somehow end up set, since it's the more specific of the two.
+    ...(filters.region
+      ? { region: { in: expandRegionForSearch(filters.region) } }
+      : filters.country
+        ? { region: { in: expandCountryForSearch(filters.country) } }
+        : {}),
   };
   const [totalCount, players] = await Promise.all([
     prisma.user.count({ where }),

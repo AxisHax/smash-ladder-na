@@ -112,6 +112,31 @@ export const MATCH_REGION_GROUPS: { label: string; regions: readonly MatchRegion
   { label: "Elsewhere", regions: REST_OF_WORLD },
 ];
 
+// One level coarser than region, for players who think "which country" long
+// before they think "which state" — the leaderboard's country filter reads
+// off this rather than making people pick a specific region just to narrow
+// down that far. "Other" absorbs the rest of MATCH_REGIONS (Caribbean/Central
+// America/South America/Europe/Asia/Oceania/"Other" itself) since none of
+// those get individual-region granularity the way USA/Canada do; it isn't a
+// "country" so much as "not USA, Canada, or Mexico."
+export const MATCH_COUNTRIES = ["United States", "Canada", "Mexico", "Other"] as const;
+export type MatchCountry = (typeof MATCH_COUNTRIES)[number];
+
+const COUNTRY_TO_REGIONS: Record<MatchCountry, readonly string[]> = {
+  "United States": [...USA_BROAD, ...USA_STATES],
+  Canada: [...CANADA_BROAD, ...CANADA_PROVINCES],
+  Mexico: ["Mexico North", "Mexico Central"],
+  Other: REST_OF_WORLD.filter((r) => r !== "Mexico North" && r !== "Mexico Central"),
+};
+
+// Every MATCH_REGIONS value covered by a country — for filtering the
+// leaderboard down to `region: { in: expandCountryForSearch(country) }`.
+// Copied into a plain mutable array since Prisma's `in` filter wants
+// string[], not the readonly array COUNTRY_TO_REGIONS holds.
+export function expandCountryForSearch(country: MatchCountry): string[] {
+  return [...COUNTRY_TO_REGIONS[country]];
+}
+
 // Approximate representative coordinates per region, used only to rank
 // closeness for default matching — not shown to players. "Other" has none
 // (unknown location), so it only ever matches other "Other" players. Where

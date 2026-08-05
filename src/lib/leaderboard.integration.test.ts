@@ -50,6 +50,40 @@ describe("getLeaderboardPlayers", () => {
     expect(ids).not.toContain(outside.id);
   });
 
+  it("filters by country", async () => {
+    const usPlayer = await createTestUser({ gamesPlayed: 5, region: "Texas" });
+    const canadaPlayer = await createTestUser({ gamesPlayed: 5, region: "Ontario" });
+    const mexicoPlayer = await createTestUser({ gamesPlayed: 5, region: "Mexico North" });
+    const otherPlayer = await createTestUser({ gamesPlayed: 5, region: "Europe West" });
+
+    const { players: us, totalCount: usCount } = await getLeaderboardPlayers({ country: "United States" });
+    expect(usCount).toBe(1);
+    expect(us[0].id).toBe(usPlayer.id);
+
+    const { players: canada } = await getLeaderboardPlayers({ country: "Canada" });
+    expect(canada.map((p) => p.id)).toEqual([canadaPlayer.id]);
+
+    const { players: mexico } = await getLeaderboardPlayers({ country: "Mexico" });
+    expect(mexico.map((p) => p.id)).toEqual([mexicoPlayer.id]);
+
+    const { players: other } = await getLeaderboardPlayers({ country: "Other" });
+    const otherIds = other.map((p) => p.id);
+    expect(otherIds).toContain(otherPlayer.id);
+    expect(otherIds).not.toEqual(expect.arrayContaining([usPlayer.id, canadaPlayer.id, mexicoPlayer.id]));
+  });
+
+  it("region takes precedence when both region and country are given", async () => {
+    const texas = await createTestUser({ gamesPlayed: 5, region: "Texas" });
+    const ontario = await createTestUser({ gamesPlayed: 5, region: "Ontario" });
+
+    // A mismatched pair (region in a different country than requested)
+    // defers to region — the more specific of the two filters.
+    const { players, totalCount } = await getLeaderboardPlayers({ region: "Texas", country: "Canada" });
+    expect(totalCount).toBe(1);
+    expect(players[0].id).toBe(texas.id);
+    expect(players.map((p) => p.id)).not.toContain(ontario.id);
+  });
+
   it("excludes banned accounts", async () => {
     const target = await createTestUser({ gamesPlayed: 5, username: `NotBanned${Date.now()}` });
     const banned = await createTestUser({ gamesPlayed: 5, status: "BANNED", username: "Deleted User" });

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Trophy } from "lucide-react";
 import { SMASH_CHARACTERS, echoGroupLabel, type SmashCharacter } from "@/lib/characters";
-import { MATCH_REGIONS, MATCH_REGION_GROUPS } from "@/lib/regions";
+import { MATCH_REGIONS, MATCH_REGION_GROUPS, MATCH_COUNTRIES } from "@/lib/regions";
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
 import { getLeaderboardPlayers } from "@/lib/leaderboard";
 import { ensureActiveSeason, PRE_SEASON_DURATION_MONTHS, PRE_SEASON_EXPECTED_END_AT } from "@/lib/seasons";
@@ -22,23 +22,32 @@ const REGION_OPTIONS: OptionSelectOption[] = MATCH_REGION_GROUPS.flatMap((group)
   group.regions.map((r) => ({ value: r, label: r, group: group.label })),
 );
 
+const COUNTRY_OPTIONS: OptionSelectOption[] = MATCH_COUNTRIES.map((c) => ({ value: c, label: c }));
+
 export default async function LeaderboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ character?: string; page?: string; q?: string; region?: string }>;
+  searchParams: Promise<{ character?: string; page?: string; q?: string; region?: string; country?: string }>;
 }) {
-  const { character, page: pageParam, q, region } = await searchParams;
+  const { character, page: pageParam, q, region, country } = await searchParams;
   const isValidCharacter = character && (SMASH_CHARACTERS as readonly string[]).includes(character);
   const isValidRegion = region && (MATCH_REGIONS as readonly string[]).includes(region);
+  const isValidCountry = country && (MATCH_COUNTRIES as readonly string[]).includes(country);
   const query = (q ?? "").trim().slice(0, 32);
-  const isFiltered = Boolean(isValidCharacter) || query.length > 0 || Boolean(isValidRegion);
+  const isFiltered =
+    Boolean(isValidCharacter) || query.length > 0 || Boolean(isValidRegion) || Boolean(isValidCountry);
 
   const requestedPage = Number(pageParam);
   const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
 
   const season = await ensureActiveSeason();
   const { players, totalCount } = await getLeaderboardPlayers(
-    { character: isValidCharacter ? character : null, query, region: isValidRegion ? region : null },
+    {
+      character: isValidCharacter ? character : null,
+      query,
+      region: isValidRegion ? region : null,
+      country: isValidCountry ? (country as (typeof MATCH_COUNTRIES)[number]) : null,
+    },
     { skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE },
   );
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
@@ -57,6 +66,7 @@ export default async function LeaderboardPage({
           ? ` who play ${echoGroupLabel(character as SmashCharacter)} as a main or secondary`
           : ""}
         {isValidRegion ? ` in ${region}` : ""}
+        {!isValidRegion && isValidCountry ? ` in ${country}` : ""}
         {query ? ` matching "${query}"` : ""}.
       </p>
 
@@ -96,7 +106,21 @@ export default async function LeaderboardPage({
           defaultValue={isValidCharacter ? character : ""}
         />
         <label className="flex flex-col gap-1 text-sm">
+          Country
+          <OptionSelect
+            key={isValidCountry ? country : ""}
+            name="country"
+            defaultValue={isValidCountry ? country : ""}
+            placeholder="All countries"
+            clearLabel="All countries"
+            className="w-40"
+            options={COUNTRY_OPTIONS}
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
           Region
+          {/* Picking a specific region narrows further than country — if both
+              end up set, region wins server-side (see getLeaderboardPlayers). */}
           <OptionSelect
             key={isValidRegion ? region : ""}
             name="region"
@@ -122,6 +146,7 @@ export default async function LeaderboardPage({
           character={isValidCharacter ? character : undefined}
           query={query || undefined}
           region={isValidRegion ? region : undefined}
+          country={isValidCountry ? country : undefined}
         />
       )}
 
@@ -205,6 +230,7 @@ function PaginationBar({
   character,
   query,
   region,
+  country,
 }: {
   page: number;
   totalPages: number;
@@ -212,6 +238,7 @@ function PaginationBar({
   character?: string;
   query?: string;
   region?: string;
+  country?: string;
 }) {
   return (
     <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
@@ -221,7 +248,7 @@ function PaginationBar({
       {totalPages > 1 && (
         <div className="flex items-center gap-3 text-sm">
           <div className="flex items-center gap-2">
-            <PageLink page={page - 1} character={character} query={query} region={region} disabled={page <= 1}>
+            <PageLink page={page - 1} character={character} query={query} region={region} country={country} disabled={page <= 1}>
               ← Previous
             </PageLink>
             <span className="text-muted-foreground tabular-nums">
@@ -232,6 +259,7 @@ function PaginationBar({
               character={character}
               query={query}
               region={region}
+              country={country}
               disabled={page >= totalPages}
             >
               Next →
@@ -241,6 +269,7 @@ function PaginationBar({
             {character && <input type="hidden" name="character" value={character} />}
             {query && <input type="hidden" name="q" value={query} />}
             {region && <input type="hidden" name="region" value={region} />}
+            {country && <input type="hidden" name="country" value={country} />}
             <label htmlFor="leaderboard-page-jump" className="sr-only">
               Jump to page
             </label>
@@ -268,6 +297,7 @@ function PageLink({
   character,
   query,
   region,
+  country,
   disabled,
   children,
 }: {
@@ -275,6 +305,7 @@ function PageLink({
   character?: string;
   query?: string;
   region?: string;
+  country?: string;
   disabled: boolean;
   children: React.ReactNode;
 }) {
@@ -285,6 +316,7 @@ function PageLink({
   if (character) params.set("character", character);
   if (query) params.set("q", query);
   if (region) params.set("region", region);
+  if (country) params.set("country", country);
   params.set("page", String(page));
   return (
     <Link href={`/leaderboard?${params.toString()}`} className="hover:underline">
