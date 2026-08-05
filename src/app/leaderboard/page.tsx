@@ -140,8 +140,8 @@ export default async function LeaderboardPage({
         <label className="flex flex-col gap-1 text-sm">
           Region
           {/* Narrowed to the chosen country's regions once one is picked
-              (see regionOptions above) — pick a country, hit Filter, and
-              the list here only offers regions that actually belong to it. */}
+              (see regionOptions above) — pick a country, and the list here
+              only offers regions that actually belong to it. */}
           <OptionSelect
             key={isValidRegion ? region : effectiveCountry ?? ""}
             name="region"
@@ -152,6 +152,7 @@ export default async function LeaderboardPage({
             searchable
             searchPlaceholder="Search regions…"
             options={regionOptions}
+            autoSubmit
           />
         </label>
         <Button type="submit" size="sm" variant="outline" className="h-8">
