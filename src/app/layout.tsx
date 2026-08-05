@@ -21,12 +21,33 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const SITE_URL = "https://smash-ladder-na.vercel.app";
+const TITLE = "Smash Ladder NA";
+const DESCRIPTION = "North American ranked ladder and matchmaking for Smash.";
+
 export const metadata: Metadata = {
-  title: "Smash Ladder NA",
-  description: "North American ranked ladder and matchmaking for Smash.",
+  metadataBase: new URL(SITE_URL),
+  title: TITLE,
+  description: DESCRIPTION,
   icons: {
     icon: "/smash_ladder_icon.png",
     apple: "/smash_ladder_icon.png",
+  },
+  // No og:image here — the opengraph-image.tsx file convention (sibling to
+  // this layout) generates and injects it automatically, and duplicating a
+  // static one here would just fight it.
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    url: SITE_URL,
+    siteName: TITLE,
+    type: "website",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: DESCRIPTION,
   },
 };
 
