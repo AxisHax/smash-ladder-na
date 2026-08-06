@@ -5,9 +5,10 @@ import { SMASH_CHARACTERS, echoGroupLabel, type SmashCharacter } from "@/lib/cha
 import { MATCH_REGIONS, MATCH_REGION_GROUPS, MATCH_COUNTRIES, expandCountryForSearch, type MatchCountry } from "@/lib/regions";
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
 import { getLeaderboardPlayers } from "@/lib/leaderboard";
+import { getCharacterUsage } from "@/lib/players";
 import { ensureActiveSeason, PRE_SEASON_DURATION_MONTHS, PRE_SEASON_EXPECTED_END_AT } from "@/lib/seasons";
 import { SEASON_PRIZE_POOL_USD, prizeForPlace } from "@/lib/prizes";
-import { CharacterIcon } from "@/components/character-icon";
+import { CharacterUsageIcons } from "@/components/character-usage-icons";
 import { CharacterFilterSelect } from "@/components/character-filter-select";
 import { OptionSelect, type OptionSelectOption } from "@/components/option-select";
 import { RankBadge } from "@/components/rank-badge";
@@ -70,6 +71,14 @@ export default async function LeaderboardPage({
     ),
     getLang(),
   ]);
+
+  // Live usage per displayed row rather than the cached mainCharacter/
+  // secondaryCharacters columns — one query per row, trivial at this
+  // player-count, and keeps the icon stack in sync with CharacterUsageIcons'
+  // main/secondary/overflow slicing without a second source of truth.
+  const usageByPlayerId = new Map(
+    await Promise.all(players.map(async (p) => [p.id, await getCharacterUsage(p.id)] as const)),
+  );
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const rankOffset = (page - 1) * PAGE_SIZE;
   const viewerId = session?.user?.id ?? null;
@@ -257,10 +266,7 @@ export default async function LeaderboardPage({
                       href={`/players/${player.id}`}
                       className="flex items-center gap-2 hover:underline"
                     >
-                      {player.mainCharacter && <CharacterIcon name={player.mainCharacter} size={20} />}
-                      {player.secondaryCharacters.map((c) => (
-                        <CharacterIcon key={c} name={c} size={16} className="opacity-60" />
-                      ))}
+                      <CharacterUsageIcons usage={usageByPlayerId.get(player.id) ?? []} />
                       {player.username}
                       {gapToNext !== null && gapToNext > 0 && (
                         <span className="text-xs font-normal text-muted-foreground">

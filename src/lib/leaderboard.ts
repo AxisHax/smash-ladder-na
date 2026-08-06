@@ -74,8 +74,6 @@ export async function getLeaderboardPlayers(
         username: true,
         rating: true,
         gamesPlayed: true,
-        mainCharacter: true,
-        secondaryCharacters: true,
       },
       skip: pagination.skip,
       take: pagination.take,
