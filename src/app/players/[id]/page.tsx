@@ -33,7 +33,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Card, CardContent } from "@/components/ui/card";
 import { TwitchLiveEmbed } from "@/components/twitch-live-embed";
 import { isBlockedByMe } from "@/lib/blocks";
-import { startggProfileUrl } from "@/lib/startgg-oauth";
+import { startggProfileUrl, supermajorProfileUrl } from "@/lib/startgg-oauth";
 import { listReportsForUser } from "@/lib/reports";
 import {
   adminOverrideResultAction,
@@ -260,15 +260,45 @@ export default async function PlayerProfilePage({
               )}
             </div>
             {player.startggSlug && (
-              <a
-                href={startggProfileUrl(player.startggSlug)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
-              >
-                {player.startggGamerTag ?? (lang === "es" ? "Ver en start.gg" : "View on start.gg")} ✓
-                <ExternalLink className="size-3" />
-              </a>
+              <div className="mt-1.5 flex gap-4">
+                <a
+                  href={startggProfileUrl(player.startggSlug)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
+                >
+                  <svg width="16" height="16" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                      d="M1.25 20h7.5A1.25 1.25 0 0 0 10 18.75v-7.5A1.25 1.25 0 0 1 11.25 10h27.5A1.25 1.25 0 0 0 40 8.75V1.25A1.25 1.25 0 0 0 38.75 0H10A10 10 0 0 0 0 10v8.75A1.25 1.25 0 0 0 1.25 20Z"
+                      fill="#3f80ff"
+                    />
+                    <path
+                      d="M38.75 20h-7.5A1.25 1.25 0 0 0 30 21.25v7.5A1.25 1.25 0 0 1 28.75 30H1.25A1.25 1.25 0 0 0 0 31.25v7.5A1.25 1.25 0 0 0 1.25 40H30A10 10 0 0 0 40 30V21.25A1.25 1.25 0 0 0 38.75 20Z"
+                      fill="#ff2768"
+                    />
+                  </svg>
+                  start.gg
+                  <ExternalLink className="size-3" />
+                </a>
+                {player.startggPlayerId && (
+                  <a
+                    href={supermajorProfileUrl(player.startggPlayerId)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
+                  >
+                    <Image
+                      src="/supermajor-icon.png"
+                      alt="Supermajor"
+                      width={24}
+                      height={24}
+                      className="size-4"
+                    />
+                    supermajor.gg
+                    <ExternalLink className="size-3" />
+                  </a>
+                )}
+              </div>
             )}
           </div>
         </div>

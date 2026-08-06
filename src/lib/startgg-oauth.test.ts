@@ -1,9 +1,17 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { buildStartggAuthorizeUrl, startggProfileUrl } from "@/lib/startgg-oauth";
+import { buildStartggAuthorizeUrl, startggProfileUrl, supermajorProfileUrl } from "@/lib/startgg-oauth";
 
 describe("startggProfileUrl", () => {
   it("builds a profile URL from a slug", () => {
     expect(startggProfileUrl("user/abc123")).toBe("https://start.gg/user/abc123");
+  });
+});
+
+describe("supermajorProfileUrl", () => {
+  it("builds a supermajor.gg profile URL from a player id", () => {
+    expect(supermajorProfileUrl("987654")).toBe(
+      "https://www.supermajor.gg/ultimate/player/_?id=S987654",
+    );
   });
 });
 
