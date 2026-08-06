@@ -266,8 +266,8 @@ export default async function LeaderboardPage({
                       href={`/players/${player.id}`}
                       className="flex items-center gap-2 hover:underline"
                     >
-                      <CharacterUsageIcons usage={usageByPlayerId.get(player.id) ?? []} />
                       {player.username}
+                      <CharacterUsageIcons usage={usageByPlayerId.get(player.id) ?? []} />
                       {gapToNext !== null && gapToNext > 0 && (
                         <span className="text-xs font-normal text-muted-foreground">
                           {lang === "es"
