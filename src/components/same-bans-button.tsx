@@ -10,18 +10,20 @@ export function SameBansButton({
   gameNumber,
   stages,
   canAct,
+  lang = "en",
 }: {
   action: ComponentProps<"form">["action"];
   gameNumber: number;
   stages: string[];
   canAct: boolean;
+  lang?: "en" | "es";
 }) {
   const isTouch = useIsTouchDevice();
   const stagesText = stages.join(", ");
 
   const button = (
     <Button type="submit" size="sm" variant="default" disabled={!canAct}>
-      Same bans as Game {gameNumber}
+      {lang === "es" ? `Mismos bans que el juego ${gameNumber}` : `Same bans as Game ${gameNumber}`}
     </Button>
   );
 

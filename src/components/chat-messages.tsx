@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 type Comment = {
   id: string;
   author: { username: string };
   body: string;
+  translatedBody?: string | null;
   createdAt: string; // ISO string from server
 };
 
@@ -67,16 +68,35 @@ export function ChatMessages({
       ) : (
         <ul className="flex flex-col gap-1.5">
           {comments.map((c) => (
-            <li key={c.id} className="text-sm leading-relaxed break-words">
-              <span className="font-medium">{c.author.username}:</span>{" "}
-              <span className="whitespace-pre-wrap">{c.body}</span>
-              <span className="ml-1.5 whitespace-nowrap text-[10px] text-muted-foreground/60">
-                {formatTime(c.createdAt)}
-              </span>
-            </li>
+            <ChatMessage key={c.id} comment={c} />
           ))}
         </ul>
       )}
     </div>
+  );
+}
+
+function ChatMessage({ comment }: { comment: Comment }) {
+  const [showOriginal, setShowOriginal] = useState(false);
+  const hasTranslation = !!comment.translatedBody && comment.translatedBody !== comment.body;
+  const displayBody = hasTranslation && !showOriginal ? comment.translatedBody! : comment.body;
+
+  return (
+    <li className="text-sm leading-relaxed break-words">
+      <span className="font-medium">{comment.author.username}:</span>{" "}
+      <span className="whitespace-pre-wrap">{displayBody}</span>
+      <span className="ml-1.5 whitespace-nowrap text-[10px] text-muted-foreground/60">
+        {formatTime(comment.createdAt)}
+      </span>
+      {hasTranslation && (
+        <button
+          type="button"
+          onClick={() => setShowOriginal((v) => !v)}
+          className="ml-1.5 cursor-pointer align-baseline text-[10px] whitespace-nowrap text-muted-foreground/60 underline-offset-2 hover:text-muted-foreground hover:underline"
+        >
+          {showOriginal ? "translated" : "original"}
+        </button>
+      )}
+    </li>
   );
 }

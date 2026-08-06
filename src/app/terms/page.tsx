@@ -1,6 +1,124 @@
+import { getLang } from "@/lib/i18n";
+
 export const metadata = { title: "Terms of Service — Smash Ladder NA" };
 
-export default function TermsPage() {
+export default async function TermsPage() {
+  const lang = await getLang();
+
+  if (lang === "es") {
+    return (
+      <main className="mx-auto max-w-2xl px-6 py-16">
+        <h1 className="text-2xl font-semibold tracking-tight">Términos de servicio</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Última actualización: 2026-07-19.</p>
+
+        <div className="mt-8 flex flex-col gap-6 text-sm text-muted-foreground">
+          <section>
+            <h2 className="text-sm font-medium text-foreground">Qué es esto</h2>
+            <p className="mt-2">
+              Smash Ladder NA es un ladder rankeado de Super Smash Bros. administrado por la
+              comunidad, organizado mediante inicio de sesión con Discord. Es gratis. Al iniciar
+              sesión, aceptas estos términos.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-sm font-medium text-foreground">Cuentas</h2>
+            <p className="mt-2">
+              Inicias sesión con Discord — no hay una contraseña aparte que gestionar aquí. Eres
+              responsable de lo que ocurra bajo tu cuenta, incluyendo partidas, reportes y
+              publicaciones hechas desde ella.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-sm font-medium text-foreground">Jugar limpio</h2>
+            <p className="mt-2">
+              Reporta tus propios resultados con honestidad. No hagas no-show, no alargues
+              partidas innecesariamente, no molestes a tus rivales, y no presentes reportes de
+              conducta de mala fe. Las partidas rankeadas y los free battles son entre tú y tu
+              rival — nosotros no arbitramos las partidas en sí, solo la capa de reporte y
+              emparejamiento.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-sm font-medium text-foreground">
+              Reportes de conducta y estado de la cuenta
+            </h2>
+            <p className="mt-2">
+              Otros jugadores pueden reportar mala conducta. Los reportes son revisados por mods
+              antes de tomar cualquier acción — presentar un reporte por sí solo no hace nada. Las
+              cuentas que acumulan suficientes reportes confirmados por mods se suspenden (solo se
+              bloquea el juego rankeado; free battle y nuevos reportes también se bloquean) o se
+              banean (todo bloqueado), en una escala gradual. Consulta la{" "}
+              <a href="/rules" className="underline">
+                página de Reglas
+              </a>{" "}
+              para más detalles. Las decisiones de estado pueden apelarse a través de un mod o
+              admin en el servidor de Discord de la comunidad.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-sm font-medium text-foreground">Torneos</h2>
+            <p className="mt-2">
+              Los torneos de la comunidad se organizan en start.gg; nosotros solo gestionamos las
+              inscripciones y el enlace. Las reglas de bracket, disputas y premios (si los hay) de
+              un torneo específico los define quien organiza ese torneo, no nosotros.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-sm font-medium text-foreground">
+              Las clasificaciones no son garantías
+            </h2>
+            <p className="mt-2">
+              Las clasificaciones, rankings e historial de partidas reflejan resultados
+              autorreportados y resueltos por disputas, según lo mejor que podemos determinar. No
+              garantizamos exactitud frente a manipulación deliberada, y podemos corregir o
+              eliminar resultados que resulten fraudulentos.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-sm font-medium text-foreground">Sin garantía</h2>
+            <p className="mt-2">
+              El sitio se ofrece tal cual (&quot;as-is&quot;). No garantizamos disponibilidad
+              continua, que el matchmaking siempre te encuentre una partida, ni que el servicio
+              esté libre de errores. Nintendo no tiene ninguna afiliación con este sitio — Smash
+              Ladder NA es un proyecto comunitario independiente, hecho por fans.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-sm font-medium text-foreground">Terminación</h2>
+            <p className="mt-2">
+              Puedes eliminar tu cuenta en cualquier momento desde tu página de perfil. Podemos
+              suspender o banear cuentas por violar estos términos, según el proceso de conducta
+              descrito arriba.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-sm font-medium text-foreground">Cambios</h2>
+            <p className="mt-2">
+              Podemos actualizar estos términos conforme el sitio evoluciona. Los cambios
+              importantes se reflejarán aquí con una fecha actualizada.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-sm font-medium text-foreground">Contacto</h2>
+            <p className="mt-2">
+              Las preguntas van dirigidas a un mod o admin en el servidor de Discord de la
+              comunidad.
+            </p>
+          </section>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
       <h1 className="text-2xl font-semibold tracking-tight">Terms of Service</h1>

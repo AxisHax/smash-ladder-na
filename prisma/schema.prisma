@@ -151,6 +151,7 @@ model User {
   secondaryCharacters  String[]   @default([]) // same source as mainCharacter — auto-computed until self-declared, then player-controlled
   charactersSelfDeclared Boolean  @default(false) // once true, recomputeCharacterUsage no-ops — players complained the old peer-report mechanism kept landing on the wrong main, so self-declaration (once made) is authoritative
   region               String? // self-declared match region; drives distance-based matchmaking
+  preferredLanguage    String? // "es" or null (English, the default) — only controls which landing page ("/" vs "/es") a signed-in visit to "/" bounces to; the rest of the site has no Spanish translation yet, so this isn't a general i18n switch
   maxMatchDistanceKm   Int?       @default(2400) // self-declared match radius; null means worldwide. Matching requires BOTH sides' radius to cover the actual distance. Default matches MATCH_DISTANCE_PRESETS' "Moderate" tier.
   maxRatingGap         Int? // self-declared rating-gap tolerance; null means any rating (the default, to not shrink an already-small pool). Matching requires BOTH sides' gap to cover the actual difference.
   rematchCooldownHours Int? // self-declared minimum time before rematching the same opponent; null means anytime (the default). Matching requires BOTH sides' cooldown to have elapsed since their last match.
@@ -356,15 +357,30 @@ model MatchTypingStatus {
 }
 
 model MatchComment {
-  id        String      @id @default(cuid())
-  matchId   String
-  match     RatingMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  authorId  String
-  author    User        @relation(fields: [authorId], references: [id])
-  body      String
-  createdAt DateTime    @default(now())
+  id            String                  @id @default(cuid())
+  matchId       String
+  match         RatingMatch             @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  authorId      String
+  author        User                    @relation(fields: [authorId], references: [id])
+  body          String
+  createdAt     DateTime                @default(now())
+  translations  MatchCommentTranslation[]
 
   @@index([matchId, createdAt])
+}
+
+// Lazily-populated cache: translated once per (comment, target language) on
+// first view, then reused for every later viewer/poll instead of re-calling
+// the translation model. See lib/translate.ts.
+model MatchCommentTranslation {
+  id        String       @id @default(cuid())
+  commentId String
+  comment   MatchComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  lang      String // "en" or "es" — the target language this translation is in
+  body      String
+  createdAt DateTime     @default(now())
+
+  @@unique([commentId, lang])
 }
 
 model ConductReport {

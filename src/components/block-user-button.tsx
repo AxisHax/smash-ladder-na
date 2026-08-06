@@ -10,9 +10,11 @@ type BlockState = { error: string | null };
 export function BlockUserButton({
   action,
   username,
+  lang = "en",
 }: {
   action: (prevState: BlockState, formData: FormData) => Promise<BlockState>;
   username: string;
+  lang?: "en" | "es";
 }) {
   const [state, formAction, isPending] = useActionState(action, { error: null });
   const [confirm, confirmDialog] = useConfirm();
@@ -29,7 +31,9 @@ export function BlockUserButton({
           }
           e.preventDefault();
           confirm(
-            `Block ${username}? This is permanent and can't be undone — you'll never be matched with them again in ranked queueing.`,
+            lang === "es"
+              ? `¿Bloquear a ${username}? Esto es permanente y no se puede deshacer — nunca volverás a emparejarte con esta persona en la cola rankeada.`
+              : `Block ${username}? This is permanent and can't be undone — you'll never be matched with them again in ranked queueing.`,
           ).then((ok) => {
             if (ok) {
               confirmReadyRef.current = true;
@@ -39,7 +43,7 @@ export function BlockUserButton({
         }}
       >
         <Button type="submit" variant="outline" size="sm" disabled={isPending}>
-          Block
+          {lang === "es" ? "Bloquear" : "Block"}
         </Button>
       </form>
       {state.error && <p className="text-xs text-destructive">{state.error}</p>}

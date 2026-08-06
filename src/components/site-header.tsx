@@ -19,6 +19,7 @@ import {
 import { auth, signIn, signOut, primaryProviderId } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { getLang, setLangAction } from "@/lib/i18n";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,32 +31,43 @@ import {
 export async function SiteHeader() {
   const session = await auth();
   const user = session?.user;
+  const lang = await getLang();
 
   return (
     <header className="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur-sm">
       <div className="mx-auto max-w-2xl px-6 py-3">
         <div className="flex items-center justify-between gap-4">
-          <Link
-            href="/"
-            prefetch={false}
-            className="flex shrink-0 items-center gap-1.5 text-sm font-semibold tracking-tight"
-          >
-            <Image
-              src="/smash_ladder_icon.png"
-              alt=""
-              width={24}
-              height={24}
-              className="size-6 block dark:hidden"
-            />
-            <Image
-              src="/smash_ladder_icon_white.png"
-              alt=""
-              width={24}
-              height={24}
-              className="size-6 hidden dark:block"
-            />
-            Smash Ladder <span className="text-primary">NA</span>
-          </Link>
+          <div className="flex min-w-0 items-center gap-3">
+            <Link
+              href="/"
+              prefetch={false}
+              className="flex shrink-0 items-center gap-1.5 text-sm font-semibold tracking-tight"
+            >
+              <Image
+                src="/smash_ladder_icon.png"
+                alt=""
+                width={24}
+                height={24}
+                className="size-6 block dark:hidden"
+              />
+              <Image
+                src="/smash_ladder_icon_white.png"
+                alt=""
+                width={24}
+                height={24}
+                className="size-6 hidden dark:block"
+              />
+              Smash Ladder <span className="text-primary">NA</span>
+            </Link>
+            <form action={setLangAction.bind(null, lang === "es" ? "en" : "es")}>
+              <button
+                type="submit"
+                className="cursor-pointer text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+              >
+                {lang === "es" ? "English" : "Español"}
+              </button>
+            </form>
+          </div>
 
           {user ? (
             <DropdownMenu>
@@ -76,13 +88,13 @@ export async function SiteHeader() {
                 <DropdownMenuItem asChild>
                   <Link href={`/players/${user.id}`} prefetch={false}>
                     <UserRound className="size-3.5" />
-                    View profile
+                    {lang === "es" ? "Ver perfil" : "View profile"}
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href="/settings" prefetch={false}>
                     <Settings className="size-3.5" />
-                    Settings
+                    {lang === "es" ? "Ajustes" : "Settings"}
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -97,7 +109,7 @@ export async function SiteHeader() {
                   <DropdownMenuItem asChild>
                     <button type="submit">
                       <LogOut className="size-3.5" />
-                      Sign out
+                      {lang === "es" ? "Cerrar sesión" : "Sign out"}
                     </button>
                   </DropdownMenuItem>
                 </form>
@@ -115,7 +127,7 @@ export async function SiteHeader() {
               }}
             >
               <Button type="submit" size="sm">
-                Sign in
+                {lang === "es" ? "Iniciar sesión" : "Sign in"}
               </Button>
             </form>
           )}
@@ -129,7 +141,7 @@ export async function SiteHeader() {
               className="flex items-center gap-1.5 hover:text-foreground"
             >
               <Swords className="size-3.5" />
-              Lobby
+              {lang === "es" ? "Sala" : "Lobby"}
             </Link>
             <Link
               href="/sets"
@@ -137,7 +149,7 @@ export async function SiteHeader() {
               className="flex items-center gap-1.5 hover:text-foreground"
             >
               <Radio className="size-3.5" />
-              Sets
+              {lang === "es" ? "Partidas" : "Sets"}
             </Link>
             <Link
               href="/leaderboard"
@@ -145,7 +157,7 @@ export async function SiteHeader() {
               className="flex items-center gap-1.5 hover:text-foreground"
             >
               <Trophy className="size-3.5" />
-              Leaderboard
+              {lang === "es" ? "Clasificación" : "Leaderboard"}
             </Link>
             <Link
               href="/characters"
@@ -153,7 +165,7 @@ export async function SiteHeader() {
               className="flex items-center gap-1.5 hover:text-foreground"
             >
               <Gamepad2 className="size-3.5" />
-              Characters
+              {lang === "es" ? "Personajes" : "Characters"}
             </Link>
             {(user?.role === "MOD" || user?.role === "ADMIN") && (
               <Link

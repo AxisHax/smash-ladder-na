@@ -4,6 +4,7 @@ import { Trophy } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { getSeasonStandings } from "@/lib/seasons";
 import { Card } from "@/components/ui/card";
+import { getLang } from "@/lib/i18n";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 
@@ -16,7 +17,8 @@ export default async function SeasonStandingsPage({
   const season = await prisma.season.findUnique({ where: { id } });
   if (!season) notFound();
 
-  const standings = await getSeasonStandings(id);
+  const [standings, lang] = await Promise.all([getSeasonStandings(id), getLang()]);
+  const dateLocale = lang === "es" ? "es-MX" : "en-US";
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
@@ -25,7 +27,8 @@ export default async function SeasonStandingsPage({
         <h1 className="text-2xl font-semibold tracking-tight">{season.name}</h1>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
-        {season.startsAt.toLocaleDateString()} – {season.endsAt?.toLocaleDateString() ?? "present"}
+        {season.startsAt.toLocaleDateString(dateLocale)} –{" "}
+        {season.endsAt?.toLocaleDateString(dateLocale) ?? (lang === "es" ? "actualidad" : "present")}
       </p>
 
       <Card className="mt-8 overflow-hidden py-0">
@@ -33,9 +36,13 @@ export default async function SeasonStandingsPage({
           <thead>
             <tr className="border-b border-border text-muted-foreground">
               <th className="py-2 pl-4 font-medium">#</th>
-              <th className="py-2 font-medium">Player</th>
-              <th className="py-2 font-medium text-right tabular-nums">Final rating</th>
-              <th className="py-2 pr-4 font-medium text-right tabular-nums">Sets</th>
+              <th className="py-2 font-medium">{lang === "es" ? "Jugador" : "Player"}</th>
+              <th className="py-2 font-medium text-right tabular-nums">
+                {lang === "es" ? "Clasificación final" : "Final rating"}
+              </th>
+              <th className="py-2 pr-4 font-medium text-right tabular-nums">
+                {lang === "es" ? "Partidas" : "Sets"}
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -58,7 +65,9 @@ export default async function SeasonStandingsPage({
           </tbody>
         </table>
         {standings.length === 0 && (
-          <p className="p-4 text-sm text-muted-foreground">No ranked players that season.</p>
+          <p className="p-4 text-sm text-muted-foreground">
+            {lang === "es" ? "Nadie jugó rankeado esa temporada." : "No ranked players that season."}
+          </p>
         )}
       </Card>
     </main>

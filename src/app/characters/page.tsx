@@ -10,6 +10,7 @@ import { AdSlot } from "@/components/ad-slot";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { getLang } from "@/lib/i18n";
 
 const SORT_OPTIONS = ["alpha", "players"] as const;
 
@@ -20,6 +21,7 @@ export default async function CharactersPage({
 }) {
   const { sort } = await searchParams;
   const isValidSort = sort && (SORT_OPTIONS as readonly string[]).includes(sort);
+  const lang = await getLang();
 
   // Same inclusion rules as the per-character leaderboard itself
   // (getLeaderboardPlayers): the leaderboard's games floor — deliberately
@@ -85,36 +87,50 @@ export default async function CharactersPage({
     <main className="mx-auto max-w-2xl px-6 py-16">
       <div className="flex items-center gap-2">
         <Swords className="size-5 text-muted-foreground" />
-        <h1 className="text-2xl font-semibold tracking-tight">Characters</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {lang === "es" ? "Personajes" : "Characters"}
+        </h1>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
-        Mains and secondaries are computed automatically from your actual match history — a
-        secondary needs 10%+ of your games to count. Most echo fighters (Dark Pit, Daisy, Dark
-        Samus, Richter) are counted together with their base fighter — Marth/Lucina, Roy/Chrom,
-        and Ryu/Ken are kept separate. Browse a character&apos;s leaderboard below.
+        {lang === "es" ? (
+          <>
+            Los mains y secundarios se calculan automáticamente a partir de tu historial real de
+            partidas — un secundario necesita 10%+ de tus partidas para contar. La mayoría de los
+            personajes echo (Dark Pit, Daisy, Dark Samus, Richter) se cuentan junto con su
+            personaje base — Marth/Lucina, Roy/Chrom, y Ryu/Ken se mantienen aparte. Explora la
+            tabla de posiciones de un personaje abajo.
+          </>
+        ) : (
+          <>
+            Mains and secondaries are computed automatically from your actual match history — a
+            secondary needs 10%+ of your games to count. Most echo fighters (Dark Pit, Daisy, Dark
+            Samus, Richter) are counted together with their base fighter — Marth/Lucina, Roy/Chrom,
+            and Ryu/Ken are kept separate. Browse a character&apos;s leaderboard below.
+          </>
+        )}
       </p>
 
       <form method="get" className="mt-8 flex items-end gap-2">
         <label className="flex flex-col gap-1 text-sm">
-          Sort by
+          {lang === "es" ? "Ordenar por" : "Sort by"}
           <select
             name="sort"
             defaultValue={isValidSort ? sort : ""}
             className="h-8 w-48 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
           >
             <option value="" className="bg-background text-foreground">
-              Roster order
+              {lang === "es" ? "Orden del roster" : "Roster order"}
             </option>
             <option value="alpha" className="bg-background text-foreground">
-              Alphabetical
+              {lang === "es" ? "Alfabético" : "Alphabetical"}
             </option>
             <option value="players" className="bg-background text-foreground">
-              Most players
+              {lang === "es" ? "Más jugadores" : "Most players"}
             </option>
           </select>
         </label>
         <Button type="submit" size="sm" variant="outline">
-          Sort
+          {lang === "es" ? "Ordenar" : "Sort"}
         </Button>
       </form>
 

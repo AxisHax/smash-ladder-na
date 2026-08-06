@@ -8,9 +8,11 @@ import type { JoinLobbyState } from "@/app/lobby/actions";
 export function JoinLobbyForm({
   action,
   className,
+  lang = "en",
 }: {
   action: (prevState: JoinLobbyState, formData: FormData) => Promise<JoinLobbyState>;
   className?: string;
+  lang?: "en" | "es";
 }) {
   const [state, formAction, isPending] = useActionState(action, { error: null });
 
@@ -19,10 +21,11 @@ export function JoinLobbyForm({
       <label className="flex items-start gap-1.5 text-sm text-muted-foreground">
         <input type="checkbox" name="isPracticing" className="mt-0.5 size-3.5" />
         <span>
-          Practicing this session
+          {lang === "es" ? "Practicando esta sesión" : "Practicing this session"}
           <span className="block text-xs">
-            Results count toward a separate practice rating — your regular ladder rating and sets
-            played don&apos;t move at all.
+            {lang === "es"
+              ? "Los resultados cuentan para una clasificación de práctica aparte — tu clasificación normal del ladder y tus partidas jugadas no se mueven en absoluto."
+              : "Results count toward a separate practice rating — your regular ladder rating and sets played don't move at all."}
           </span>
         </span>
       </label>
@@ -30,8 +33,10 @@ export function JoinLobbyForm({
         {isPending ? (
           <>
             <Loader2 className="size-4 animate-spin" />
-            Searching for an opponent…
+            {lang === "es" ? "Buscando rival…" : "Searching for an opponent…"}
           </>
+        ) : lang === "es" ? (
+          "Buscar nuevo rival"
         ) : (
           "Search for New Opponent"
         )}

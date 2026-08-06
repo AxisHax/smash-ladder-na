@@ -12,17 +12,23 @@ import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { prisma } from "@/lib/db";
 import { DISCORD_SERVER_URL } from "@/lib/links";
-import { getLang } from "@/lib/i18n";
 
 export const metadata: Metadata = {
-  alternates: { languages: { "es-MX": "/es" } },
+  title: "Smash Ladder NA — Liga clasificatoria",
+  description: "Liga clasificatoria y emparejamiento de Norteamérica para Smash, en español.",
+  alternates: { languages: { "en-US": "/" } },
 };
 
-export default async function Home() {
+// Kept as its own crawlable route for SEO — a first-touch landing page for
+// Spanish-language search/social traffic — even though "/" now renders the
+// same content in-place via getLang(). proxy.ts sets the "lang" cookie on
+// any visit here, so navigating onward (via the header, Lobby card, etc.)
+// stays in Spanish instead of snapping back to English on the next page.
+export default async function HomeEs() {
   const session = await auth();
   const user = session?.user;
 
-  const [me, stats, lang] = await Promise.all([
+  const [me, stats] = await Promise.all([
     user?.id
       ? prisma.user.findUnique({
           where: { id: user.id },
@@ -30,14 +36,13 @@ export default async function Home() {
         })
       : null,
     getPublicStats(),
-    getLang(),
   ]);
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-20">
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Badge variant="outline" className="border-primary/30 text-primary">
-          {lang === "es" ? "Norteamérica" : "North America"}
+          Norteamérica
         </Badge>
         <a
           href={DISCORD_SERVER_URL}
@@ -54,9 +59,7 @@ export default async function Home() {
       </div>
       <h1 className="text-4xl font-semibold tracking-tight text-balance">Smash Ladder NA</h1>
       <p className="mt-3 max-w-md text-muted-foreground">
-        {lang === "es"
-          ? "Una liga clasificatoria y emparejamiento para la comunidad de Smash de Norteamérica."
-          : "A ranked ladder and matchmaking hub for the North American Smash community."}
+        Una liga clasificatoria y emparejamiento para la comunidad de Smash de Norteamérica.
       </p>
 
       {!user && (
@@ -68,24 +71,15 @@ export default async function Home() {
           className="mt-8"
         >
           <Button type="submit" size="lg">
-            {lang === "es" ? "Inicia sesión para empezar" : "Sign in to get started"}
+            Inicia sesión para empezar
           </Button>
         </form>
       )}
 
       {user && me && (
         <p className="mt-6 text-sm text-muted-foreground tabular-nums">
-          {lang === "es" ? (
-            <>
-              Tienes una clasificación de <span className="font-medium text-foreground">{me.rating}</span> en{" "}
-              {me.gamesPlayed} partidas.
-            </>
-          ) : (
-            <>
-              You&apos;re <span className="font-medium text-foreground">{me.rating}</span> rated across{" "}
-              {me.gamesPlayed} sets.
-            </>
-          )}
+          Tienes una clasificación de <span className="font-medium text-foreground">{me.rating}</span> en{" "}
+          {me.gamesPlayed} partidas.
         </p>
       )}
 
@@ -96,26 +90,23 @@ export default async function Home() {
               <span className="live-pulse absolute inline-flex size-full rounded-full bg-emerald-500 opacity-75" />
               <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
             </span>
-            <span className="font-medium text-foreground">{stats.playingNow}</span>{" "}
-            {lang === "es" ? "jugando ahora" : "playing now"}
+            <span className="font-medium text-foreground">{stats.playingNow}</span> jugando ahora
           </span>
         )}
         <span className="flex items-center gap-1.5 tabular-nums">
           <Users className="size-3.5 text-primary" />
-          <span className="font-medium text-foreground">{stats.totalPlayers}</span>{" "}
-          {lang === "es" ? "jugadores" : "players"}
+          <span className="font-medium text-foreground">{stats.totalPlayers}</span> jugadores
         </span>
         <span className="flex items-center gap-1.5 tabular-nums">
           <Activity className="size-3.5 text-primary" />
-          <span className="font-medium text-foreground">{stats.matchesToday}</span>{" "}
-          {lang === "es" ? "partidas hoy" : "matches today"}
+          <span className="font-medium text-foreground">{stats.matchesToday}</span> partidas hoy
         </span>
       </div>
 
       {stats.topPlayers.length > 0 && (
         <div className="mt-10">
           <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {lang === "es" ? "Los mejores de la liga" : "Top of the ladder"}
+            Los mejores de la liga
           </h2>
           <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
             {stats.topPlayers.map((p, i) => (
@@ -137,9 +128,7 @@ export default async function Home() {
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{p.username}</p>
                       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                        <p className="text-xs tabular-nums text-muted-foreground">
-                          {p.rating} {lang === "es" ? "de clasificación" : "rating"}
-                        </p>
+                        <p className="text-xs tabular-nums text-muted-foreground">{p.rating} de clasificación</p>
                         <RankBadge rating={p.rating} gamesPlayed={p.gamesPlayed} />
                       </div>
                     </div>
@@ -156,11 +145,9 @@ export default async function Home() {
           <Card className="h-full transition-colors hover:border-foreground/30">
             <CardHeader>
               <Swords className="size-5 text-muted-foreground" />
-              <CardTitle className="text-base">{lang === "es" ? "Sala clasificatoria" : "Ranked Lobby"}</CardTitle>
+              <CardTitle className="text-base">Sala clasificatoria</CardTitle>
               <CardDescription>
-                {lang === "es"
-                  ? "Ponte en cola y te emparejamos automáticamente para una partida clasificatoria."
-                  : "Queue up and get auto-paired for a rated match."}
+                Ponte en cola y te emparejamos automáticamente para una partida clasificatoria.
               </CardDescription>
             </CardHeader>
           </Card>
@@ -169,8 +156,8 @@ export default async function Home() {
           <Card className="h-full transition-colors hover:border-foreground/30">
             <CardHeader>
               <Trophy className="size-5 text-muted-foreground" />
-              <CardTitle className="text-base">{lang === "es" ? "Tabla de clasificación" : "Leaderboard"}</CardTitle>
-              <CardDescription>{lang === "es" ? "Mira en qué posición estás." : "See where you stack up."}</CardDescription>
+              <CardTitle className="text-base">Tabla de clasificación</CardTitle>
+              <CardDescription>Mira en qué posición estás.</CardDescription>
             </CardHeader>
           </Card>
         </Link>
@@ -184,11 +171,7 @@ export default async function Home() {
             <CardHeader>
               <DiscordIcon className="size-5 text-muted-foreground" />
               <CardTitle className="text-base">Discord</CardTitle>
-              <CardDescription>
-                {lang === "es"
-                  ? "Únete al servidor de la comunidad para socializar y obtener ayuda."
-                  : "Join the community server to hang out and get support."}
-              </CardDescription>
+              <CardDescription>Únete al servidor de la comunidad para socializar y obtener ayuda.</CardDescription>
             </CardHeader>
           </Card>
         </a>

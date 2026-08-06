@@ -4,23 +4,25 @@ import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { createTournamentAction } from "@/app/tournaments/actions";
 
-export function CreateTournamentForm() {
+export function CreateTournamentForm({ lang = "en" }: { lang?: "en" | "es" }) {
   const [state, formAction, isPending] = useActionState(createTournamentAction, { error: null });
 
   return (
     <form action={formAction} className="flex flex-col gap-3">
       <label className="flex flex-col gap-1 text-sm">
-        Name
+        {lang === "es" ? "Nombre" : "Name"}
         <input
           name="name"
           required
           maxLength={100}
-          placeholder="e.g. Friday Night Bracket"
+          placeholder={lang === "es" ? "p. ej. Bracket del viernes por la noche" : "e.g. Friday Night Bracket"}
           className="h-8 rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
         />
       </label>
       <label className="flex flex-col gap-1 text-sm">
-        start.gg link (optional, add before check-in closes)
+        {lang === "es"
+          ? "Enlace de start.gg (opcional, añádelo antes de que cierre el check-in)"
+          : "start.gg link (optional, add before check-in closes)"}
         <input
           name="startggUrl"
           type="url"
@@ -29,18 +31,18 @@ export function CreateTournamentForm() {
         />
       </label>
       <label className="flex flex-col gap-1 text-sm">
-        Description (optional)
+        {lang === "es" ? "Descripción (opcional)" : "Description (optional)"}
         <textarea
           name="description"
           rows={2}
           maxLength={1000}
-          placeholder="Rules, format notes, etc."
+          placeholder={lang === "es" ? "Reglas, notas de formato, etc." : "Rules, format notes, etc."}
           className="w-full resize-none rounded-lg border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring"
         />
       </label>
       {state.error && <p className="text-xs text-destructive">{state.error}</p>}
       <Button type="submit" className="self-start" disabled={isPending}>
-        Host a tournament
+        {lang === "es" ? "Organizar un torneo" : "Host a tournament"}
       </Button>
     </form>
   );

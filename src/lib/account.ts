@@ -160,6 +160,14 @@ export async function setZenMode(userId: string, zenMode: boolean) {
   await prisma.user.update({ where: { id: userId }, data: { zenMode } });
 }
 
+// Only controls which landing page ("/" vs "/es") a signed-in visit to "/"
+// bounces to — see the field's own comment in schema.prisma. `null` means
+// English (the default); anything else falls back to English too, so a
+// future removed-language value can't strand someone on a 404.
+export async function setPreferredLanguage(userId: string, language: "es" | null) {
+  await prisma.user.update({ where: { id: userId }, data: { preferredLanguage: language } });
+}
+
 export function isWiredClaimUntrustworthy(cancelCount: number, gamesPlayed: number) {
   if (cancelCount < WIRED_TRUST_MIN_CANCELS) return false;
   const ratio = cancelCount / (cancelCount + gamesPlayed);

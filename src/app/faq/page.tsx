@@ -1,4 +1,5 @@
 import { DISCORD_SERVER_URL } from "@/lib/links";
+import { getLang } from "@/lib/i18n";
 
 export const metadata = { title: "Q&A — Smash Ladder NA" };
 
@@ -22,7 +23,9 @@ function Category({ title, children }: { title: string; children: React.ReactNod
   );
 }
 
-export default function FaqPage() {
+export default async function FaqPage() {
+  const lang = await getLang();
+  if (lang === "es") return <FaqPageEs />;
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
       <h1 className="text-2xl font-semibold tracking-tight">Q&amp;A</h1>
@@ -164,6 +167,165 @@ export default function FaqPage() {
             tooling, this FAQ entry included) is done with AI assistance. We&apos;re not hiding
             that — if you&apos;re curious how something specific was built, ask in the Discord
             server above.
+          </QA>
+        </Category>
+      </div>
+    </main>
+  );
+}
+
+function FaqPageEs() {
+  return (
+    <main className="mx-auto max-w-2xl px-6 py-16">
+      <h1 className="text-2xl font-semibold tracking-tight">Preguntas</h1>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Consulta también la{" "}
+        <a href="/rules" className="underline">
+          página de Reglas
+        </a>{" "}
+        para las reglas de partida reales a las que hace referencia esto.
+      </p>
+
+      <div className="mt-8 flex flex-col gap-8">
+        <Category title="Partidas rankeadas">
+          <QA q="Mi rival no respondió después de emparejarnos. ¿Qué hago?">
+            Cancela la partida y sigue adelante — el botón de cancelar está justo para esto. Si
+            sigue pasando con el mismo jugador, repórtalo.
+          </QA>
+          <QA q="Solo yo reporté y mi rival nunca lo hizo. ¿La partida sigue contando?">
+            Sí. Si tu rival nunca reporta, tu reporte se acepta automáticamente 24 horas después
+            de que empezó la partida, y se le marca un no-show. Si ninguno de los dos reporta
+            dentro de 24 horas, la partida se cierra sin cambio de clasificación para ninguno.
+          </QA>
+          <QA q="Reporté al ganador equivocado por error.">
+            Reporta de nuevo con el resultado correcto antes de que tu rival reporte — solo
+            necesitan ponerse de acuerdo. Si los reportes ya no coinciden, la partida pasa a un
+            mod como disputa.
+          </QA>
+          <QA q="Mi rival reportó un ganador distinto a lo que realmente pasó.">
+            No vuelvas a enviar tu reporte esperando que se arregle solo — esto pone la partida en
+            estado de disputa, donde un mod interviene para resolverla según ambos reportes. Si
+            fue deliberado, presenta también un reporte de conducta.
+          </QA>
+          <QA q="Mi clasificación no cambió después de una partida confirmada.">
+            El redondeo puede ocasionalmente producir un cambio de 0 puntos en los extremos de una
+            diferencia de clasificación grande — eso es esperado, no un bug. Si ambos reportes
+            coincidían claramente y el ganador se ve mal en tu perfil, reporta la partida como
+            disputa.
+          </QA>
+        </Category>
+
+        <Category title="Modo práctica">
+          <QA q="¿Una partida en modo práctica afecta mi clasificación del ladder?">
+            No. Los resultados en modo práctica van completamente a una clasificación de práctica
+            aparte — tu clasificación normal del ladder y tu conteo de partidas jugadas no se
+            mueven, ganes o pierdas.
+          </QA>
+          <QA q="No quería marcar Practicando por accidente — ¿puedo desactivarlo a mitad de partida?">
+            No, queda fijado para esa partida en cuanto te emparejan. Cancela la partida si aún es
+            lo bastante temprano (ver &quot;Cancelar una partida&quot; arriba), o pídele a tu
+            rival que acepte una cancelación mutua desde la pantalla de partida, y luego vuelve a
+            entrar a la cola con la casilla desmarcada.
+          </QA>
+        </Category>
+
+        <Category title="Reportar personaje">
+          <QA q="Mi personaje no aparece en mi perfil.">
+            Solo aparece una vez que un rival lo reporta después de una partida — no hay
+            autoselección. Si acabas de terminar una partida, dale un momento; si ya pasó tiempo,
+            puede que tu rival no lo haya reportado.
+          </QA>
+          <QA q="Alguien reportó el personaje equivocado para mí.">
+            Un solo reporte malo no distorsiona nada de forma significativa — la tabla de
+            posiciones por personaje mira los reportes en conjunto. Si crees que es un patrón
+            deliberado de reportes de mala fe, presenta un reporte de conducta sobre ese jugador.
+          </QA>
+        </Category>
+
+        <Category title="Conducta, reportes, y estado de la cuenta">
+          <QA q="Alguien fue tóxico conmigo fuera de una partida — DMs de Discord, chat de stream, etc.">
+            El sistema de reportes cubre conducta relacionada con partidas rankeadas en este
+            sitio. Para cualquier cosa fuera de la plataforma, bloquéalo y, si es grave, repórtalo
+            directamente a Discord.
+          </QA>
+          <QA q="Reporté a alguien — ¿me dirán qué le pasó?">
+            No. No revelamos los resultados de moderación de reportes individuales, principalmente
+            para que quien reporta no sea identificable y blanco de represalias. Presentar un
+            reporte sigue siendo lo correcto aunque no veas confirmación — un solo reporte rara
+            vez resulta en una acción por sí solo, pero un patrón sí.
+          </QA>
+          <QA q="Mi cuenta fue suspendida o baneada. ¿Por qué, y puedo apelar?">
+            No publicamos los reportes específicos detrás de un cambio de estado, por la misma
+            razón de prevención de represalias de arriba. Si crees que es un error, contacta a un
+            mod o admin en el{" "}
+            <a href={DISCORD_SERVER_URL} className="underline" target="_blank" rel="noreferrer">
+              servidor de Discord de la comunidad
+            </a>{" "}
+            — las apelaciones pasan por ellos, no por el sistema de reportes.
+          </QA>
+          <QA q="¿Cuál es la diferencia real entre suspendido y baneado?">
+            Suspendido (Nivel 1) todavía te deja jugar rankeado — esa es la actividad principal, y
+            las disputas ya le dan a los malos resultados su propio camino de corrección — pero
+            bloquea free battle y presentar nuevos reportes, para que un jugador suspendido no
+            pueda tomar represalias contra quien lo reportó. Baneado (Nivel 2) bloquea todo.
+          </QA>
+        </Category>
+
+        <Category title="Cuenta">
+          <QA q="¿Cómo elimino mi cuenta?">
+            Desde tu página de perfil, bajo &quot;Zona de peligro&quot;. Borra tu nombre de
+            usuario, avatar y correo electrónico de inmediato. Consulta la{" "}
+            <a href="/privacy" className="underline">
+              Política de privacidad
+            </a>{" "}
+            para ver exactamente qué se conserva y por qué.
+          </QA>
+          <QA q="¿Puedo deshacer la eliminación de una cuenta, o fusionarla con una nueva?">
+            No — la eliminación es permanente y no hay migración de datos entre cuentas. Volver a
+            iniciar sesión con la misma cuenta de Discord después simplemente empieza un perfil
+            nuevo.
+          </QA>
+          <QA q="¿El emparejamiento está abierto a nivel mundial?">
+            Sí — cualquiera puede unirse. Define tu región y una distancia de partida en la
+            página de Sala; los valores por defecto te emparejan con jugadores de la misma región
+            o cercanos, y puedes ampliarlo hasta Mundial si prefieres entrar a la cola más rápido.
+            Consulta la página de Reglas para ver exactamente cómo funciona el ajuste de
+            distancia.
+          </QA>
+        </Category>
+
+        <Category title="Temporadas">
+          <QA q="¿Qué pasa con mi clasificación cuando termina una temporada?">
+            Se toma una foto de la tabla de posiciones, y luego la clasificación y las partidas
+            jugadas se reinician para todos al empezar la siguiente temporada — un borrón y
+            cuenta nueva en vez de una regresión parcial, para que cada temporada empiece en
+            igualdad de condiciones.
+          </QA>
+        </Category>
+
+        <Category title="Comunidad y moderación">
+          <QA q="¿Hay un servidor de Discord?">
+            Sí —{" "}
+            <a href={DISCORD_SERVER_URL} className="underline" target="_blank" rel="noreferrer">
+              únete aquí
+            </a>
+            . Es el lugar para socializar, reportar problemas del sitio, o contactar a un
+            mod/admin (por ejemplo, para apelar un ban).
+          </QA>
+          <QA q="¿Cómo se forma el equipo de moderación?">
+            Actualmente unos 5 mods/admins, elegidos de forma voluntaria. Si te interesa ayudar,
+            contacta en el servidor de Discord de arriba.
+          </QA>
+          <QA q="¿Esto está afiliado con Smash Ladder / Smashmate de Japón?">
+            No — este es un proyecto independiente, gestionado por separado, construido para la
+            escena de Norteamérica. Cualquier parecido en el nombre con plataformas de matchmaking
+            japonesas ya existentes es coincidencia.
+          </QA>
+          <QA q="¿Usan IA para construir y mantener este sitio?">
+            Sí. Gran parte del código, corrección de bugs, y mantenimiento del día a día
+            (despliegues, herramientas de moderación, esta misma entrada del FAQ incluida) se hace
+            con ayuda de IA. No lo ocultamos — si tienes curiosidad de cómo se construyó algo en
+            específico, pregunta en el servidor de Discord de arriba.
           </QA>
         </Category>
       </div>

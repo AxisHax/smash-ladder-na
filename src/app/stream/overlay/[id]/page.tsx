@@ -8,6 +8,7 @@ import { MatchStatus } from "@/generated/prisma/enums";
 import { RankBadge } from "@/components/rank-badge";
 import { CharacterIcon } from "@/components/character-icon";
 import { StreamRefreshPoller } from "@/components/stream-refresh-poller";
+import { getLang } from "@/lib/i18n";
 
 // Broadcast overlay meant to be captured directly by OBS as a Browser Source
 // (see layout.tsx's isStreamOverlay branch for the chrome-less,
@@ -19,6 +20,11 @@ import { StreamRefreshPoller } from "@/components/stream-refresh-poller";
 // Query params:
 //   hideRecentMatches=1 — hides the recent matches panel
 //   hideRatingCard=1   — hides the rating card (top-left panel)
+//   lang=es            — Spanish labels (OBS's embedded browser doesn't
+//                         share cookies with the streamer's own browser, so
+//                         the usual cookie/DB language resolution can't
+//                         reach this page — an explicit query param is the
+//                         only way a streamer can actually set it here)
 
 export default async function StreamOverlayPage({
   params,
@@ -28,10 +34,12 @@ export default async function StreamOverlayPage({
   searchParams: Promise<{
     hideRecentMatches?: string;
     hideRatingCard?: string;
+    lang?: string;
   }>;
 }) {
   const { id } = await params;
-  const { hideRecentMatches, hideRatingCard } = await searchParams;
+  const { hideRecentMatches, hideRatingCard, lang: langParam } = await searchParams;
+  const lang = langParam === "es" ? "es" : langParam === "en" ? "en" : await getLang();
 
   const user = await prisma.user.findUnique({
     where: { id },
@@ -163,7 +171,7 @@ export default async function StreamOverlayPage({
         <div className="absolute left-8 top-8">
           <div className="rounded-2xl border border-white/10 bg-zinc-900/95 px-5 py-5 shadow-2xl backdrop-blur-sm">
             <span className="text-base font-semibold tracking-[0.15em] text-white/50 uppercase">
-              Rating
+              {lang === "es" ? "Clasificación" : "Rating"}
             </span>
             <RankBadge
               rating={user.rating}
@@ -179,13 +187,13 @@ export default async function StreamOverlayPage({
             <div className="mt-1.5 flex items-center gap-4">
               {rank && (
                 <span className="text-2xl text-white/50">
-                  Rank #{rank}/{totalPlayers}
+                  {lang === "es" ? `Rango #${rank}/${totalPlayers}` : `Rank #${rank}/${totalPlayers}`}
                 </span>
               )}
             </div>
 
             <div className="text-white mt-1.5 flex items-center gap-5 text-xl">
-              Today:
+              {lang === "es" ? "Hoy:" : "Today:"}
               <span className="text-emerald-400 font-semibold">
                 {dailyStats.totalWins}W
               </span>
@@ -209,7 +217,7 @@ export default async function StreamOverlayPage({
         <div className="absolute left-1/2 top-2 -translate-x-1/2 flex flex-col items-center gap-0">
           {/* Best of 5 label */}
           <span className="text-base font-semibold tracking-[0.15em] text-zinc-800 uppercase">
-            Best of 5
+            {lang === "es" ? "Mejor de 5" : "Best of 5"}
           </span>
 
           {/* Scoreboard */}
@@ -274,11 +282,13 @@ export default async function StreamOverlayPage({
         >
           <div className="rounded-2xl border border-white/10 bg-zinc-900/95 px-5 py-5 shadow-2xl backdrop-blur-sm">
             <span className="text-base font-semibold tracking-[0.15em] text-white/50 uppercase">
-              Recent matches
+              {lang === "es" ? "Partidas recientes" : "Recent matches"}
             </span>
             <div className="mt-3 flex flex-col gap-2">
               {recentMatches.length === 0 ? (
-                <span className="text-lg text-white/40">No matches yet</span>
+                <span className="text-lg text-white/40">
+                  {lang === "es" ? "Aún no hay partidas" : "No matches yet"}
+                </span>
               ) : (
                 recentMatches.map((match) => (
                   <div
@@ -290,7 +300,7 @@ export default async function StreamOverlayPage({
                         match.won ? "text-emerald-400" : "text-red-400"
                       }`}
                     >
-                      {match.won ? "W" : "L"}
+                      {match.won ? (lang === "es" ? "V" : "W") : (lang === "es" ? "D" : "L")}
                     </span>
                     <span className="text-white/80">
                       {match.opponent.username}

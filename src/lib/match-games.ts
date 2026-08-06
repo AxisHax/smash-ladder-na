@@ -39,10 +39,11 @@ export const MATCH_TTL_MS = 3 * 60 * 60 * 1000;
 // decided. Short like STRIKE_TIMEOUT_MS — a live in-session clock, distinct
 // from the 3h match-level no-report fallback above: if one side reported and
 // the other never confirms, autoResolveStaleGameReport accepts the report and
-// charges the silent side a no-show once this elapses. Long enough to actually
-// play the game out (a single Smash set game runs ~5 minutes) with time to
-// spare for reporting afterwards.
-export const REPORT_TIMEOUT_MS = 15 * 60 * 1000;
+// charges the silent side a no-show once this elapses. Lowered from 15 to 5
+// minutes — this only needs to cover reporting (a couple of taps), not
+// playing the game out, and 15 min left the honest player's queue blocked
+// for too long when an opponent bailed without reporting.
+export const REPORT_TIMEOUT_MS = 5 * 60 * 1000;
 
 // Lazy, not cron-driven (the finalize cron only runs daily — far too coarse
 // for a live in-session timer): checked on every read, same idea as

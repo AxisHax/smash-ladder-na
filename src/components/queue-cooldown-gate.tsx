@@ -14,9 +14,11 @@ function msRemaining(deadlineMs: number) {
 export function QueueCooldownGate({
   cooldownUntil,
   children,
+  lang = "en",
 }: {
   cooldownUntil: string | null;
   children: React.ReactNode;
+  lang?: "en" | "es";
 }) {
   const deadlineMs = cooldownUntil ? new Date(cooldownUntil).getTime() : 0;
   const [remainingMs, setRemainingMs] = useState(() => msRemaining(deadlineMs));
@@ -36,13 +38,19 @@ export function QueueCooldownGate({
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
 
+  const countdown = (
+    <span className="font-medium tabular-nums" suppressHydrationWarning>
+      {minutes}:{seconds.toString().padStart(2, "0")}
+    </span>
+  );
+
   return (
     <p className="text-sm text-muted-foreground">
-      You timed out of your last match — you can queue again in{" "}
-      <span className="font-medium tabular-nums" suppressHydrationWarning>
-        {minutes}:{seconds.toString().padStart(2, "0")}
-      </span>
-      .
+      {lang === "es" ? (
+        <>Perdiste tu última partida por tiempo — puedes volver a entrar a la cola en {countdown}.</>
+      ) : (
+        <>You timed out of your last match — you can queue again in {countdown}.</>
+      )}
     </p>
   );
 }
