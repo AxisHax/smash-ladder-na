@@ -9,6 +9,7 @@ import { ensureActiveSeason, PRE_SEASON_DURATION_MONTHS, PRE_SEASON_EXPECTED_END
 import { SEASON_PRIZE_POOL_USD, prizeForPlace } from "@/lib/prizes";
 import { CharacterIcon } from "@/components/character-icon";
 import { CharacterFilterSelect } from "@/components/character-filter-select";
+import { InfoPopup } from "@/components/info-popup";
 import { OptionSelect, type OptionSelectOption } from "@/components/option-select";
 import { RankBadge } from "@/components/rank-badge";
 import { AdSlot } from "@/components/ad-slot";
@@ -76,12 +77,15 @@ export default async function LeaderboardPage({
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-16">
-      <div className="flex items-center gap-2">
-        <Trophy className="size-5 text-muted-foreground" />
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {lang === "es" ? "Tabla de clasificación" : "Leaderboard"}
-        </h1>
-        <Badge variant="outline">{season.name}</Badge>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Trophy className="size-5 text-muted-foreground" />
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {lang === "es" ? "Tabla de clasificación" : "Leaderboard"}
+          </h1>
+          <Badge variant="outline">{season.name}</Badge>
+        </div>
+        <InfoPopup lang={lang} />
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
         {lang === "es" ? (
