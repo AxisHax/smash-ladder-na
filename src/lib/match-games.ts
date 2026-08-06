@@ -35,14 +35,23 @@ export const STRIKE_TIMEOUT_MS = 60 * 1000;
 // — a shorter window means the honest side isn't stuck till the next day.
 export const MATCH_TTL_MS = 3 * 60 * 60 * 1000;
 
-// How long a player has to report a finished game's result once its stage is
-// decided. Short like STRIKE_TIMEOUT_MS — a live in-session clock, distinct
-// from the 3h match-level no-report fallback above: if one side reported and
-// the other never confirms, autoResolveStaleGameReport accepts the report and
-// charges the silent side a no-show once this elapses. Lowered from 15 to 5
-// minutes — this only needs to cover reporting (a couple of taps), not
-// playing the game out, and 15 min left the honest player's queue blocked
-// for too long when an opponent bailed without reporting.
+// How long the OTHER player has to confirm once one side has reported a
+// finished game's result — measured from that report (see reportedAt), not
+// from when the stage was picked, so actually playing the game (which can
+// legitimately run 7+ minutes) never eats into this window. Distinct from
+// the 3h match-level no-report fallback above (MATCH_TTL_MS), which is what
+// applies if NEITHER side has reported anything at all. Once this elapses
+// with only one report in, autoResolveStaleGameReport accepts it and
+// charges the silent side a no-show.
+//
+// Lowered from 15 to 5 minutes on 2026-08-06 in response to a report of the
+// honest player's queue staying blocked too long after an opponent bailed
+// post-game without reporting. That change initially anchored the clock on
+// turnStartedAt (stage-pick time) rather than reportedAt, which a community
+// dev caught as a regression — 5 minutes from stage-pick could expire before
+// a normal-length game even finished. Anchoring on reportedAt instead (this
+// version) fixes that: this duration now purely covers "waiting on the
+// other side to also report," so 5 minutes is safe again.
 export const REPORT_TIMEOUT_MS = 5 * 60 * 1000;
 
 // Lazy, not cron-driven (the finalize cron only runs daily — far too coarse
@@ -165,13 +174,20 @@ async function autoResolveStaleCharacterPick(match: { id: string; player1Id: str
 
 // Lazy, same pattern as autoResolveStaleTurn / autoResolveStaleCharacterPick
 // — the finalize cron only runs daily, far too coarse for an in-session
-// deadline. Once a game's stage is decided, both players have REPORT_TIMEOUT_MS
-// to report the result. If exactly one side reported and the other never
-// confirmed, accept the report — mirrors autoConfirmStaleGameReport's "accept
-// whoever showed up, penalize the ghost" philosophy at game granularity and
-// 15-minute scale. If nobody reported, deliberately do nothing: there's no
-// fair way to pick a winner from two silent sides, so that falls through to
-// the match-level TTL (closeOutUnansweredLead / plain expiry) instead.
+// deadline. Anchored on reportedAt (when the FIRST report came in), not
+// turnStartedAt (when the stage was picked) — the latter was the original
+// bug report — a game can legitimately take 7+ minutes to actually play
+// out, and anchoring the report clock on stage-pick meant that play time was
+// silently eating into the reporting window, or (after REPORT_TIMEOUT_MS was
+// shortened) could expire before a normal-length game even finished. Once
+// exactly one side reports, the other has REPORT_TIMEOUT_MS to confirm before
+// the lone report is accepted — mirrors autoConfirmStaleGameReport's "accept
+// whoever showed up, penalize the ghost" philosophy at game granularity. If
+// nobody has reported yet, deliberately do nothing: there's no fair way to
+// pick a winner from two silent sides, so that falls through to the
+// match-level TTL (closeOutUnansweredLead / plain expiry) instead — and
+// critically, this means a game still being played (nobody's reported
+// because it isn't over) is never at risk of this timing out.
 // Disputed games (secondReportById set) are a mod's call and are never
 // touched here.
 async function autoResolveStaleGameReport(match: {
@@ -193,8 +209,8 @@ async function autoResolveStaleGameReport(match: {
   });
   if (!game) return;
   if (game.secondReportById) return; // disputed — a mod resolves it
-  if (!game.reportedById || !game.reportedWinnerId) return; // nobody reported yet
-  if (Date.now() - game.turnStartedAt.getTime() < REPORT_TIMEOUT_MS) return;
+  if (!game.reportedById || !game.reportedWinnerId || !game.reportedAt) return; // nobody reported yet
+  if (Date.now() - game.reportedAt.getTime() < REPORT_TIMEOUT_MS) return;
 
   const reportedWinnerId = game.reportedWinnerId;
   const nonReporterId =
