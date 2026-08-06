@@ -69,8 +69,16 @@ export async function getMatchFeed() {
       else if (game.winnerId === match.player2.id) wins.player2++;
     }
 
-    const player1Live = !!match.player1.twitchUsername && liveUsernames.has(match.player1.twitchUsername.toLowerCase());
-    const player2Live = !!match.player2.twitchUsername && liveUsernames.has(match.player2.twitchUsername.toLowerCase());
+    // "Live" only means something for a set still actually being played —
+    // a player streaming (this match or something else entirely) after
+    // their set already went Final/Cancelled/Disputed/Expired isn't a
+    // stream of THIS set, so pinning it to the top and badging it live
+    // would just send viewers to a stream with nothing left to watch.
+    const isInProgress = match.status === MatchStatus.PENDING_REPORT || match.status === MatchStatus.REPORTED;
+    const player1Live =
+      isInProgress && !!match.player1.twitchUsername && liveUsernames.has(match.player1.twitchUsername.toLowerCase());
+    const player2Live =
+      isInProgress && !!match.player2.twitchUsername && liveUsernames.has(match.player2.twitchUsername.toLowerCase());
 
     return { ...match, wins, player1Live, player2Live, hasLiveStreamer: player1Live || player2Live };
   });
