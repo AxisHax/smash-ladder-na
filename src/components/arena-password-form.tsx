@@ -9,10 +9,12 @@ export function ArenaPasswordForm({
   action,
   defaultValue,
   fallback,
+  lang = "en",
 }: {
   action: (prevState: ArenaPasswordState, formData: FormData) => Promise<ArenaPasswordState>;
   defaultValue: string;
   fallback: string;
+  lang?: "en" | "es";
 }) {
   const [state, formAction, isPending] = useActionState(action, { error: null });
 
@@ -20,10 +22,20 @@ export function ArenaPasswordForm({
     <div className="flex flex-col gap-1">
       <form action={formAction} className="flex items-end gap-2">
         <label className="flex flex-1 flex-col gap-1 text-sm">
-          Arena password
+          {lang === "es" ? "Contraseña de sala" : "Arena password"}
           <span className="text-xs font-normal text-muted-foreground">
-            Shown to your opponent as what to set the in-game room password to. Leave blank to use
-            the ladder default (<span className="font-medium text-foreground">{fallback}</span>).
+            {lang === "es" ? (
+              <>
+                Se muestra a tu rival como la contraseña que debe poner en la sala del juego. Déjalo
+                en blanco para usar el valor por defecto del ladder (
+                <span className="font-medium text-foreground">{fallback}</span>).
+              </>
+            ) : (
+              <>
+                Shown to your opponent as what to set the in-game room password to. Leave blank to use
+                the ladder default (<span className="font-medium text-foreground">{fallback}</span>).
+              </>
+            )}
           </span>
           <input
             name="arenaPassword"
@@ -35,7 +47,7 @@ export function ArenaPasswordForm({
           />
         </label>
         <Button type="submit" size="sm" disabled={isPending}>
-          Save
+          {lang === "es" ? "Guardar" : "Save"}
         </Button>
       </form>
       {state.error && <p className="text-xs text-destructive">{state.error}</p>}

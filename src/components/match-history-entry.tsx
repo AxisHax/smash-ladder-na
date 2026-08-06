@@ -30,6 +30,7 @@ export function MatchHistoryEntry({
   viewedPlayerName,
   chatLogAction,
   children,
+  lang = "en",
 }: {
   match: SerializedMatchHistoryEntryData;
   /** Username of the player whose profile this is — labels their side of each game card. */
@@ -37,6 +38,7 @@ export function MatchHistoryEntry({
   /** Bound server action for loading the match's chat, when the viewer may see it. */
   chatLogAction?: ComponentProps<typeof MatchChatLog>["action"];
   children?: ReactNode;
+  lang?: "en" | "es";
 }) {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
@@ -61,7 +63,7 @@ export function MatchHistoryEntry({
             <Badge variant={match.won ? "success" : "destructive"} className="w-6 justify-center">
               {match.won ? "W" : "L"}
             </Badge>
-            {match.isPracticing && <Badge variant="outline">Practice</Badge>}
+            {match.isPracticing && <Badge variant="outline">{lang === "es" ? "Práctica" : "Practice"}</Badge>}
             vs{" "}
             <Link
               href={`/players/${match.opponent.id}`}
@@ -79,7 +81,7 @@ export function MatchHistoryEntry({
           <span className="tabular-nums text-muted-foreground">
             {match.ratingBefore} → {match.ratingAfter} ({match.delta >= 0 ? "+" : ""}
             {match.delta}
-            {match.isPracticing ? ", practice" : ""})
+            {match.isPracticing ? (lang === "es" ? ", práctica" : ", practice") : ""})
           </span>
         </div>
         <div className="mt-0.5 flex items-center justify-between text-xs text-muted-foreground">
@@ -99,6 +101,7 @@ export function MatchHistoryEntry({
           viewedPlayerName={viewedPlayerName}
           chatLogAction={chatLogAction}
           onClose={close}
+          lang={lang}
         />
       )}
     </div>
@@ -119,11 +122,13 @@ function MatchDetailsModal({
   viewedPlayerName,
   chatLogAction,
   onClose,
+  lang = "en",
 }: {
   match: SerializedMatchHistoryEntryData;
   viewedPlayerName: string;
   chatLogAction?: ComponentProps<typeof MatchChatLog>["action"];
   onClose: () => void;
+  lang?: "en" | "es";
 }) {
   // Close on Escape.
   useEffect(() => {
@@ -150,9 +155,11 @@ function MatchDetailsModal({
       <div className="relative mx-4 max-h-[85vh] w-full max-w-md overflow-y-auto rounded-xl border border-border bg-card p-6 shadow-lg">
         <div className="flex items-start justify-between gap-2">
           <div>
-            <p className="text-sm font-medium text-card-foreground">Match details</p>
+            <p className="text-sm font-medium text-card-foreground">
+              {lang === "es" ? "Detalles de la partida" : "Match details"}
+            </p>
             <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-              {match.isPracticing && <Badge variant="outline">Practice</Badge>}
+              {match.isPracticing && <Badge variant="outline">{lang === "es" ? "Práctica" : "Practice"}</Badge>}
               <span className="font-medium">vs {match.opponent.username}</span>
               {(match.score.wins > 0 || match.score.losses > 0) && (
                 <span className="tabular-nums text-muted-foreground">
@@ -174,12 +181,14 @@ function MatchDetailsModal({
 
         <div className="mt-4 flex flex-col gap-2">
           {match.games.length === 0 && (
-            <p className="text-sm text-muted-foreground">No games were recorded for this set.</p>
+            <p className="text-sm text-muted-foreground">
+              {lang === "es" ? "No se registró ningún juego para esta partida." : "No games were recorded for this set."}
+            </p>
           )}
           {match.games.map((game) => (
             <div key={game.gameNumber} className="rounded-lg border border-border bg-muted/30 p-3">
               <p className="text-xs font-medium text-muted-foreground">
-                Game {game.gameNumber}
+                {lang === "es" ? `Juego ${game.gameNumber}` : `Game ${game.gameNumber}`}
                 {game.stage ? `: ${game.stage}` : ""}
               </p>
               <div className="mt-2 flex items-center justify-between gap-2">
@@ -222,13 +231,13 @@ function MatchDetailsModal({
 
         {chatLogAction && (
           <div className="mt-4">
-            <MatchChatLog action={chatLogAction} />
+            <MatchChatLog action={chatLogAction} lang={lang} />
           </div>
         )}
 
         <div className="mt-4 flex justify-end">
           <Button type="button" variant="outline" size="sm" onClick={onClose}>
-            Close
+            {lang === "es" ? "Cerrar" : "Close"}
           </Button>
         </div>
       </div>

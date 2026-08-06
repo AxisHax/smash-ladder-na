@@ -12,6 +12,7 @@ export function StartggUrlForm({
   description,
   required = false,
   placeholder = "https://www.start.gg/user/...",
+  saveLabel = "Save",
 }: {
   action: (prevState: StartggUrlState, formData: FormData) => Promise<StartggUrlState>;
   defaultValue: string;
@@ -19,6 +20,7 @@ export function StartggUrlForm({
   description?: string;
   required?: boolean;
   placeholder?: string;
+  saveLabel?: string;
 }) {
   const [state, formAction, isPending] = useActionState(action, { error: null });
 
@@ -40,7 +42,7 @@ export function StartggUrlForm({
           />
         </label>
         <Button type="submit" size="sm" disabled={isPending}>
-          Save
+          {saveLabel}
         </Button>
       </form>
       {state.error && <p className="text-xs text-destructive">{state.error}</p>}

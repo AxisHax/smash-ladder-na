@@ -16,9 +16,9 @@ import {
   disconnectTwitchAction,
   updateArenaPassword,
   updateAvoidPracticeOpponentsSetting,
-  updatePreferredLanguageAction,
   updateUsernameAction,
 } from "./actions";
+import { getLang, setLangAction, type Lang } from "@/lib/i18n";
 
 export default async function SettingsPage({
   searchParams,
@@ -29,13 +29,16 @@ export default async function SettingsPage({
   const { startggConnected, startggError, twitchConnected, twitchError } = await searchParams;
   const host = (await headers()).get("host") ?? "";
   const protocol = process.env.NODE_ENV === "development" ? "http" : "https";
+  const lang = await getLang();
 
   if (!session?.user?.id) {
     return (
       <main className="mx-auto max-w-2xl px-6 py-16">
-        <PageTitle />
+        <PageTitle lang={lang} />
         <p className="mt-2 text-sm text-muted-foreground">
-          Sign in with Discord (top right) to manage your settings.
+          {lang === "es"
+            ? "Inicia sesión con Discord (arriba a la derecha) para administrar tus ajustes."
+            : "Sign in with Discord (top right) to manage your settings."}
         </p>
       </main>
     );
@@ -55,7 +58,6 @@ export default async function SettingsPage({
         twitchProfileImageUrl: true,
         arenaPassword: true,
         avoidPracticeOpponents: true,
-        preferredLanguage: true,
         mainCharacter: true,
         secondaryCharacters: true,
         charactersSelfDeclared: true,
@@ -66,11 +68,11 @@ export default async function SettingsPage({
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
-      <PageTitle />
+      <PageTitle lang={lang} />
 
       <Card className="mt-8">
         <CardContent className="pt-4">
-          <UsernameForm defaultValue={me?.username ?? ""} action={updateUsernameAction} />
+          <UsernameForm defaultValue={me?.username ?? ""} action={updateUsernameAction} lang={lang} />
         </CardContent>
       </Card>
 
@@ -84,13 +86,14 @@ export default async function SettingsPage({
             }
             justConnected={twitchConnected === "1"}
             error={twitchError}
+            lang={lang}
           />
         </CardContent>
       </Card>
 
       <Card className="mt-4">
         <CardContent className="pt-4">
-          <StreamOverlayCard userId={session.user.id} host={host} protocol={protocol} />
+          <StreamOverlayCard userId={session.user.id} host={host} protocol={protocol} lang={lang} />
         </CardContent>
       </Card>
 
@@ -104,19 +107,20 @@ export default async function SettingsPage({
             }
             justConnected={startggConnected === "1"}
             error={startggError}
+            lang={lang}
           />
         </CardContent>
       </Card>
 
       <Card className="mt-4">
         <CardContent className="pt-4">
-          <AvoidPracticeOpponentsForm defaultValue={me?.avoidPracticeOpponents ?? false} />
+          <AvoidPracticeOpponentsForm defaultValue={me?.avoidPracticeOpponents ?? false} lang={lang} />
         </CardContent>
       </Card>
 
       <Card className="mt-4">
         <CardContent className="pt-4">
-          <PreferredLanguageForm defaultValue={me?.preferredLanguage ?? null} />
+          <PreferredLanguageForm currentLang={lang} />
         </CardContent>
       </Card>
 
@@ -138,19 +142,23 @@ export default async function SettingsPage({
             action={updateArenaPassword}
             defaultValue={me?.arenaPassword ?? ""}
             fallback={DEFAULT_ARENA_PASSWORD}
+            lang={lang}
           />
         </CardContent>
       </Card>
 
       <Card className="mt-4">
         <CardContent className="pt-4">
-          <p className="text-sm font-medium">Blocked players</p>
+          <p className="text-sm font-medium">{lang === "es" ? "Jugadores bloqueados" : "Blocked players"}</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Blocked players are never matched with you in ranked queueing. Blocking is permanent
-            and can&apos;t be undone.
+            {lang === "es"
+              ? "Los jugadores bloqueados nunca se emparejan contigo en la cola rankeada. Bloquear es permanente y no se puede deshacer."
+              : "Blocked players are never matched with you in ranked queueing. Blocking is permanent and can't be undone."}
           </p>
           {blocked.length === 0 ? (
-            <p className="mt-3 text-sm text-muted-foreground">You haven&apos;t blocked anyone.</p>
+            <p className="mt-3 text-sm text-muted-foreground">
+              {lang === "es" ? "No has bloqueado a nadie." : "You haven't blocked anyone."}
+            </p>
           ) : (
             <ul className="mt-3 flex flex-col gap-2">
               {blocked.map((b) => (
@@ -168,15 +176,34 @@ export default async function SettingsPage({
   );
 }
 
-function StreamOverlayCard({ userId, host, protocol }: { userId: string; host: string; protocol: string }) {
+function StreamOverlayCard({
+  userId,
+  host,
+  protocol,
+  lang,
+}: {
+  userId: string;
+  host: string;
+  protocol: string;
+  lang: Lang;
+}) {
   const overlayUrl = `${protocol}://${host}/stream/overlay/${userId}`;
 
   return (
     <div className="flex flex-col gap-1.5 text-sm">
-      <p className="font-medium">Stream overlay</p>
+      <p className="font-medium">{lang === "es" ? "Overlay de stream" : "Stream overlay"}</p>
       <p className="text-xs text-muted-foreground">
-        Use this URL as an OBS Browser Source (set to <strong>1920 x 1080</strong>) to show your
-        rating, recent matches, and current match info on stream.
+        {lang === "es" ? (
+          <>
+            Usa esta URL como Browser Source en OBS (configurada a <strong>1920 x 1080</strong>)
+            para mostrar tu clasificación, partidas recientes, y la partida actual en tu stream.
+          </>
+        ) : (
+          <>
+            Use this URL as an OBS Browser Source (set to <strong>1920 x 1080</strong>) to show your
+            rating, recent matches, and current match info on stream.
+          </>
+        )}
       </p>
       <div className="mt-3">
         <OverlayUrlToggle baseUrl={overlayUrl} />
@@ -189,21 +216,26 @@ function TwitchConnectCard({
   connected,
   justConnected,
   error,
+  lang,
 }: {
   connected: { username: string; displayName: string | null; profileImageUrl: string | null } | null;
   justConnected: boolean;
   error?: string;
+  lang: Lang;
 }) {
   return (
     <div className="flex flex-col gap-1.5 text-sm">
-      <p className="font-medium">Twitch account</p>
+      <p className="font-medium">{lang === "es" ? "Cuenta de Twitch" : "Twitch account"}</p>
       <p className="text-xs text-muted-foreground">
-        Connect your Twitch account to access a custom stream overlay page. The overlay shows your
-        rating, rank, and recent matches — perfect as an OBS Browser Source for your stream.
+        {lang === "es"
+          ? "Conecta tu cuenta de Twitch para acceder a una página de overlay personalizada. El overlay muestra tu clasificación, rango, y partidas recientes — perfecto como Browser Source de OBS para tu stream."
+          : "Connect your Twitch account to access a custom stream overlay page. The overlay shows your rating, rank, and recent matches — perfect as an OBS Browser Source for your stream."}
       </p>
       {connected ? (
         <>
-          {justConnected && <p className="text-xs text-emerald-600">Connected!</p>}
+          {justConnected && (
+            <p className="text-xs text-emerald-600">{lang === "es" ? "¡Conectado!" : "Connected!"}</p>
+          )}
           <div className="mt-1 flex items-center gap-2">
             {connected.profileImageUrl && (
               // eslint-disable-next-line @next/next/no-img-element
@@ -218,7 +250,7 @@ function TwitchConnectCard({
             </span>
             <form action={disconnectTwitchAction}>
               <Button type="submit" size="sm" variant="outline">
-                Disconnect
+                {lang === "es" ? "Desconectar" : "Disconnect"}
               </Button>
             </form>
           </div>
@@ -226,7 +258,7 @@ function TwitchConnectCard({
       ) : (
         <a href="/api/twitch/connect" className="mt-1 self-start">
           <Button type="button" size="sm">
-            Connect with Twitch
+            {lang === "es" ? "Conectar con Twitch" : "Connect with Twitch"}
           </Button>
         </a>
       )}
@@ -239,21 +271,26 @@ function StartggConnectCard({
   connected,
   justConnected,
   error,
+  lang,
 }: {
   connected: { slug: string; gamerTag: string | null } | null;
   justConnected: boolean;
   error?: string;
+  lang: Lang;
 }) {
   return (
     <div className="flex flex-col gap-1.5 text-sm">
-      <p className="font-medium">start.gg profile</p>
+      <p className="font-medium">{lang === "es" ? "Perfil de start.gg" : "start.gg profile"}</p>
       <p className="text-xs text-muted-foreground">
-        Verified via start.gg sign-in, not a link you type in — so nobody else can claim your
-        results as their own.
+        {lang === "es"
+          ? "Verificado mediante inicio de sesión de start.gg, no un enlace que escribes — así nadie más puede adjudicarse tus resultados."
+          : "Verified via start.gg sign-in, not a link you type in — so nobody else can claim your results as their own."}
       </p>
       {connected ? (
         <>
-          {justConnected && <p className="text-xs text-emerald-600">Connected!</p>}
+          {justConnected && (
+            <p className="text-xs text-emerald-600">{lang === "es" ? "¡Conectado!" : "Connected!"}</p>
+          )}
           <div className="mt-1 flex items-center gap-2">
             <a
               href={startggProfileUrl(connected.slug)}
@@ -265,7 +302,7 @@ function StartggConnectCard({
             </a>
             <form action={disconnectStartggAction}>
               <Button type="submit" size="sm" variant="outline">
-                Disconnect
+                {lang === "es" ? "Desconectar" : "Disconnect"}
               </Button>
             </form>
           </div>
@@ -273,7 +310,7 @@ function StartggConnectCard({
       ) : (
         <a href="/api/startgg/connect" className="mt-1 self-start">
           <Button type="button" size="sm">
-            Connect with start.gg
+            {lang === "es" ? "Conectar con start.gg" : "Connect with start.gg"}
           </Button>
         </a>
       )}
@@ -282,16 +319,18 @@ function StartggConnectCard({
   );
 }
 
-function PageTitle() {
+function PageTitle({ lang }: { lang: Lang }) {
   return (
     <div className="flex items-center gap-2">
       <Settings className="size-5 text-muted-foreground" />
-      <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">
+        {lang === "es" ? "Ajustes" : "Settings"}
+      </h1>
     </div>
   );
 }
 
-function AvoidPracticeOpponentsForm({ defaultValue }: { defaultValue: boolean }) {
+function AvoidPracticeOpponentsForm({ defaultValue, lang }: { defaultValue: boolean; lang: Lang }) {
   async function action(formData: FormData) {
     "use server";
     await updateAvoidPracticeOpponentsSetting(formData.get("avoidPracticeOpponents") === "on");
@@ -308,47 +347,51 @@ function AvoidPracticeOpponentsForm({ defaultValue }: { defaultValue: boolean })
           className="size-4 rounded border-border"
         />
         <span>
-          Don&apos;t match me with opponents who are practicing
+          {lang === "es"
+            ? "No emparejarme con rivales que están practicando"
+            : "Don't match me with opponents who are practicing"}
           <span className="block text-xs font-normal text-muted-foreground">
-            A practicing opponent&apos;s result won&apos;t affect their rank — turn this on to skip
-            those matches entirely.
+            {lang === "es"
+              ? "El resultado de un rival en modo práctica no afecta su rango — activa esto para saltarte esas partidas por completo."
+              : "A practicing opponent's result won't affect their rank — turn this on to skip those matches entirely."}
           </span>
         </span>
       </label>
       <Button type="submit" size="sm">
-        Save
+        {lang === "es" ? "Guardar" : "Save"}
       </Button>
     </form>
   );
 }
 
-function PreferredLanguageForm({ defaultValue }: { defaultValue: string | null }) {
+function PreferredLanguageForm({ currentLang }: { currentLang: Lang }) {
   async function setEnglish() {
     "use server";
-    await updatePreferredLanguageAction(null);
+    await setLangAction("en");
   }
   async function setSpanish() {
     "use server";
-    await updatePreferredLanguageAction("es");
+    await setLangAction("es");
   }
 
   return (
     <div className="flex items-center justify-between gap-2">
       <div className="text-sm">
-        <p>Language</p>
+        <p>{currentLang === "es" ? "Idioma" : "Language"}</p>
         <p className="text-xs font-normal text-muted-foreground">
-          Only changes which version of the home page you land on — the rest of the site (lobby,
-          settings, etc.) is English-only for now.
+          {currentLang === "es"
+            ? "Cambia el idioma de todo el sitio (excepto las páginas de administración). También puedes cambiarlo desde el enlace en la parte superior de cualquier página."
+            : "Changes the language across the whole site (except admin pages). You can also switch it from the link at the top of any page."}
         </p>
       </div>
       <div className="flex shrink-0 gap-2">
         <form action={setEnglish}>
-          <Button type="submit" size="sm" variant={defaultValue === null ? "default" : "outline"}>
+          <Button type="submit" size="sm" variant={currentLang === "en" ? "default" : "outline"}>
             English
           </Button>
         </form>
         <form action={setSpanish}>
-          <Button type="submit" size="sm" variant={defaultValue === "es" ? "default" : "outline"}>
+          <Button type="submit" size="sm" variant={currentLang === "es" ? "default" : "outline"}>
             Español
           </Button>
         </form>

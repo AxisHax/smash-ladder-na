@@ -46,8 +46,50 @@ import {
   moderateUserAction,
   requestCorrectionAction,
 } from "../actions";
+import { getLang, type Lang } from "@/lib/i18n";
 
 const MATCH_HISTORY_PAGE_SIZE = 20;
+
+// Achievement labels/descriptions are generated in lib/rank-tier.ts and
+// lib/match-achievements.ts (some with an interpolated rating threshold) —
+// kept as a page-local id-keyed lookup rather than touching those files, same
+// reasoning as the rank-tier description lookup in rank-tier-list.tsx. The
+// rating-threshold achievements pull their number back out of the already-
+// computed English description instead of re-importing minRatingFor.
+const ACHIEVEMENTS_ES: Record<string, { label: string; description: string }> = {
+  "first-win": { label: "Primera victoria", description: "Gana tu primera partida rankeada." },
+  "ten-wins": { label: "10 victorias", description: "Gana 10 partidas rankeadas." },
+  "fifty-wins": { label: "50 victorias", description: "Gana 50 partidas rankeadas." },
+  veteran: { label: "3+ temporadas jugadas", description: "Juega en 3 o más temporadas del ladder." },
+  competitor: { label: "Entraste a un torneo", description: "Inscríbete a un torneo a través del sitio." },
+  "jack-of-trades": { label: "Todoterreno", description: "Gana una partida usando un personaje distinto cada juego." },
+  "mirror-match": {
+    label: "Espejo",
+    description: "Gana una partida en la que tú y tu rival usaron exactamente el mismo personaje todo el tiempo.",
+  },
+  "risky-business": {
+    label: "Jugada arriesgada",
+    description:
+      "Usa el mismo personaje en los juegos 1-4 de una partida, cambia a otro personaje en el juego 5, y gánalo.",
+  },
+  globetrotter: { label: "Trotamundos", description: "Gana al menos un juego en cada escenario legal." },
+  "grudge-match": { label: "Revancha", description: "Vence a un rival que te venció la última vez que jugaron." },
+  "beginners-luck": { label: "Suerte de principiante", description: "Gana la primera partida que juegues en un día." },
+  "bounce-back": {
+    label: "Recuperación",
+    description: "Pierde la primera partida que juegues en un día, y gana la siguiente que juegues.",
+  },
+};
+
+function achievementEs(a: { id: string; label: string; description: string }) {
+  const es = ACHIEVEMENTS_ES[a.id];
+  if (es) return es;
+  // Reached Elite/Master/Grandmaster/Legend — pull the threshold back out of
+  // the English description rather than re-deriving it.
+  const rating = a.description.match(/\d+/)?.[0] ?? "";
+  const tier = a.label.replace("Reached ", "");
+  return { label: `Alcanzó ${tier}`, description: `Alcanza una clasificación de ${rating}.` };
+}
 
 export default async function PlayerProfilePage({
   params,
@@ -60,7 +102,7 @@ export default async function PlayerProfilePage({
   const { page: pageParam } = await searchParams;
   const requestedPage = Number(pageParam);
   const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
-  const session = await auth();
+  const [session, lang] = await Promise.all([auth(), getLang()]);
   const isOwnProfile = session?.user?.id === id;
   const isModerator = session?.user?.role === "MOD" || session?.user?.role === "ADMIN";
   const player = await getPlayerProfile(id);
@@ -141,13 +183,21 @@ export default async function PlayerProfilePage({
               <p className="text-xs text-muted-foreground">Discord: {player.discordUsername}</p>
             )}
             <p className="text-sm tabular-nums text-muted-foreground">
-              {player.rating} rating · {player.gamesPlayed} sets played
+              {lang === "es" ? (
+                <>
+                  {player.rating} de clasificación · {player.gamesPlayed} partidas jugadas
+                </>
+              ) : (
+                <>
+                  {player.rating} rating · {player.gamesPlayed} sets played
+                </>
+              )}
               {topCharacters.length > 0 && (
                 <>
                   {" · "}
                   <span className="group/characters relative inline-flex items-center gap-1 align-middle">
                     <span className="pointer-events-none absolute -top-6 left-0 z-10 rounded border border-border bg-popover px-1.5 py-0.5 text-xs whitespace-nowrap text-popover-foreground opacity-0 shadow-sm transition-opacity group-hover/characters:opacity-100">
-                      Most played characters
+                      {lang === "es" ? "Personajes más usados" : "Most played characters"}
                     </span>
                     {topCharacters.map((character) => (
                       <CharacterIcon key={character} name={character} size={16} />
@@ -163,14 +213,18 @@ export default async function PlayerProfilePage({
             )}
             {player.practiceGamesPlayed > 0 && (
               <p className="text-xs tabular-nums text-muted-foreground">
-                {player.practiceRating} practice rating · {player.practiceGamesPlayed} practice sets
+                {lang === "es"
+                  ? `${player.practiceRating} de clasificación de práctica · ${player.practiceGamesPlayed} partidas de práctica`
+                  : `${player.practiceRating} practice rating · ${player.practiceGamesPlayed} practice sets`}
               </p>
             )}
             <div className="mt-1.5 flex items-center gap-1.5">
               <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} />
               {nextTier && (
                 <span className="text-xs tabular-nums text-muted-foreground">
-                  {nextTier.pointsNeeded} to {nextTier.nextTier.name}
+                  {lang === "es"
+                    ? `${nextTier.pointsNeeded} para ${nextTier.nextTier.name}`
+                    : `${nextTier.pointsNeeded} to ${nextTier.nextTier.name}`}
                 </span>
               )}
               {player.region && (
@@ -182,11 +236,15 @@ export default async function PlayerProfilePage({
               {player.wiredConnection && (
                 <Badge variant="outline">
                   <Cable className="size-3" />
-                  Wired
+                  {lang === "es" ? "Por cable" : "Wired"}
                 </Badge>
               )}
               {player.noShowCount > 0 && (
-                <Badge variant="warning">{player.noShowCount} no-show{player.noShowCount === 1 ? "" : "s"}</Badge>
+                <Badge variant="warning">
+                  {lang === "es"
+                    ? `${player.noShowCount} ${player.noShowCount === 1 ? "no-show" : "no-shows"}`
+                    : `${player.noShowCount} no-show${player.noShowCount === 1 ? "" : "s"}`}
+                </Badge>
               )}
               {isModerator && player.cancelCount > 0 && (
                 <Badge variant="warning">
@@ -207,7 +265,7 @@ export default async function PlayerProfilePage({
                 rel="noopener noreferrer"
                 className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
               >
-                {player.startggGamerTag ?? "View on start.gg"} ✓
+                {player.startggGamerTag ?? (lang === "es" ? "Ver en start.gg" : "View on start.gg")} ✓
                 <ExternalLink className="size-3" />
               </a>
             )}
@@ -216,9 +274,9 @@ export default async function PlayerProfilePage({
 
         {session?.user?.id && !isOwnProfile && (
           blocked ? (
-            <Badge variant="outline">Blocked</Badge>
+            <Badge variant="outline">{lang === "es" ? "Bloqueado" : "Blocked"}</Badge>
           ) : (
-            <BlockUserButton action={blockUserAction.bind(null, id)} username={player.username} />
+            <BlockUserButton action={blockUserAction.bind(null, id)} username={player.username} lang={lang} />
           )
         )}
       </div>
@@ -232,6 +290,7 @@ export default async function PlayerProfilePage({
           userId={id}
           match={currentMatch}
           zenMode={isOwnProfile && player.zenMode}
+          lang={lang}
         />
       )}
 
@@ -239,16 +298,16 @@ export default async function PlayerProfilePage({
         <Card className="mt-8">
           <CardContent className="pt-4">
             <div className="mb-2 flex items-center justify-between">
-              <p className="text-sm font-medium">Rating over time</p>
+              <p className="text-sm font-medium">{lang === "es" ? "Clasificación en el tiempo" : "Rating over time"}</p>
               <div className="flex gap-2">
                 {winRate !== null && (
                   <Badge variant="outline" className="tabular-nums">
-                    {winRate}% win rate
+                    {lang === "es" ? `${winRate}% de victorias` : `${winRate}% win rate`}
                   </Badge>
                 )}
                 {streak > 0 && (
                   <Badge variant="success" className="tabular-nums">
-                    {streak} win streak
+                    {lang === "es" ? `${streak} victorias seguidas` : `${streak} win streak`}
                   </Badge>
                 )}
               </div>
@@ -260,52 +319,65 @@ export default async function PlayerProfilePage({
 
       <Card className="mt-4">
         <CardContent className="pt-4">
-          <p className="text-sm font-medium">Career</p>
+          <p className="text-sm font-medium">{lang === "es" ? "Carrera" : "Career"}</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Doesn&apos;t reset between seasons.
+            {lang === "es" ? "No se reinicia entre temporadas." : "Doesn't reset between seasons."}
           </p>
           <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-5">
             <div>
               <p className="text-lg font-semibold tabular-nums">
                 {careerStats.totalWins}-{careerStats.totalLosses}
               </p>
-              <p className="text-xs text-muted-foreground">Lifetime record</p>
+              <p className="text-xs text-muted-foreground">
+                {lang === "es" ? "Récord de por vida" : "Lifetime record"}
+              </p>
             </div>
             <div>
               <p className="text-lg font-semibold tabular-nums">{careerStats.peakRating ?? "—"}</p>
-              <p className="text-xs text-muted-foreground">Peak rating</p>
+              <p className="text-xs text-muted-foreground">
+                {lang === "es" ? "Clasificación máxima" : "Peak rating"}
+              </p>
             </div>
             <div>
               <p className="text-lg font-semibold tabular-nums">{careerStats.bestWinStreak}</p>
-              <p className="text-xs text-muted-foreground">Best win streak</p>
+              <p className="text-xs text-muted-foreground">
+                {lang === "es" ? "Mejor racha de victorias" : "Best win streak"}
+              </p>
             </div>
             <div>
               <p className="text-lg font-semibold tabular-nums">{careerStats.seasonsPlayed}</p>
-              <p className="text-xs text-muted-foreground">Seasons played</p>
+              <p className="text-xs text-muted-foreground">
+                {lang === "es" ? "Temporadas jugadas" : "Seasons played"}
+              </p>
             </div>
             <div>
               <p className="text-lg font-semibold tabular-nums">{careerStats.tournamentsEntered}</p>
-              <p className="text-xs text-muted-foreground">Tournaments entered</p>
+              <p className="text-xs text-muted-foreground">
+                {lang === "es" ? "Torneos disputados" : "Tournaments entered"}
+              </p>
             </div>
           </div>
 
-          <p className="mt-5 text-sm font-medium">Achievements</p>
+          <p className="mt-5 text-sm font-medium">{lang === "es" ? "Logros" : "Achievements"}</p>
           <div className="mt-2 flex flex-wrap gap-2">
-            {achievements.map((a, i) => (
-              <Tooltip key={a.id}>
-                <TooltipTrigger asChild>
-                  <Badge
-                    variant={a.achieved ? "success" : "outline"}
-                    className={a.achieved ? "badge-pop gap-1 cursor-help" : "gap-1 cursor-help opacity-40"}
-                    style={a.achieved ? { animationDelay: `${i * 60}ms` } : undefined}
-                  >
-                    <Award className="size-3" />
-                    {a.label}
-                  </Badge>
-                </TooltipTrigger>
-                <TooltipContent>{a.description}</TooltipContent>
-              </Tooltip>
-            ))}
+            {achievements.map((a, i) => {
+              const display = lang === "es" ? achievementEs(a) : a;
+              return (
+                <Tooltip key={a.id}>
+                  <TooltipTrigger asChild>
+                    <Badge
+                      variant={a.achieved ? "success" : "outline"}
+                      className={a.achieved ? "badge-pop gap-1 cursor-help" : "gap-1 cursor-help opacity-40"}
+                      style={a.achieved ? { animationDelay: `${i * 60}ms` } : undefined}
+                    >
+                      <Award className="size-3" />
+                      {display.label}
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent>{display.description}</TooltipContent>
+                </Tooltip>
+              );
+            })}
           </div>
         </CardContent>
       </Card>
@@ -313,7 +385,7 @@ export default async function PlayerProfilePage({
       {rivals.length > 0 && (
         <Card className="mt-4">
           <CardContent className="pt-4">
-            <p className="text-sm font-medium">Rivals</p>
+            <p className="text-sm font-medium">{lang === "es" ? "Rivales" : "Rivals"}</p>
             <ul className="mt-2 flex flex-col gap-1.5">
               {rivals.map((r) => (
                 <li key={r.opponentId} className="flex items-center justify-between text-sm">
@@ -334,23 +406,31 @@ export default async function PlayerProfilePage({
         </Card>
       )}
 
-      <CharacterUsageCard usage={characterUsage} mainCharacter={player.mainCharacter} />
+      <CharacterUsageCard usage={characterUsage} mainCharacter={player.mainCharacter} lang={lang} />
 
       <div className="mt-10">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-medium text-muted-foreground">Match history</h2>
+            <h2 className="text-sm font-medium text-muted-foreground">
+              {lang === "es" ? "Historial de partidas" : "Match history"}
+            </h2>
             {totalMatchCount > 0 && (
               <Badge variant="outline">
-                {totalMatchCount} confirmed match{totalMatchCount === 1 ? "" : "es"}
+                {lang === "es"
+                  ? `${totalMatchCount} ${totalMatchCount === 1 ? "partida confirmada" : "partidas confirmadas"}`
+                  : `${totalMatchCount} confirmed match${totalMatchCount === 1 ? "" : "es"}`}
               </Badge>
             )}
           </div>
-          {totalPages > 1 && <MatchHistoryPaginationControls playerId={id} page={page} totalPages={totalPages} />}
+          {totalPages > 1 && (
+            <MatchHistoryPaginationControls playerId={id} page={page} totalPages={totalPages} lang={lang} />
+          )}
         </div>
 
         {pageHistory.length === 0 && (
-          <p className="mt-4 text-sm text-muted-foreground">No confirmed matches yet.</p>
+          <p className="mt-4 text-sm text-muted-foreground">
+            {lang === "es" ? "Aún no hay partidas confirmadas." : "No confirmed matches yet."}
+          </p>
         )}
 
         {pageHistory.length > 0 && (
@@ -375,6 +455,7 @@ export default async function PlayerProfilePage({
                       ? getMatchChatLogAsModAction.bind(null, match.id)
                       : undefined
                 }
+                lang={lang}
               >
                 {isOwnProfile && match.id === mostRecentRealMatchId && (
                   <RequestCorrectionForm
@@ -382,6 +463,7 @@ export default async function PlayerProfilePage({
                     myId={id}
                     opponentId={match.opponent.id}
                     opponentUsername={match.opponent.username}
+                    lang={lang}
                   />
                 )}
                 {isModerator && !isOwnProfile && match.id === mostRecentRealMatchId && (
@@ -443,13 +525,16 @@ export default async function PlayerProfilePage({
 
       {isOwnProfile && (
         <div className="mt-12 border-t border-border pt-6">
-          <h2 className="text-sm font-medium text-destructive">Danger zone</h2>
+          <h2 className="text-sm font-medium text-destructive">
+            {lang === "es" ? "Zona de peligro" : "Danger zone"}
+          </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Deletes your username, avatar, and email. Match history stays, anonymized, so other
-            players&apos; win/loss records stay accurate.
+            {lang === "es"
+              ? "Elimina tu nombre de usuario, avatar y correo electrónico. El historial de partidas se mantiene, anonimizado, para que los registros de victorias/derrotas de otros jugadores sigan siendo correctos."
+              : "Deletes your username, avatar, and email. Match history stays, anonymized, so other players' win/loss records stay accurate."}
           </p>
           <div className="mt-3">
-            <DeleteAccountButton action={deleteAccountAction} />
+            <DeleteAccountButton action={deleteAccountAction} lang={lang} />
           </div>
         </div>
       )}
@@ -469,10 +554,12 @@ function CurrentMatchCard({
   userId,
   match,
   zenMode,
+  lang,
 }: {
   userId: string;
   match: NonNullable<Awaited<ReturnType<typeof getCurrentMatchForUser>>>;
   zenMode: boolean;
+  lang: Lang;
 }) {
   const isPlayer1 = match.player1Id === userId;
   const opponent = isPlayer1 ? match.player2 : match.player1;
@@ -513,7 +600,7 @@ function CurrentMatchCard({
       <CardContent className="pt-4">
         <p className="flex items-center gap-2 text-sm font-medium">
           <Swords className="size-4 text-muted-foreground" />
-          Currently in a match
+          {lang === "es" ? "Actualmente en una partida" : "Currently in a match"}
         </p>
 
         <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
@@ -525,7 +612,9 @@ function CurrentMatchCard({
             )}
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{myName}</p>
-              <p className="text-xs text-muted-foreground tabular-nums">{myRating} rating</p>
+              <p className="text-xs text-muted-foreground tabular-nums">
+                {lang === "es" ? `${myRating} de clasificación` : `${myRating} rating`}
+              </p>
             </div>
           </div>
 
@@ -533,7 +622,9 @@ function CurrentMatchCard({
             <p className="text-lg font-semibold tabular-nums">
               {wins.me}–{wins.opponent}
             </p>
-            <p className="text-xs text-muted-foreground">Game {gameNumber} of 5</p>
+            <p className="text-xs text-muted-foreground">
+              {lang === "es" ? `Juego ${gameNumber} de 5` : `Game ${gameNumber} of 5`}
+            </p>
           </div>
 
           <div className="flex min-w-0 items-center justify-end gap-2.5">
@@ -545,14 +636,18 @@ function CurrentMatchCard({
               ))}
             <div className="min-w-0">
               {zenMode ? (
-                <p className="truncate text-right text-sm font-medium">Opponent</p>
+                <p className="truncate text-right text-sm font-medium">
+                  {lang === "es" ? "Rival" : "Opponent"}
+                </p>
               ) : (
                 <Link href={`/players/${opponent.id}`} className="block truncate text-right text-sm font-medium hover:underline">
                   {opponent.username}
                 </Link>
               )}
               {!zenMode && (
-                <p className="text-right text-xs text-muted-foreground tabular-nums">{opponent.rating} rating</p>
+                <p className="text-right text-xs text-muted-foreground tabular-nums">
+                  {lang === "es" ? `${opponent.rating} de clasificación` : `${opponent.rating} rating`}
+                </p>
               )}
             </div>
           </div>
@@ -566,21 +661,23 @@ function MatchHistoryPaginationControls({
   playerId,
   page,
   totalPages,
+  lang,
 }: {
   playerId: string;
   page: number;
   totalPages: number;
+  lang: Lang;
 }) {
   return (
     <div className="flex items-center gap-2 text-sm">
       <MatchHistoryPageLink playerId={playerId} page={page - 1} disabled={page <= 1}>
-        ← Previous
+        {lang === "es" ? "← Anterior" : "← Previous"}
       </MatchHistoryPageLink>
       <span className="text-muted-foreground tabular-nums">
-        Page {page} of {totalPages}
+        {lang === "es" ? `Página ${page} de ${totalPages}` : `Page ${page} of ${totalPages}`}
       </span>
       <MatchHistoryPageLink playerId={playerId} page={page + 1} disabled={page >= totalPages}>
-        Next →
+        {lang === "es" ? "Siguiente →" : "Next →"}
       </MatchHistoryPageLink>
     </div>
   );

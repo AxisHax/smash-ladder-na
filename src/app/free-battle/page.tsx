@@ -8,16 +8,19 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AdSlot } from "@/components/ad-slot";
 import { claimFreeBattlePost, closeFreeBattlePost, postFreeBattle } from "./actions";
+import { getLang, type Lang } from "@/lib/i18n";
 
 export default async function FreeBattlePage() {
-  const session = await auth();
+  const [session, lang] = await Promise.all([auth(), getLang()]);
 
   if (!session?.user?.id) {
     return (
       <main className="mx-auto max-w-2xl px-6 py-16">
         <PageTitle />
         <p className="mt-2 text-sm text-muted-foreground">
-          Sign in with Discord (top right) to post or join a free battle.
+          {lang === "es"
+            ? "Inicia sesión con Discord (arriba a la derecha) para publicar o unirte a un free battle."
+            : "Sign in with Discord (top right) to post or join a free battle."}
         </p>
       </main>
     );
@@ -33,34 +36,71 @@ export default async function FreeBattlePage() {
     <main className="mx-auto max-w-2xl px-6 py-16">
       <PageTitle />
       <p className="mt-1 text-sm text-muted-foreground">
-        A bulletin board for casual, unranked friendlies — no rating on the line, and no
-        auto-matching. It&apos;s the opposite of the{" "}
-        <Link href="/lobby" className="underline hover:text-foreground">
-          Lobby
-        </Link>
-        &apos;s ranked queue: here, you post what you want and pick who to play, instead of being
-        paired automatically.
+        {lang === "es" ? (
+          <>
+            Un tablón de anuncios para amistosos casuales, sin afectar la clasificación — sin
+            impacto en tu rating, y sin emparejamiento automático. Es lo opuesto a la cola
+            rankeada de la{" "}
+            <Link href="/lobby" className="underline hover:text-foreground">
+              Sala
+            </Link>
+            : aquí publicas lo que buscas y eliges con quién jugar, en vez de que te emparejen
+            automáticamente.
+          </>
+        ) : (
+          <>
+            A bulletin board for casual, unranked friendlies — no rating on the line, and no
+            auto-matching. It&apos;s the opposite of the{" "}
+            <Link href="/lobby" className="underline hover:text-foreground">
+              Lobby
+            </Link>
+            &apos;s ranked queue: here, you post what you want and pick who to play, instead of being
+            paired automatically.
+          </>
+        )}
       </p>
       <ul className="mt-3 flex flex-col gap-1 text-xs text-muted-foreground">
-        <li>1. Post a comment saying what you&apos;re looking for (matchup, availability, etc).</li>
-        <li>
-          2. Anyone can browse open posts and hit &quot;I&apos;m in&quot; to claim yours — you&apos;ll
-          get a Discord DM the moment someone does.
-        </li>
-        <li>
-          3. Once matched, coordinate the actual set yourselves (room code, timing) — Free Battle
-          just makes the introduction, it doesn&apos;t track games or affect your rating like
-          ranked matches do.
-        </li>
-        <li>4. Posts auto-expire after 24 hours; close and repost anytime.</li>
+        {lang === "es" ? (
+          <>
+            <li>1. Publica un comentario diciendo qué buscas (matchup, disponibilidad, etc).</li>
+            <li>
+              2. Cualquiera puede ver las publicaciones abiertas y presionar &quot;Voy&quot; para
+              reclamar la tuya — recibirás un DM de Discord en cuanto alguien lo haga.
+            </li>
+            <li>
+              3. Una vez emparejados, coordinen la partida ustedes mismos (código de sala,
+              horario) — Free Battle solo hace la presentación, no lleva registro de los juegos ni
+              afecta tu clasificación como las partidas rankeadas.
+            </li>
+            <li>4. Las publicaciones expiran solas después de 24 horas; ciérrala y vuelve a publicar cuando quieras.</li>
+          </>
+        ) : (
+          <>
+            <li>1. Post a comment saying what you&apos;re looking for (matchup, availability, etc).</li>
+            <li>
+              2. Anyone can browse open posts and hit &quot;I&apos;m in&quot; to claim yours — you&apos;ll
+              get a Discord DM the moment someone does.
+            </li>
+            <li>
+              3. Once matched, coordinate the actual set yourselves (room code, timing) — Free Battle
+              just makes the introduction, it doesn&apos;t track games or affect your rating like
+              ranked matches do.
+            </li>
+            <li>4. Posts auto-expire after 24 hours; close and repost anytime.</li>
+          </>
+        )}
       </ul>
 
-      {ownPost ? <OwnPostCard post={ownPost} /> : <PostForm />}
+      {ownPost ? <OwnPostCard post={ownPost} lang={lang} /> : <PostForm lang={lang} />}
 
       <div className="mt-10">
-        <h2 className="text-sm font-medium text-muted-foreground">Open posts</h2>
+        <h2 className="text-sm font-medium text-muted-foreground">
+          {lang === "es" ? "Publicaciones abiertas" : "Open posts"}
+        </h2>
         {openPosts.length === 0 && (
-          <p className="mt-4 text-sm text-muted-foreground">No open posts right now.</p>
+          <p className="mt-4 text-sm text-muted-foreground">
+            {lang === "es" ? "No hay publicaciones abiertas por ahora." : "No open posts right now."}
+          </p>
         )}
         <ul className="mt-4 flex flex-col gap-3">
           {openPosts.map((post) => (
@@ -87,7 +127,7 @@ export default async function FreeBattlePage() {
                   </div>
                   <form action={claimFreeBattlePost.bind(null, post.id)}>
                     <Button type="submit" size="sm">
-                      I&apos;m in
+                      {lang === "es" ? "Voy" : "I'm in"}
                     </Button>
                   </form>
                 </CardContent>
@@ -111,7 +151,7 @@ function PageTitle() {
   );
 }
 
-function PostForm() {
+function PostForm({ lang }: { lang: Lang }) {
   async function action(formData: FormData) {
     "use server";
     const comment = String(formData.get("comment") ?? "");
@@ -123,20 +163,26 @@ function PostForm() {
       <CardContent className="pt-4">
         <form action={action} className="flex flex-col gap-3">
           <label className="flex flex-col gap-1 text-sm">
-            What are you looking for?
+            {lang === "es" ? "¿Qué estás buscando?" : "What are you looking for?"}
             <textarea
               name="comment"
               required
               rows={2}
-              placeholder="e.g. Looking for friendlies, Fox/Falco, EST evenings"
+              placeholder={
+                lang === "es"
+                  ? "p. ej. Busco amistosos, Fox/Falco, tardes hora del centro"
+                  : "e.g. Looking for friendlies, Fox/Falco, EST evenings"
+              }
               className="w-full resize-none rounded-lg border border-border bg-transparent px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring"
             />
           </label>
           <p className="text-xs text-muted-foreground">
-            Region is pulled from your profile — set it on the Lobby page.
+            {lang === "es"
+              ? "La región se toma de tu perfil — configúrala en la página de Sala."
+              : "Region is pulled from your profile — set it on the Lobby page."}
           </p>
           <Button type="submit" className="self-start">
-            Post
+            {lang === "es" ? "Publicar" : "Post"}
           </Button>
         </form>
       </CardContent>
@@ -146,19 +192,21 @@ function PostForm() {
 
 async function OwnPostCard({
   post,
+  lang,
 }: {
   post: NonNullable<Awaited<ReturnType<typeof getOwnActivePost>>>;
+  lang: Lang;
 }) {
   if (post.status === "OPEN") {
     return (
       <Card className="mt-8">
         <CardContent className="pt-4">
           <p className="text-sm text-muted-foreground">
-            Your post is live. Waiting for someone to join…
+            {lang === "es" ? "Tu publicación está activa. Esperando a que alguien se una…" : "Your post is live. Waiting for someone to join…"}
           </p>
           <form action={closeFreeBattlePost.bind(null, post.id)} className="mt-3">
             <Button type="submit" variant="outline" size="sm">
-              Close post
+              {lang === "es" ? "Cerrar publicación" : "Close post"}
             </Button>
           </form>
         </CardContent>
@@ -171,7 +219,7 @@ async function OwnPostCard({
   return (
     <Card className="mt-8">
       <CardContent className="pt-4">
-        <Badge variant="success">Matched!</Badge>
+        <Badge variant="success">{lang === "es" ? "¡Emparejado!" : "Matched!"}</Badge>
         {matchedWith && (
           <div className="mt-3 flex items-center gap-3">
             {matchedWith.avatarUrl && (
@@ -187,12 +235,13 @@ async function OwnPostCard({
           </div>
         )}
         <p className="mt-2 text-xs text-muted-foreground">
-          Reach out to them on Discord to set up your room code — Free Battle doesn&apos;t track
-          the game itself.
+          {lang === "es"
+            ? "Contáctalo por Discord para acordar el código de sala — Free Battle no lleva registro de la partida en sí."
+            : "Reach out to them on Discord to set up your room code — Free Battle doesn't track the game itself."}
         </p>
         <form action={closeFreeBattlePost.bind(null, post.id)} className="mt-3">
           <Button type="submit" variant="outline" size="sm">
-            Done — post again
+            {lang === "es" ? "Listo — publicar de nuevo" : "Done — post again"}
           </Button>
         </form>
       </CardContent>

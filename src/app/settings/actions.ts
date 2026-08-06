@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
-import { setAvoidPracticeOpponents, setPreferredLanguage, setUsername } from "@/lib/account";
+import { setAvoidPracticeOpponents, setUsername } from "@/lib/account";
 import { setArenaPassword } from "@/lib/arena";
 import { setOwnCharacters } from "@/lib/character-stats";
 import { disconnectStartggAccount } from "@/lib/startgg-oauth";
@@ -41,13 +41,6 @@ export async function updateAvoidPracticeOpponentsSetting(avoid: boolean) {
   await setAvoidPracticeOpponents(userId, avoid);
   revalidatePath("/settings");
   revalidatePath("/lobby");
-}
-
-export async function updatePreferredLanguageAction(language: "es" | null) {
-  const userId = await requireUserId();
-  await setPreferredLanguage(userId, language);
-  revalidatePath("/settings");
-  revalidatePath("/");
 }
 
 export type ArenaPasswordState = { error: string | null };

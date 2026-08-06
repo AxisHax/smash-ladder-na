@@ -16,6 +16,14 @@ import {
   markInProgressAction,
   setStartggUrlAction,
 } from "../actions";
+import { getLang, type Lang } from "@/lib/i18n";
+
+const STATUS_LABEL_ES: Record<string, string> = {
+  SIGNUPS: "inscripciones",
+  IN_PROGRESS: "en curso",
+  COMPLETED: "completado",
+  CANCELLED: "cancelado",
+};
 
 export default async function TournamentDetailPage({
   params,
@@ -23,8 +31,7 @@ export default async function TournamentDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const session = await auth();
-  const tournament = await getTournament(id);
+  const [session, tournament, lang] = await Promise.all([auth(), getTournament(id), getLang()]);
   if (!tournament) notFound();
 
   const userId = session?.user?.id;
@@ -37,30 +44,36 @@ export default async function TournamentDetailPage({
       <div className="flex items-center gap-2">
         <Trophy className="size-5 text-muted-foreground" />
         <h1 className="text-2xl font-semibold tracking-tight">{tournament.name}</h1>
-        <Badge variant="outline">{tournament.status.toLowerCase()}</Badge>
+        <Badge variant="outline">
+          {lang === "es" ? STATUS_LABEL_ES[tournament.status] : tournament.status.toLowerCase()}
+        </Badge>
       </div>
       {tournament.description && (
         <p className="mt-2 text-sm text-muted-foreground">{tournament.description}</p>
       )}
       <p className="mt-1 text-xs text-muted-foreground">
-        Hosted by {tournament.host.username} · Double elimination on start.gg
+        {lang === "es" ? (
+          <>Organizado por {tournament.host.username} · Doble eliminación en start.gg</>
+        ) : (
+          <>Hosted by {tournament.host.username} · Double elimination on start.gg</>
+        )}
       </p>
 
       {tournament.startggUrl ? (
         <>
           <a href={tournament.startggUrl} target="_blank" rel="noopener noreferrer" className="mt-4 block">
             <Button type="button" className="gap-1.5">
-              View bracket on start.gg
+              {lang === "es" ? "Ver bracket en start.gg" : "View bracket on start.gg"}
               <ExternalLink className="size-3.5" />
             </Button>
           </a>
-          <StartggEventInfo startggUrl={tournament.startggUrl} />
+          <StartggEventInfo startggUrl={tournament.startggUrl} lang={lang} />
         </>
       ) : (
         isHostOrMod && (
           <Card className="mt-4">
             <CardContent className="pt-4">
-              <StartggForm tournamentId={id} />
+              <StartggForm tournamentId={id} lang={lang} />
             </CardContent>
           </Card>
         )
@@ -68,7 +81,10 @@ export default async function TournamentDetailPage({
 
       <Card className="mt-6">
         <CardContent className="pt-4">
-          <p className="text-sm font-medium">Entrants from the ladder ({tournament.entries.length})</p>
+          <p className="text-sm font-medium">
+            {lang === "es" ? "Participantes del ladder" : "Entrants from the ladder"} (
+            {tournament.entries.length})
+          </p>
           <ul className="mt-2 flex flex-col gap-1.5">
             {tournament.entries.map((e) => (
               <li key={e.id} className="flex items-center gap-2 text-sm">
@@ -85,7 +101,9 @@ export default async function TournamentDetailPage({
               </li>
             ))}
             {tournament.entries.length === 0 && (
-              <li className="text-sm text-muted-foreground">No one&apos;s marked as in yet.</li>
+              <li className="text-sm text-muted-foreground">
+                {lang === "es" ? "Nadie se ha marcado como participante aún." : "No one's marked as in yet."}
+              </li>
             )}
           </ul>
 
@@ -94,14 +112,14 @@ export default async function TournamentDetailPage({
               {userId && !myEntry && (
                 <form action={joinTournamentAction.bind(null, id)}>
                   <Button type="submit" size="sm">
-                    I&apos;m in
+                    {lang === "es" ? "Voy" : "I'm in"}
                   </Button>
                 </form>
               )}
               {userId && myEntry && (
                 <form action={leaveTournamentAction.bind(null, id)}>
                   <Button type="submit" variant="outline" size="sm">
-                    Leave
+                    {lang === "es" ? "Salir" : "Leave"}
                   </Button>
                 </form>
               )}
@@ -113,21 +131,21 @@ export default async function TournamentDetailPage({
               {tournament.status === "SIGNUPS" && (
                 <form action={markInProgressAction.bind(null, id)}>
                   <Button type="submit" variant="secondary" size="sm">
-                    Mark in progress
+                    {lang === "es" ? "Marcar en curso" : "Mark in progress"}
                   </Button>
                 </form>
               )}
               {tournament.status === "IN_PROGRESS" && (
                 <form action={markCompletedAction.bind(null, id)}>
                   <Button type="submit" variant="secondary" size="sm">
-                    Mark completed
+                    {lang === "es" ? "Marcar completado" : "Mark completed"}
                   </Button>
                 </form>
               )}
               {tournament.status !== "CANCELLED" && tournament.status !== "COMPLETED" && (
                 <form action={cancelTournamentAction.bind(null, id)}>
                   <Button type="submit" variant="destructive" size="sm">
-                    Cancel
+                    {lang === "es" ? "Cancelar" : "Cancel"}
                   </Button>
                 </form>
               )}
@@ -142,7 +160,7 @@ export default async function TournamentDetailPage({
 // Enrichment only: falls back to nothing if the token is unset, the URL isn't
 // a single event, or the start.gg API call fails — the bracket link above
 // always renders regardless.
-async function StartggEventInfo({ startggUrl }: { startggUrl: string }) {
+async function StartggEventInfo({ startggUrl, lang }: { startggUrl: string; lang: Lang }) {
   const info = await fetchStartggEventInfo(startggUrl);
   if (!info) return null;
 
@@ -150,7 +168,8 @@ async function StartggEventInfo({ startggUrl }: { startggUrl: string }) {
     <Card className="mt-4">
       <CardContent className="pt-4">
         <p className="text-sm font-medium">
-          {info.eventName} · {info.numEntrants ?? "?"} entrants on start.gg
+          {info.eventName} · {info.numEntrants ?? "?"}{" "}
+          {lang === "es" ? "participantes en start.gg" : "entrants on start.gg"}
         </p>
         {info.isCompleted && info.standings.length > 0 && (
           <ul className="mt-2 flex flex-col gap-1 text-sm text-muted-foreground">
@@ -166,14 +185,15 @@ async function StartggEventInfo({ startggUrl }: { startggUrl: string }) {
   );
 }
 
-function StartggForm({ tournamentId }: { tournamentId: string }) {
+function StartggForm({ tournamentId, lang }: { tournamentId: string; lang: Lang }) {
   return (
     <StartggUrlForm
       action={setStartggUrlAction.bind(null, tournamentId)}
       defaultValue=""
-      label="start.gg link"
+      label={lang === "es" ? "Enlace de start.gg" : "start.gg link"}
       required
       placeholder="https://start.gg/tournament/..."
+      saveLabel={lang === "es" ? "Guardar" : "Save"}
     />
   );
 }

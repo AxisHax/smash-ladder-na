@@ -4,7 +4,13 @@ import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/confirm-dialog";
 
-export function DeleteAccountButton({ action }: { action: () => Promise<void> }) {
+export function DeleteAccountButton({
+  action,
+  lang = "en",
+}: {
+  action: () => Promise<void>;
+  lang?: "en" | "es";
+}) {
   const [confirm, confirmDialog] = useConfirm();
   const confirmReadyRef = useRef(false);
 
@@ -19,7 +25,9 @@ export function DeleteAccountButton({ action }: { action: () => Promise<void> })
           }
           e.preventDefault();
           confirm(
-            "Delete your account? Your username, avatar, and email are removed permanently. Match history stays (anonymized) so other players' records stay intact. This can't be undone.",
+            lang === "es"
+              ? "¿Eliminar tu cuenta? Tu nombre de usuario, avatar y correo electrónico se eliminan permanentemente. El historial de partidas se mantiene (anonimizado) para que los registros de otros jugadores sigan siendo correctos. Esto no se puede deshacer."
+              : "Delete your account? Your username, avatar, and email are removed permanently. Match history stays (anonymized) so other players' records stay intact. This can't be undone.",
           ).then((ok) => {
             if (ok) {
               confirmReadyRef.current = true;
@@ -29,7 +37,7 @@ export function DeleteAccountButton({ action }: { action: () => Promise<void> })
         }}
       >
         <Button type="submit" variant="destructive" size="sm">
-          Delete my account
+          {lang === "es" ? "Eliminar mi cuenta" : "Delete my account"}
         </Button>
       </form>
       {confirmDialog}
