@@ -208,7 +208,8 @@ export default async function PlayerProfilePage({
             </p>
             {headToHead && (
               <p className="text-sm tabular-nums text-muted-foreground">
-                Your record: {headToHead.wins}W–{headToHead.losses}L
+                {lang === "es" ? "Tu récord: " : "Your record: "}
+                {headToHead.wins}W–{headToHead.losses}L
               </p>
             )}
             {player.practiceGamesPlayed > 0 && (
