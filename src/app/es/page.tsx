@@ -2,8 +2,10 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { Activity, Swords, Trophy, Users } from "lucide-react";
+import { redirect } from "next/navigation";
 import { auth, signIn, primaryProviderId } from "@/auth";
 import { getPublicStats } from "@/lib/public-stats";
+import { setPreferredLanguage } from "@/lib/account";
 import { Button } from "@/components/ui/button";
 import { Badge, badgeVariants } from "@/components/ui/badge";
 import { DiscordIcon } from "@/components/discord-icon";
@@ -37,6 +39,12 @@ export default async function HomeEs() {
     getPublicStats(),
   ]);
 
+  async function switchToEnglish() {
+    "use server";
+    if (user?.id) await setPreferredLanguage(user.id, null);
+    redirect("/");
+  }
+
   return (
     <main className="mx-auto max-w-2xl px-6 py-20">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
@@ -57,9 +65,14 @@ export default async function HomeEs() {
             Discord
           </a>
         </div>
-        <Link href="/" prefetch={false} className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
-          English
-        </Link>
+        <form action={switchToEnglish}>
+          <button
+            type="submit"
+            className="cursor-pointer text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          >
+            English
+          </button>
+        </form>
       </div>
       <h1 className="text-4xl font-semibold tracking-tight text-balance">Smash Ladder NA</h1>
       <p className="mt-3 max-w-md text-muted-foreground">

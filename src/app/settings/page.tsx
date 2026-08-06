@@ -16,6 +16,7 @@ import {
   disconnectTwitchAction,
   updateArenaPassword,
   updateAvoidPracticeOpponentsSetting,
+  updatePreferredLanguageAction,
   updateUsernameAction,
 } from "./actions";
 
@@ -54,6 +55,7 @@ export default async function SettingsPage({
         twitchProfileImageUrl: true,
         arenaPassword: true,
         avoidPracticeOpponents: true,
+        preferredLanguage: true,
         mainCharacter: true,
         secondaryCharacters: true,
         charactersSelfDeclared: true,
@@ -109,6 +111,12 @@ export default async function SettingsPage({
       <Card className="mt-4">
         <CardContent className="pt-4">
           <AvoidPracticeOpponentsForm defaultValue={me?.avoidPracticeOpponents ?? false} />
+        </CardContent>
+      </Card>
+
+      <Card className="mt-4">
+        <CardContent className="pt-4">
+          <PreferredLanguageForm defaultValue={me?.preferredLanguage ?? null} />
         </CardContent>
       </Card>
 
@@ -311,5 +319,40 @@ function AvoidPracticeOpponentsForm({ defaultValue }: { defaultValue: boolean })
         Save
       </Button>
     </form>
+  );
+}
+
+function PreferredLanguageForm({ defaultValue }: { defaultValue: string | null }) {
+  async function setEnglish() {
+    "use server";
+    await updatePreferredLanguageAction(null);
+  }
+  async function setSpanish() {
+    "use server";
+    await updatePreferredLanguageAction("es");
+  }
+
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <div className="text-sm">
+        <p>Language</p>
+        <p className="text-xs font-normal text-muted-foreground">
+          Only changes which version of the home page you land on — the rest of the site (lobby,
+          settings, etc.) is English-only for now.
+        </p>
+      </div>
+      <div className="flex shrink-0 gap-2">
+        <form action={setEnglish}>
+          <Button type="submit" size="sm" variant={defaultValue === null ? "default" : "outline"}>
+            English
+          </Button>
+        </form>
+        <form action={setSpanish}>
+          <Button type="submit" size="sm" variant={defaultValue === "es" ? "default" : "outline"}>
+            Español
+          </Button>
+        </form>
+      </div>
+    </div>
   );
 }

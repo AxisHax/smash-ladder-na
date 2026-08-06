@@ -1,9 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { Activity, Swords, Trophy, Users } from "lucide-react";
 import { auth, signIn, primaryProviderId } from "@/auth";
 import { getPublicStats } from "@/lib/public-stats";
+import { setPreferredLanguage } from "@/lib/account";
 import { Button } from "@/components/ui/button";
 import { Badge, badgeVariants } from "@/components/ui/badge";
 import { DiscordIcon } from "@/components/discord-icon";
@@ -25,11 +27,25 @@ export default async function Home() {
     user?.id
       ? prisma.user.findUnique({
           where: { id: user.id },
-          select: { rating: true, gamesPlayed: true },
+          select: { rating: true, gamesPlayed: true, preferredLanguage: true },
         })
       : null,
     getPublicStats(),
   ]);
+
+  // Landing-page-only preference (see setPreferredLanguage). Only bounces a
+  // plain visit to "/" — the "Español" link below goes through
+  // switchToSpanish instead of a bare <Link>, which clears/sets the stored
+  // preference as it navigates. Without that, a signed-in user who set
+  // Spanish once would get bounced straight back here by this same redirect
+  // the moment they clicked "English" on /es to switch back.
+  if (me?.preferredLanguage === "es") redirect("/es");
+
+  async function switchToSpanish() {
+    "use server";
+    if (user?.id) await setPreferredLanguage(user.id, "es");
+    redirect("/es");
+  }
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-20">
@@ -51,9 +67,14 @@ export default async function Home() {
             Discord
           </a>
         </div>
-        <Link href="/es" prefetch={false} className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
-          Español
-        </Link>
+        <form action={switchToSpanish}>
+          <button
+            type="submit"
+            className="cursor-pointer text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          >
+            Español
+          </button>
+        </form>
       </div>
       <h1 className="text-4xl font-semibold tracking-tight text-balance">Smash Ladder NA</h1>
       <p className="mt-3 max-w-md text-muted-foreground">
