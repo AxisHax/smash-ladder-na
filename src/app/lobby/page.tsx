@@ -1348,8 +1348,8 @@ function ReportGameSection({
           </>
         ) : (
           <>
-            The 15-minute window to report has passed — if only one of you
-            reported, it&apos;ll auto-confirm on the next refresh.
+            The {REPORT_TIMEOUT_MS / 60_000}-minute window to report has passed — if only one of
+            you reported, it&apos;ll auto-confirm on the next refresh.
           </>
         )}
       </p>
