@@ -153,7 +153,7 @@ export default async function LeaderboardPage({
       )}
 
       <form method="get" className="mt-4 flex flex-wrap items-end gap-2">
-        <label className="flex w-full flex-col gap-1 text-sm sm:w-auto">
+        <label className="flex w-full flex-col gap-1 text-sm md:w-auto">
           {lang === "es" ? "Nombre de jugador" : "Player name"}
           <input
             type="text"
@@ -161,15 +161,15 @@ export default async function LeaderboardPage({
             defaultValue={query}
             placeholder={lang === "es" ? "Buscar por nombre de usuario" : "Search by username"}
             maxLength={32}
-            className="h-8 w-full rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring sm:w-48"
+            className="h-8 w-full rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring md:w-32"
           />
         </label>
         <CharacterFilterSelect
           defaultValue={isValidCharacter ? character : ""}
           lang={lang}
-          className="w-full sm:w-48"
+          className="w-full md:w-40"
         />
-        <label className="flex w-full flex-col gap-1 text-sm sm:w-auto">
+        <label className="flex w-full flex-col gap-1 text-sm md:w-auto">
           {lang === "es" ? "País" : "Country"}
           <OptionSelect
             key={isValidCountry ? country : ""}
@@ -177,12 +177,12 @@ export default async function LeaderboardPage({
             defaultValue={isValidCountry ? country : ""}
             placeholder={lang === "es" ? "Todos los países" : "All countries"}
             clearLabel={lang === "es" ? "Todos los países" : "All countries"}
-            className="w-full sm:w-40"
+            className="w-full md:w-32"
             options={COUNTRY_OPTIONS}
             autoSubmit
           />
         </label>
-        <label className="flex w-full flex-col gap-1 text-sm sm:w-auto">
+        <label className="flex w-full flex-col gap-1 text-sm md:w-auto">
           {lang === "es" ? "Región" : "Region"}
           {/* Narrowed to the chosen country's regions once one is picked
               (see regionOptions above) — pick a country, and the list here
@@ -193,14 +193,14 @@ export default async function LeaderboardPage({
             defaultValue={isValidRegion ? region : ""}
             placeholder={lang === "es" ? "Todas las regiones" : "All regions"}
             clearLabel={lang === "es" ? "Todas las regiones" : "All regions"}
-            className="w-full sm:w-48"
+            className="w-full md:w-40"
             searchable
             searchPlaceholder={lang === "es" ? "Buscar regiones…" : "Search regions…"}
             options={regionOptions}
             autoSubmit
           />
         </label>
-        <Button type="submit" size="sm" variant="outline" className="h-8 w-full sm:w-auto">
+        <Button type="submit" size="sm" variant="outline" className="h-8 w-full md:w-auto">
           {lang === "es" ? "Filtrar" : "Filter"}
         </Button>
       </form>

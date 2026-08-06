@@ -120,10 +120,10 @@ export function CharacterSelect({
         {selected ? (
           <>
             <CharacterIcon name={selected} size={18} />
-            <span className="flex-1 text-left">{selected}</span>
+            <span className="flex-1 truncate text-left">{selected}</span>
           </>
         ) : (
-          <span className="flex-1 text-left">{placeholder}</span>
+          <span className="flex-1 truncate text-left">{placeholder}</span>
         )}
         <ChevronDown
           className={`size-3.5 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}

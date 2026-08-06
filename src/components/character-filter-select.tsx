@@ -18,7 +18,7 @@ export function CharacterFilterSelect({
   className?: string;
 }) {
   return (
-    <label className="flex w-full flex-col gap-1 text-sm sm:w-auto">
+    <label className="flex w-full flex-col gap-1 text-sm md:w-auto">
       {lang === "es" ? "Personaje" : "Character"}
       {/* key forces remount so defaultValue syncs when searchParams change */}
       <CharacterSelect
