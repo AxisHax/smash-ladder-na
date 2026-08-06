@@ -7,17 +7,23 @@ import { CharacterSelect } from "@/components/character-select";
  * server-rendered filter form. Uses the `name` prop so the selected value
  * is submitted with the form via a hidden native <select>.
  */
-export function CharacterFilterSelect({ defaultValue }: { defaultValue: string }) {
+export function CharacterFilterSelect({
+  defaultValue,
+  lang = "en",
+}: {
+  defaultValue: string;
+  lang?: "en" | "es";
+}) {
   return (
     <label className="flex flex-col gap-1 text-sm">
-      Character
+      {lang === "es" ? "Personaje" : "Character"}
       {/* key forces remount so defaultValue syncs when searchParams change */}
       <CharacterSelect
         key={defaultValue}
         name="character"
         defaultValue={defaultValue}
-        placeholder="All players"
-        clearLabel="All Characters"
+        placeholder={lang === "es" ? "Todos los jugadores" : "All players"}
+        clearLabel={lang === "es" ? "Todos los personajes" : "All Characters"}
       />
     </label>
   );

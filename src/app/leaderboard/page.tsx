@@ -15,6 +15,7 @@ import { AdSlot } from "@/components/ad-slot";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { getLang, type Lang } from "@/lib/i18n";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 const PAGE_SIZE = 50;
@@ -55,7 +56,7 @@ export default async function LeaderboardPage({
     ? REGION_OPTIONS.filter((opt) => countryRegions.has(opt.value))
     : REGION_OPTIONS;
 
-  const [session, season, { players, totalCount }] = await Promise.all([
+  const [session, season, { players, totalCount }, lang] = await Promise.all([
     auth(),
     ensureActiveSeason(),
     getLeaderboardPlayers(
@@ -67,6 +68,7 @@ export default async function LeaderboardPage({
       },
       { skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE },
     ),
+    getLang(),
   ]);
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const rankOffset = (page - 1) * PAGE_SIZE;
@@ -76,33 +78,70 @@ export default async function LeaderboardPage({
     <main className="mx-auto max-w-3xl px-6 py-16">
       <div className="flex items-center gap-2">
         <Trophy className="size-5 text-muted-foreground" />
-        <h1 className="text-2xl font-semibold tracking-tight">Leaderboard</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {lang === "es" ? "Tabla de clasificación" : "Leaderboard"}
+        </h1>
         <Badge variant="outline">{season.name}</Badge>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
-        Ranked players with {LEADERBOARD_MIN_GAMES}+ sets played
-        {isValidCharacter
-          ? ` who play ${echoGroupLabel(character as SmashCharacter)} as a main or secondary`
-          : ""}
-        {isValidRegion ? ` in ${region}` : ""}
-        {!isValidRegion && isValidCountry ? ` in ${country}` : ""}
-        {query ? ` matching "${query}"` : ""}.
+        {lang === "es" ? (
+          <>
+            Jugadores rankeados con {LEADERBOARD_MIN_GAMES}+ partidas jugadas
+            {isValidCharacter
+              ? ` que usan a ${echoGroupLabel(character as SmashCharacter)} como main o secundario`
+              : ""}
+            {isValidRegion ? ` en ${region}` : ""}
+            {!isValidRegion && isValidCountry ? ` en ${country}` : ""}
+            {query ? ` que coinciden con "${query}"` : ""}.
+          </>
+        ) : (
+          <>
+            Ranked players with {LEADERBOARD_MIN_GAMES}+ sets played
+            {isValidCharacter
+              ? ` who play ${echoGroupLabel(character as SmashCharacter)} as a main or secondary`
+              : ""}
+            {isValidRegion ? ` in ${region}` : ""}
+            {!isValidRegion && isValidCountry ? ` in ${country}` : ""}
+            {query ? ` matching "${query}"` : ""}.
+          </>
+        )}
       </p>
 
       {!isFiltered && (
         <Card className="mt-4 border-primary/20 bg-primary/[0.04] py-3">
           <p className="px-4 text-sm">
-            🏆 <span className="font-medium">${SEASON_PRIZE_POOL_USD} USD season prize pool</span> —
-            split among the top 5 finishers when {season.name} ends.
-            {season.name === "Preseason" && (
+            {lang === "es" ? (
               <>
-                {" "}
-                This is a fixed {PRE_SEASON_DURATION_MONTHS}-month preseason, expected to end around{" "}
-                {PRE_SEASON_EXPECTED_END_AT.toLocaleDateString("en-US", {
-                  timeZone: "America/New_York",
-                  dateStyle: "long",
-                })}
-                .
+                🏆 <span className="font-medium">Bolsa de premios de ${SEASON_PRIZE_POOL_USD} USD</span> —
+                repartida entre los 5 primeros cuando termine {season.name}.
+                {season.name === "Preseason" && (
+                  <>
+                    {" "}
+                    Esta preseason es fija de {PRE_SEASON_DURATION_MONTHS} meses, con fin estimado
+                    alrededor del{" "}
+                    {PRE_SEASON_EXPECTED_END_AT.toLocaleDateString("es-MX", {
+                      timeZone: "America/New_York",
+                      dateStyle: "long",
+                    })}
+                    .
+                  </>
+                )}
+              </>
+            ) : (
+              <>
+                🏆 <span className="font-medium">${SEASON_PRIZE_POOL_USD} USD season prize pool</span> —
+                split among the top 5 finishers when {season.name} ends.
+                {season.name === "Preseason" && (
+                  <>
+                    {" "}
+                    This is a fixed {PRE_SEASON_DURATION_MONTHS}-month preseason, expected to end around{" "}
+                    {PRE_SEASON_EXPECTED_END_AT.toLocaleDateString("en-US", {
+                      timeZone: "America/New_York",
+                      dateStyle: "long",
+                    })}
+                    .
+                  </>
+                )}
               </>
             )}
           </p>
@@ -111,34 +150,35 @@ export default async function LeaderboardPage({
 
       <form method="get" className="mt-4 flex items-end gap-2">
         <label className="flex flex-col gap-1 text-sm">
-          Player name
+          {lang === "es" ? "Nombre de jugador" : "Player name"}
           <input
             type="text"
             name="q"
             defaultValue={query}
-            placeholder="Search by username"
+            placeholder={lang === "es" ? "Buscar por nombre de usuario" : "Search by username"}
             maxLength={32}
             className="h-8 w-48 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
           />
         </label>
         <CharacterFilterSelect
           defaultValue={isValidCharacter ? character : ""}
+          lang={lang}
         />
         <label className="flex flex-col gap-1 text-sm">
-          Country
+          {lang === "es" ? "País" : "Country"}
           <OptionSelect
             key={isValidCountry ? country : ""}
             name="country"
             defaultValue={isValidCountry ? country : ""}
-            placeholder="All countries"
-            clearLabel="All countries"
+            placeholder={lang === "es" ? "Todos los países" : "All countries"}
+            clearLabel={lang === "es" ? "Todos los países" : "All countries"}
             className="w-40"
             options={COUNTRY_OPTIONS}
             autoSubmit
           />
         </label>
         <label className="flex flex-col gap-1 text-sm">
-          Region
+          {lang === "es" ? "Región" : "Region"}
           {/* Narrowed to the chosen country's regions once one is picked
               (see regionOptions above) — pick a country, and the list here
               only offers regions that actually belong to it. */}
@@ -146,17 +186,17 @@ export default async function LeaderboardPage({
             key={isValidRegion ? region : effectiveCountry ?? ""}
             name="region"
             defaultValue={isValidRegion ? region : ""}
-            placeholder="All regions"
-            clearLabel="All regions"
+            placeholder={lang === "es" ? "Todas las regiones" : "All regions"}
+            clearLabel={lang === "es" ? "Todas las regiones" : "All regions"}
             className="w-48"
             searchable
-            searchPlaceholder="Search regions…"
+            searchPlaceholder={lang === "es" ? "Buscar regiones…" : "Search regions…"}
             options={regionOptions}
             autoSubmit
           />
         </label>
         <Button type="submit" size="sm" variant="outline" className="h-8">
-          Filter
+          {lang === "es" ? "Filtrar" : "Filter"}
         </Button>
       </form>
 
@@ -169,6 +209,7 @@ export default async function LeaderboardPage({
           query={query || undefined}
           region={isValidRegion ? region : undefined}
           country={isValidCountry ? country : undefined}
+          lang={lang}
         />
       )}
 
@@ -177,14 +218,18 @@ export default async function LeaderboardPage({
           <thead>
             <tr className="border-b border-border text-muted-foreground">
               <th className="py-2 pl-4 font-medium">#</th>
-              <th className="py-2 font-medium">Player</th>
-              <th className="py-2 font-medium">Tier</th>
-              <th className="py-2 font-medium text-right tabular-nums">Rating</th>
+              <th className="py-2 font-medium">{lang === "es" ? "Jugador" : "Player"}</th>
+              <th className="py-2 font-medium">{lang === "es" ? "Rango" : "Tier"}</th>
+              <th className="py-2 font-medium text-right tabular-nums">
+                {lang === "es" ? "Clasificación" : "Rating"}
+              </th>
               <th className={`py-2 font-medium text-right tabular-nums ${isFiltered ? "pr-4" : ""}`}>
-                Sets
+                {lang === "es" ? "Partidas" : "Sets"}
               </th>
               {!isFiltered && (
-                <th className="py-2 pr-4 font-medium text-right tabular-nums">Prize</th>
+                <th className="py-2 pr-4 font-medium text-right tabular-nums">
+                  {lang === "es" ? "Premio" : "Prize"}
+                </th>
               )}
             </tr>
           </thead>
@@ -219,7 +264,9 @@ export default async function LeaderboardPage({
                       {player.username}
                       {gapToNext !== null && gapToNext > 0 && (
                         <span className="text-xs font-normal text-muted-foreground">
-                          {gapToNext} to pass {players[index - 1].username}
+                          {lang === "es"
+                            ? `${gapToNext} para superar a ${players[index - 1].username}`
+                            : `${gapToNext} to pass ${players[index - 1].username}`}
                         </span>
                       )}
                     </Link>
@@ -247,7 +294,9 @@ export default async function LeaderboardPage({
         </table>
 
         {players.length === 0 && (
-          <p className="p-4 text-sm text-muted-foreground">No ranked players yet.</p>
+          <p className="p-4 text-sm text-muted-foreground">
+            {lang === "es" ? "Aún no hay jugadores rankeados." : "No ranked players yet."}
+          </p>
         )}
       </Card>
 
@@ -264,6 +313,7 @@ function PaginationBar({
   query,
   region,
   country,
+  lang,
 }: {
   page: number;
   totalPages: number;
@@ -272,20 +322,23 @@ function PaginationBar({
   query?: string;
   region?: string;
   country?: string;
+  lang: Lang;
 }) {
   return (
     <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
       <Badge variant="outline">
-        {totalCount} ranked player{totalCount === 1 ? "" : "s"}
+        {lang === "es"
+          ? `${totalCount} ${totalCount === 1 ? "jugador rankeado" : "jugadores rankeados"}`
+          : `${totalCount} ranked player${totalCount === 1 ? "" : "s"}`}
       </Badge>
       {totalPages > 1 && (
         <div className="flex items-center gap-3 text-sm">
           <div className="flex items-center gap-2">
             <PageLink page={page - 1} character={character} query={query} region={region} country={country} disabled={page <= 1}>
-              ← Previous
+              {lang === "es" ? "← Anterior" : "← Previous"}
             </PageLink>
             <span className="text-muted-foreground tabular-nums">
-              Page {page} of {totalPages}
+              {lang === "es" ? `Página ${page} de ${totalPages}` : `Page ${page} of ${totalPages}`}
             </span>
             <PageLink
               page={page + 1}
@@ -295,7 +348,7 @@ function PaginationBar({
               country={country}
               disabled={page >= totalPages}
             >
-              Next →
+              {lang === "es" ? "Siguiente →" : "Next →"}
             </PageLink>
           </div>
           <form method="get" className="flex items-center gap-1.5">
@@ -304,7 +357,7 @@ function PaginationBar({
             {region && <input type="hidden" name="region" value={region} />}
             {country && <input type="hidden" name="country" value={country} />}
             <label htmlFor="leaderboard-page-jump" className="sr-only">
-              Jump to page
+              {lang === "es" ? "Ir a la página" : "Jump to page"}
             </label>
             <input
               id="leaderboard-page-jump"
@@ -316,7 +369,7 @@ function PaginationBar({
               className="h-8 w-16 rounded-lg border border-border bg-background px-2 text-sm text-foreground outline-none tabular-nums focus-visible:border-ring"
             />
             <Button type="submit" size="sm" variant="outline">
-              Go
+              {lang === "es" ? "Ir" : "Go"}
             </Button>
           </form>
         </div>
