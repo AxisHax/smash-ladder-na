@@ -8,6 +8,7 @@ import {
   getCareerStats,
   getCharacterUsage,
   getCurrentStreak,
+  getHeadToHead,
   getPlayerMatchCount,
   getPlayerMatchHistory,
   getPlayerProfile,
@@ -120,6 +121,7 @@ export default async function PlayerProfilePage({
     isLiveOnTwitch,
     matchAchievements,
     streak,
+    headToHead,
   ] = await Promise.all([
     // Fixed to the true most-recent matches regardless of which page of
     // history is being viewed — the win-rate/streak badges near the rating
@@ -138,6 +140,7 @@ export default async function PlayerProfilePage({
     player.twitchUsername ? isTwitchLive(player.twitchUsername) : Promise.resolve(false),
     getMatchHistoryAchievements(id),
     getCurrentStreak(id),
+    session?.user?.id && !isOwnProfile ? getHeadToHead(session.user.id, id) : Promise.resolve(null),
   ]);
   const inMatch = currentMatch !== null;
   const parentHost = (await headers()).get("host") ?? "smash-ladder-na.vercel.app";
@@ -203,6 +206,12 @@ export default async function PlayerProfilePage({
                 </>
               )}
             </p>
+            {headToHead && (
+              <p className="text-sm tabular-nums text-muted-foreground">
+                {lang === "es" ? "Tu récord: " : "Your record: "}
+                {headToHead.wins}W–{headToHead.losses}L
+              </p>
+            )}
             {player.practiceGamesPlayed > 0 && (
               <p className="text-xs tabular-nums text-muted-foreground">
                 {lang === "es"

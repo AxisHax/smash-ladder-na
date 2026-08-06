@@ -5,6 +5,7 @@ import {
   getCharacterUsage,
   getCurrentMatchForUser,
   getCurrentStreak,
+  getHeadToHead,
   getPlayerMatchCount,
   getPlayerMatchHistory,
   getTopCharacters,
@@ -612,5 +613,58 @@ describe("getTopRivals", () => {
 
     const [rival] = await getTopRivals(player.id);
     expect(rival).toMatchObject({ opponentId: opponent.id, wins: 1, losses: 1 });
+  });
+});
+
+describe("getHeadToHead", () => {
+  it("returns null when the two players have never played each other", async () => {
+    const viewer = await createTestUser();
+    const opponent = await createTestUser();
+
+    const result = await getHeadToHead(viewer.id, opponent.id);
+    expect(result).toBeNull();
+  });
+
+  it("tallies wins and losses from the viewer's perspective", async () => {
+    const viewer = await createTestUser();
+    const opponent = await createTestUser();
+    await createConfirmedMatch(viewer.id, opponent.id, { reportedWinnerId: viewer.id });
+    await createConfirmedMatch(viewer.id, opponent.id, { reportedWinnerId: viewer.id });
+    await createConfirmedMatch(viewer.id, opponent.id, { reportedWinnerId: opponent.id });
+
+    const result = await getHeadToHead(viewer.id, opponent.id);
+    expect(result).toEqual({ wins: 2, losses: 1 });
+  });
+
+  it("excludes matches where either side was practicing", async () => {
+    const viewer = await createTestUser();
+    const opponent = await createTestUser();
+    await createConfirmedMatch(viewer.id, opponent.id, {
+      reportedWinnerId: viewer.id,
+      player1IsPracticing: true,
+    });
+
+    const result = await getHeadToHead(viewer.id, opponent.id);
+    expect(result).toBeNull();
+  });
+
+  it("excludes matches that haven't confirmed yet", async () => {
+    const viewer = await createTestUser();
+    const opponent = await createTestUser();
+    await createPendingMatch(viewer.id, opponent.id);
+
+    const result = await getHeadToHead(viewer.id, opponent.id);
+    expect(result).toBeNull();
+  });
+
+  it("only counts matches against that specific opponent, not other opponents", async () => {
+    const viewer = await createTestUser();
+    const opponent = await createTestUser();
+    const someoneElse = await createTestUser();
+    await createConfirmedMatch(viewer.id, opponent.id, { reportedWinnerId: viewer.id });
+    await createConfirmedMatch(viewer.id, someoneElse.id, { reportedWinnerId: someoneElse.id });
+
+    const result = await getHeadToHead(viewer.id, opponent.id);
+    expect(result).toEqual({ wins: 1, losses: 0 });
   });
 });
