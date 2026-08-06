@@ -132,9 +132,10 @@ export default async function LobbyPage() {
   const entry = await getActiveLobbyEntry(session.user.id);
   const me = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { queueCooldownUntil: true },
+    select: { queueCooldownUntil: true, audioPingOnMatch: true },
   });
   const queueCooldownUntil = me?.queueCooldownUntil?.toISOString() ?? null;
+  const audioPingOnMatch = me?.audioPingOnMatch ?? true;
   const isInActiveMatch =
     entry?.status === "PAIRED" &&
     entry.match &&
@@ -172,6 +173,7 @@ export default async function LobbyPage() {
           matchJustEnded: !!matchJustEnded,
           hasLeftMatch: !!myLeftAt,
         })}
+        audioPingOnMatch={audioPingOnMatch}
         lang={lang}
       />
 
@@ -264,6 +266,7 @@ function ActivityLine({
   matched,
   isWaiting,
   poll,
+  audioPingOnMatch = true,
   lang,
 }: {
   waiting: number;
@@ -271,6 +274,7 @@ function ActivityLine({
   matched: boolean;
   isWaiting: boolean;
   poll: boolean;
+  audioPingOnMatch?: boolean;
   lang: Lang;
 }) {
   return (
@@ -300,7 +304,11 @@ function ActivityLine({
         )}
       </span>
       {poll && (
-        <LobbyPoller matched={matched} keepPollingInBackground={isWaiting} />
+        <LobbyPoller
+          matched={matched}
+          keepPollingInBackground={isWaiting}
+          audioPingOnMatch={audioPingOnMatch}
+        />
       )}
     </div>
   );

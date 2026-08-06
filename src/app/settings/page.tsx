@@ -15,6 +15,7 @@ import {
   disconnectStartggAction,
   disconnectTwitchAction,
   updateArenaPassword,
+  updateAudioPingOnMatchSetting,
   updateAvoidPracticeOpponentsSetting,
   updateUsernameAction,
 } from "./actions";
@@ -58,6 +59,7 @@ export default async function SettingsPage({
         twitchProfileImageUrl: true,
         arenaPassword: true,
         avoidPracticeOpponents: true,
+        audioPingOnMatch: true,
       },
     }),
     listBlockedUsers(session.user.id),
@@ -112,6 +114,12 @@ export default async function SettingsPage({
       <Card className="mt-4">
         <CardContent className="pt-4">
           <AvoidPracticeOpponentsForm defaultValue={me?.avoidPracticeOpponents ?? false} lang={lang} />
+        </CardContent>
+      </Card>
+
+      <Card className="mt-4">
+        <CardContent className="pt-4">
+          <AudioPingOnMatchForm defaultValue={me?.audioPingOnMatch ?? true} lang={lang} />
         </CardContent>
       </Card>
 
@@ -339,6 +347,38 @@ function AvoidPracticeOpponentsForm({ defaultValue, lang }: { defaultValue: bool
             {lang === "es"
               ? "El resultado de un rival en modo práctica no afecta su rango — activa esto para saltarte esas partidas por completo."
               : "A practicing opponent's result won't affect their rank — turn this on to skip those matches entirely."}
+          </span>
+        </span>
+      </label>
+      <Button type="submit" size="sm">
+        {lang === "es" ? "Guardar" : "Save"}
+      </Button>
+    </form>
+  );
+}
+
+function AudioPingOnMatchForm({ defaultValue, lang }: { defaultValue: boolean; lang: Lang }) {
+  async function action(formData: FormData) {
+    "use server";
+    await updateAudioPingOnMatchSetting(formData.get("audioPingOnMatch") === "on");
+  }
+
+  return (
+    <form action={action} className="flex items-end justify-between gap-2">
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          key={String(defaultValue)}
+          type="checkbox"
+          name="audioPingOnMatch"
+          defaultChecked={defaultValue}
+          className="size-4 rounded border-border"
+        />
+        <span>
+          {lang === "es" ? "Sonido al ser emparejado" : "Audio ping when matched"}
+          <span className="block text-xs font-normal text-muted-foreground">
+            {lang === "es"
+              ? "Reproduce un tono corto en la Sala cuando te emparejan, para que no tengas que quedarte mirando la pestaña todo el tiempo."
+              : "Plays a short chime on the Lobby page when you're paired, so you don't have to keep the tab in view the whole time you're queued."}
           </span>
         </span>
       </label>
