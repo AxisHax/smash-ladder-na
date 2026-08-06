@@ -23,6 +23,7 @@ export async function getPlayerProfile(userId: string) {
       secondaryCharacters: true,
       zenMode: true,
       startggSlug: true,
+      startggPlayerId: true,
       startggGamerTag: true,
       twitchUsername: true,
       noShowCount: true,
@@ -456,6 +457,38 @@ export async function getTopRivals(userId: string, limit = 3) {
     username: usernameById.get(id) ?? "Unknown",
     ...rec,
   }));
+}
+
+export interface HeadToHead {
+  wins: number;
+  losses: number;
+}
+
+// The viewer's own record against one specific opponent — narrower than
+// getTopRivals above (which ranks all of the profile owner's opponents),
+// for the "your record vs this person" line shown to a signed-in viewer on
+// someone else's profile. Only the viewer's own practicing flag is checked,
+// same convention as notPracticingFor's other callers.
+export async function getHeadToHead(viewerId: string, opponentId: string): Promise<HeadToHead | null> {
+  const matches = await prisma.ratingMatch.findMany({
+    where: {
+      status: MatchStatus.CONFIRMED,
+      AND: [
+        { OR: notPracticingFor(viewerId) },
+        {
+          OR: [
+            { player1Id: viewerId, player2Id: opponentId },
+            { player1Id: opponentId, player2Id: viewerId },
+          ],
+        },
+      ],
+    },
+    select: { reportedWinnerId: true },
+  });
+  if (matches.length === 0) return null;
+
+  const wins = matches.filter((m) => m.reportedWinnerId === viewerId).length;
+  return { wins, losses: matches.length - wins };
 }
 
 export interface CharacterUsage {

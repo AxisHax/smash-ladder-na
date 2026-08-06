@@ -18,7 +18,6 @@ import {
 } from "lucide-react";
 import { auth, signIn, signOut, primaryProviderId } from "@/auth";
 import { Button } from "@/components/ui/button";
-import { InfoPopup } from "@/components/info-popup";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { getLang, setLangAction } from "@/lib/i18n";
 import {
@@ -168,7 +167,6 @@ export async function SiteHeader() {
               <Gamepad2 className="size-3.5" />
               {lang === "es" ? "Personajes" : "Characters"}
             </Link>
-            <InfoPopup lang={lang} />
             {(user?.role === "MOD" || user?.role === "ADMIN") && (
               <Link
                 href="/admin"
