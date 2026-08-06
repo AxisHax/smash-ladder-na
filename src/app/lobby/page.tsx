@@ -1571,6 +1571,7 @@ async function CommentsSection({
         zenMode && c.author.id === opponentId ? "Opponent" : c.author.username,
     },
     body: c.body,
+    translatedBody: c.translatedBody,
     createdAt: c.createdAt.toISOString(),
   }));
 

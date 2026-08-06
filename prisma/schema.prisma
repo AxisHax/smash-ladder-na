@@ -357,15 +357,30 @@ model MatchTypingStatus {
 }
 
 model MatchComment {
-  id        String      @id @default(cuid())
-  matchId   String
-  match     RatingMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  authorId  String
-  author    User        @relation(fields: [authorId], references: [id])
-  body      String
-  createdAt DateTime    @default(now())
+  id            String                  @id @default(cuid())
+  matchId       String
+  match         RatingMatch             @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  authorId      String
+  author        User                    @relation(fields: [authorId], references: [id])
+  body          String
+  createdAt     DateTime                @default(now())
+  translations  MatchCommentTranslation[]
 
   @@index([matchId, createdAt])
+}
+
+// Lazily-populated cache: translated once per (comment, target language) on
+// first view, then reused for every later viewer/poll instead of re-calling
+// the translation model. See lib/translate.ts.
+model MatchCommentTranslation {
+  id        String       @id @default(cuid())
+  commentId String
+  comment   MatchComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  lang      String // "en" or "es" — the target language this translation is in
+  body      String
+  createdAt DateTime     @default(now())
+
+  @@unique([commentId, lang])
 }
 
 model ConductReport {

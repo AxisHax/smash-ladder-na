@@ -170,11 +170,20 @@ export async function adminUndoMatchAction(
   return { error: null };
 }
 
-function serializeComments(comments: { id: string; author: { username: string }; body: string; createdAt: Date }[]) {
+function serializeComments(
+  comments: {
+    id: string;
+    author: { username: string };
+    body: string;
+    translatedBody?: string | null;
+    createdAt: Date;
+  }[],
+) {
   return comments.map((c) => ({
     id: c.id,
     author: { username: c.author.username },
     body: c.body,
+    translatedBody: c.translatedBody ?? null,
     createdAt: c.createdAt.toISOString(),
   }));
 }
