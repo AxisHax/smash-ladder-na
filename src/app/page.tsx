@@ -43,7 +43,12 @@ export default async function Home() {
 
   async function switchToSpanish() {
     "use server";
-    if (user?.id) await setPreferredLanguage(user.id, "es");
+    // Re-checks the session itself rather than closing over `user` from the
+    // outer scope — capturing that object as a "use server" closure variable
+    // threw ("Cannot read properties of undefined (reading 'id')") when
+    // Next.js tried to serialize it for the action.
+    const actionSession = await auth();
+    if (actionSession?.user?.id) await setPreferredLanguage(actionSession.user.id, "es");
     redirect("/es");
   }
 

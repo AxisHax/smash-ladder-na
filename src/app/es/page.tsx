@@ -41,7 +41,11 @@ export default async function HomeEs() {
 
   async function switchToEnglish() {
     "use server";
-    if (user?.id) await setPreferredLanguage(user.id, null);
+    // Re-checks the session itself rather than closing over `user` from the
+    // outer scope — see the matching comment in app/page.tsx's
+    // switchToSpanish for why.
+    const actionSession = await auth();
+    if (actionSession?.user?.id) await setPreferredLanguage(actionSession.user.id, null);
     redirect("/");
   }
 
