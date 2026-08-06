@@ -1,3 +1,5 @@
+import { readFileSync } from "fs";
+import { join } from "path";
 import { ImageResponse } from "next/og";
 
 // Renders once at build/request time and gets picked up automatically by
@@ -5,6 +7,13 @@ import { ImageResponse } from "next/og";
 // and no static image asset to keep in sync with the site's actual palette.
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
+
+// Inlined as a data URI (read once at module load, not per-request) rather
+// than fetched by URL — this route has no request object to build an
+// absolute URL from, and the file never changes at runtime anyway.
+const iconDataUri = `data:image/png;base64,${readFileSync(
+  join(process.cwd(), "public", "smash_ladder_icon.png"),
+).toString("base64")}`;
 
 export default function Image() {
   return new ImageResponse(
@@ -27,14 +36,15 @@ export default function Image() {
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 14,
+            gap: 16,
             fontSize: 30,
             fontWeight: 600,
             color: "#ff6e50",
             letterSpacing: -0.5,
           }}
         >
-          🥊 SMASH LADDER
+          <img src={iconDataUri} width={48} height={48} style={{ borderRadius: 10 }} alt="" />
+          SMASH LADDER
         </div>
         <div
           style={{
