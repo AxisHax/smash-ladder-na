@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
-import { setAvoidPracticeOpponents, setUsername } from "@/lib/account";
+import { setAudioPingOnMatch, setAvoidPracticeOpponents, setUsername } from "@/lib/account";
 import { setArenaPassword } from "@/lib/arena";
 import { disconnectStartggAccount } from "@/lib/startgg-oauth";
 import { disconnectTwitchAccount } from "@/lib/twitch-oauth";
@@ -38,6 +38,13 @@ export async function updateUsernameAction(
 export async function updateAvoidPracticeOpponentsSetting(avoid: boolean) {
   const userId = await requireUserId();
   await setAvoidPracticeOpponents(userId, avoid);
+  revalidatePath("/settings");
+  revalidatePath("/lobby");
+}
+
+export async function updateAudioPingOnMatchSetting(enabled: boolean) {
+  const userId = await requireUserId();
+  await setAudioPingOnMatch(userId, enabled);
   revalidatePath("/settings");
   revalidatePath("/lobby");
 }

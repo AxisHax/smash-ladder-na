@@ -9,6 +9,7 @@ const POLL_INTERVAL_MS = 5000;
 export function LobbyPoller({
   matched,
   keepPollingInBackground = false,
+  audioPingOnMatch = true,
 }: {
   matched: boolean;
   // While still waiting in queue, a background/minimized tab needs to keep
@@ -21,6 +22,9 @@ export function LobbyPoller({
   // the post-set chat window), it's not urgent the same way, so this goes
   // back to the original skip-while-hidden behavior.
   keepPollingInBackground?: boolean;
+  // Settings toggle (default on, matching the chime's original always-on
+  // behavior before this existed) — see setAudioPingOnMatch.
+  audioPingOnMatch?: boolean;
 }) {
   const router = useRouter();
   const wasMatched = useRef(matched);
@@ -43,9 +47,9 @@ export function LobbyPoller({
   }, [router, keepPollingInBackground]);
 
   useEffect(() => {
-    if (matched && !wasMatched.current) playMatchFoundChime();
+    if (matched && !wasMatched.current && audioPingOnMatch) playMatchFoundChime();
     wasMatched.current = matched;
-  }, [matched]);
+  }, [matched, audioPingOnMatch]);
 
   return null;
 }

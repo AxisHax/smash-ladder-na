@@ -160,6 +160,13 @@ export async function setZenMode(userId: string, zenMode: boolean) {
   await prisma.user.update({ where: { id: userId }, data: { zenMode } });
 }
 
+// Gates LobbyPoller's playMatchFoundChime (lib/sound.ts) — a player can turn
+// off the audio cue that fires when they're paired, e.g. if they find it
+// jarring, without losing the background-tab polling itself.
+export async function setAudioPingOnMatch(userId: string, audioPingOnMatch: boolean) {
+  await prisma.user.update({ where: { id: userId }, data: { audioPingOnMatch } });
+}
+
 // Only controls which landing page ("/" vs "/es") a signed-in visit to "/"
 // bounces to — see the field's own comment in schema.prisma. `null` means
 // English (the default); anything else falls back to English too, so a
