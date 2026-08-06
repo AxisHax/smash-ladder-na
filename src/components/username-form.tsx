@@ -7,19 +7,22 @@ import type { UpdateUsernameState } from "@/app/settings/actions";
 export function UsernameForm({
   defaultValue,
   action,
+  lang = "en",
 }: {
   defaultValue: string;
   action: (prevState: UpdateUsernameState, formData: FormData) => Promise<UpdateUsernameState>;
+  lang?: "en" | "es";
 }) {
   const [state, formAction, isPending] = useActionState(action, { error: null, message: null });
 
   return (
     <form action={formAction} className="flex items-end gap-2">
       <label className="flex flex-1 flex-col gap-1 text-sm">
-        Username
+        {lang === "es" ? "Nombre de usuario" : "Username"}
         <span className="text-xs font-normal text-muted-foreground">
-          Shown everywhere on the site instead of your Discord name — handy if they don&apos;t
-          match.
+          {lang === "es"
+            ? "Se muestra en todo el sitio en vez de tu nombre de Discord — útil si no coinciden."
+            : "Shown everywhere on the site instead of your Discord name — handy if they don't match."}
         </span>
         <input
           name="username"
@@ -33,7 +36,7 @@ export function UsernameForm({
         {state.message && <span className="text-muted-foreground">{state.message}</span>}
       </label>
       <Button type="submit" size="sm" disabled={isPending}>
-        Save
+        {lang === "es" ? "Guardar" : "Save"}
       </Button>
     </form>
   );

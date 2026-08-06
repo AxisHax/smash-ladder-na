@@ -2,10 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { Activity, Swords, Trophy, Users } from "lucide-react";
-import { redirect } from "next/navigation";
 import { auth, signIn, primaryProviderId } from "@/auth";
 import { getPublicStats } from "@/lib/public-stats";
-import { setPreferredLanguage } from "@/lib/account";
 import { Button } from "@/components/ui/button";
 import { Badge, badgeVariants } from "@/components/ui/badge";
 import { DiscordIcon } from "@/components/discord-icon";
@@ -21,10 +19,11 @@ export const metadata: Metadata = {
   alternates: { languages: { "en-US": "/" } },
 };
 
-// Spanish landing page only — deliberately not a full i18n setup. Everything
-// past sign-in (lobby, settings, admin, etc.) stays English-only; this page
-// exists to answer "what is this, should I sign up" for Spanish-speaking
-// players before they hit that English wall, not to translate the whole app.
+// Kept as its own crawlable route for SEO — a first-touch landing page for
+// Spanish-language search/social traffic — even though "/" now renders the
+// same content in-place via getLang(). proxy.ts sets the "lang" cookie on
+// any visit here, so navigating onward (via the header, Lobby card, etc.)
+// stays in Spanish instead of snapping back to English on the next page.
 export default async function HomeEs() {
   const session = await auth();
   const user = session?.user;
@@ -39,51 +38,28 @@ export default async function HomeEs() {
     getPublicStats(),
   ]);
 
-  async function switchToEnglish() {
-    "use server";
-    // Re-checks the session itself rather than closing over `user` from the
-    // outer scope — see the matching comment in app/page.tsx's
-    // switchToSpanish for why.
-    const actionSession = await auth();
-    if (actionSession?.user?.id) await setPreferredLanguage(actionSession.user.id, null);
-    redirect("/");
-  }
-
   return (
     <main className="mx-auto max-w-2xl px-6 py-20">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline" className="border-primary/30 text-primary">
-            Norteamérica
-          </Badge>
-          <a
-            href={DISCORD_SERVER_URL}
-            target="_blank"
-            rel="noreferrer"
-            className={cn(
-              badgeVariants({ variant: "outline" }),
-              "border-transparent bg-[#5865F2] text-white transition-colors hover:bg-[#4752C4]",
-            )}
-          >
-            <DiscordIcon className="size-3.5" />
-            Discord
-          </a>
-        </div>
-        <form action={switchToEnglish}>
-          <button
-            type="submit"
-            className="cursor-pointer text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-          >
-            English
-          </button>
-        </form>
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <Badge variant="outline" className="border-primary/30 text-primary">
+          Norteamérica
+        </Badge>
+        <a
+          href={DISCORD_SERVER_URL}
+          target="_blank"
+          rel="noreferrer"
+          className={cn(
+            badgeVariants({ variant: "outline" }),
+            "border-transparent bg-[#5865F2] text-white transition-colors hover:bg-[#4752C4]",
+          )}
+        >
+          <DiscordIcon className="size-3.5" />
+          Discord
+        </a>
       </div>
       <h1 className="text-4xl font-semibold tracking-tight text-balance">Smash Ladder NA</h1>
       <p className="mt-3 max-w-md text-muted-foreground">
         Una liga clasificatoria y emparejamiento para la comunidad de Smash de Norteamérica.
-      </p>
-      <p className="mt-1 max-w-md text-xs text-muted-foreground">
-        El resto del sitio (sala de juego, ajustes, etc.) está solo en inglés por ahora.
       </p>
 
       {!user && (
@@ -103,7 +79,7 @@ export default async function HomeEs() {
       {user && me && (
         <p className="mt-6 text-sm text-muted-foreground tabular-nums">
           Tienes una clasificación de <span className="font-medium text-foreground">{me.rating}</span> en{" "}
-          {me.gamesPlayed} sets.
+          {me.gamesPlayed} partidas.
         </p>
       )}
 

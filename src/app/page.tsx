@@ -1,11 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { Activity, Swords, Trophy, Users } from "lucide-react";
 import { auth, signIn, primaryProviderId } from "@/auth";
 import { getPublicStats } from "@/lib/public-stats";
-import { setPreferredLanguage } from "@/lib/account";
 import { Button } from "@/components/ui/button";
 import { Badge, badgeVariants } from "@/components/ui/badge";
 import { DiscordIcon } from "@/components/discord-icon";
@@ -14,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { prisma } from "@/lib/db";
 import { DISCORD_SERVER_URL } from "@/lib/links";
+import { getLang } from "@/lib/i18n";
 
 export const metadata: Metadata = {
   alternates: { languages: { "es-MX": "/es" } },
@@ -23,67 +22,41 @@ export default async function Home() {
   const session = await auth();
   const user = session?.user;
 
-  const [me, stats] = await Promise.all([
+  const [me, stats, lang] = await Promise.all([
     user?.id
       ? prisma.user.findUnique({
           where: { id: user.id },
-          select: { rating: true, gamesPlayed: true, preferredLanguage: true },
+          select: { rating: true, gamesPlayed: true },
         })
       : null,
     getPublicStats(),
+    getLang(),
   ]);
-
-  // Landing-page-only preference (see setPreferredLanguage). Only bounces a
-  // plain visit to "/" — the "Español" link below goes through
-  // switchToSpanish instead of a bare <Link>, which clears/sets the stored
-  // preference as it navigates. Without that, a signed-in user who set
-  // Spanish once would get bounced straight back here by this same redirect
-  // the moment they clicked "English" on /es to switch back.
-  if (me?.preferredLanguage === "es") redirect("/es");
-
-  async function switchToSpanish() {
-    "use server";
-    // Re-checks the session itself rather than closing over `user` from the
-    // outer scope — capturing that object as a "use server" closure variable
-    // threw ("Cannot read properties of undefined (reading 'id')") when
-    // Next.js tried to serialize it for the action.
-    const actionSession = await auth();
-    if (actionSession?.user?.id) await setPreferredLanguage(actionSession.user.id, "es");
-    redirect("/es");
-  }
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-20">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline" className="border-primary/30 text-primary">
-            North America
-          </Badge>
-          <a
-            href={DISCORD_SERVER_URL}
-            target="_blank"
-            rel="noreferrer"
-            className={cn(
-              badgeVariants({ variant: "outline" }),
-              "border-transparent bg-[#5865F2] text-white transition-colors hover:bg-[#4752C4]",
-            )}
-          >
-            <DiscordIcon className="size-3.5" />
-            Discord
-          </a>
-        </div>
-        <form action={switchToSpanish}>
-          <button
-            type="submit"
-            className="cursor-pointer text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-          >
-            Español
-          </button>
-        </form>
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <Badge variant="outline" className="border-primary/30 text-primary">
+          {lang === "es" ? "Norteamérica" : "North America"}
+        </Badge>
+        <a
+          href={DISCORD_SERVER_URL}
+          target="_blank"
+          rel="noreferrer"
+          className={cn(
+            badgeVariants({ variant: "outline" }),
+            "border-transparent bg-[#5865F2] text-white transition-colors hover:bg-[#4752C4]",
+          )}
+        >
+          <DiscordIcon className="size-3.5" />
+          Discord
+        </a>
       </div>
       <h1 className="text-4xl font-semibold tracking-tight text-balance">Smash Ladder NA</h1>
       <p className="mt-3 max-w-md text-muted-foreground">
-        A ranked ladder and matchmaking hub for the North American Smash community.
+        {lang === "es"
+          ? "Una liga clasificatoria y emparejamiento para la comunidad de Smash de Norteamérica."
+          : "A ranked ladder and matchmaking hub for the North American Smash community."}
       </p>
 
       {!user && (
@@ -95,15 +68,24 @@ export default async function Home() {
           className="mt-8"
         >
           <Button type="submit" size="lg">
-            Sign in to get started
+            {lang === "es" ? "Inicia sesión para empezar" : "Sign in to get started"}
           </Button>
         </form>
       )}
 
       {user && me && (
         <p className="mt-6 text-sm text-muted-foreground tabular-nums">
-          You&apos;re <span className="font-medium text-foreground">{me.rating}</span> rated
-          across {me.gamesPlayed} sets.
+          {lang === "es" ? (
+            <>
+              Tienes una clasificación de <span className="font-medium text-foreground">{me.rating}</span> en{" "}
+              {me.gamesPlayed} partidas.
+            </>
+          ) : (
+            <>
+              You&apos;re <span className="font-medium text-foreground">{me.rating}</span> rated across{" "}
+              {me.gamesPlayed} sets.
+            </>
+          )}
         </p>
       )}
 
@@ -114,23 +96,26 @@ export default async function Home() {
               <span className="live-pulse absolute inline-flex size-full rounded-full bg-emerald-500 opacity-75" />
               <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
             </span>
-            <span className="font-medium text-foreground">{stats.playingNow}</span> playing now
+            <span className="font-medium text-foreground">{stats.playingNow}</span>{" "}
+            {lang === "es" ? "jugando ahora" : "playing now"}
           </span>
         )}
         <span className="flex items-center gap-1.5 tabular-nums">
           <Users className="size-3.5 text-primary" />
-          <span className="font-medium text-foreground">{stats.totalPlayers}</span> players
+          <span className="font-medium text-foreground">{stats.totalPlayers}</span>{" "}
+          {lang === "es" ? "jugadores" : "players"}
         </span>
         <span className="flex items-center gap-1.5 tabular-nums">
           <Activity className="size-3.5 text-primary" />
-          <span className="font-medium text-foreground">{stats.matchesToday}</span> matches today
+          <span className="font-medium text-foreground">{stats.matchesToday}</span>{" "}
+          {lang === "es" ? "partidas hoy" : "matches today"}
         </span>
       </div>
 
       {stats.topPlayers.length > 0 && (
         <div className="mt-10">
           <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Top of the ladder
+            {lang === "es" ? "Los mejores de la liga" : "Top of the ladder"}
           </h2>
           <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
             {stats.topPlayers.map((p, i) => (
@@ -152,7 +137,9 @@ export default async function Home() {
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{p.username}</p>
                       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                        <p className="text-xs tabular-nums text-muted-foreground">{p.rating} rating</p>
+                        <p className="text-xs tabular-nums text-muted-foreground">
+                          {p.rating} {lang === "es" ? "de clasificación" : "rating"}
+                        </p>
                         <RankBadge rating={p.rating} gamesPlayed={p.gamesPlayed} />
                       </div>
                     </div>
@@ -169,8 +156,12 @@ export default async function Home() {
           <Card className="h-full transition-colors hover:border-foreground/30">
             <CardHeader>
               <Swords className="size-5 text-muted-foreground" />
-              <CardTitle className="text-base">Ranked Lobby</CardTitle>
-              <CardDescription>Queue up and get auto-paired for a rated match.</CardDescription>
+              <CardTitle className="text-base">{lang === "es" ? "Sala clasificatoria" : "Ranked Lobby"}</CardTitle>
+              <CardDescription>
+                {lang === "es"
+                  ? "Ponte en cola y te emparejamos automáticamente para una partida clasificatoria."
+                  : "Queue up and get auto-paired for a rated match."}
+              </CardDescription>
             </CardHeader>
           </Card>
         </Link>
@@ -178,8 +169,8 @@ export default async function Home() {
           <Card className="h-full transition-colors hover:border-foreground/30">
             <CardHeader>
               <Trophy className="size-5 text-muted-foreground" />
-              <CardTitle className="text-base">Leaderboard</CardTitle>
-              <CardDescription>See where you stack up.</CardDescription>
+              <CardTitle className="text-base">{lang === "es" ? "Tabla de clasificación" : "Leaderboard"}</CardTitle>
+              <CardDescription>{lang === "es" ? "Mira en qué posición estás." : "See where you stack up."}</CardDescription>
             </CardHeader>
           </Card>
         </Link>
@@ -193,7 +184,11 @@ export default async function Home() {
             <CardHeader>
               <DiscordIcon className="size-5 text-muted-foreground" />
               <CardTitle className="text-base">Discord</CardTitle>
-              <CardDescription>Join the community server to hang out and get support.</CardDescription>
+              <CardDescription>
+                {lang === "es"
+                  ? "Únete al servidor de la comunidad para socializar y obtener ayuda."
+                  : "Join the community server to hang out and get support."}
+              </CardDescription>
             </CardHeader>
           </Card>
         </a>

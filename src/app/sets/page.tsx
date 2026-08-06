@@ -9,6 +9,7 @@ import { TwitchLiveEmbed } from "@/components/twitch-live-embed";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { SetsFeedPoller } from "@/components/sets-feed-poller";
+import { getLang, type Lang } from "@/lib/i18n";
 
 const STATUS_LABEL: Record<string, string> = {
   PENDING_REPORT: "In progress",
@@ -17,6 +18,15 @@ const STATUS_LABEL: Record<string, string> = {
   CONFIRMED: "Final",
   CANCELLED: "Cancelled",
   EXPIRED: "Expired",
+};
+
+const STATUS_LABEL_ES: Record<string, string> = {
+  PENDING_REPORT: "En curso",
+  REPORTED: "En curso",
+  DISPUTED: "En disputa",
+  CONFIRMED: "Final",
+  CANCELLED: "Cancelada",
+  EXPIRED: "Expirada",
 };
 
 const STATUS_VARIANT: Record<string, "success" | "warning" | "outline"> = {
@@ -29,7 +39,7 @@ const STATUS_VARIANT: Record<string, "success" | "warning" | "outline"> = {
 };
 
 export default async function SetsFeedPage() {
-  const entries = await getMatchFeed();
+  const [entries, lang] = await Promise.all([getMatchFeed(), getLang()]);
   const parentHost = (await headers()).get("host") ?? "smash-ladder-na.vercel.app";
 
   const liveEntries = entries.filter((e) => e.hasLiveStreamer);
@@ -37,26 +47,29 @@ export default async function SetsFeedPage() {
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
       <SetsFeedPoller />
-      <h1 className="text-2xl font-semibold tracking-tight">Sets</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">{lang === "es" ? "Partidas" : "Sets"}</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Current and recently-finished sets across the ladder. Sets with a live Twitch stream are
-        pinned to the top.
+        {lang === "es"
+          ? "Partidas en curso y recién terminadas en todo el ladder. Las partidas con un stream en vivo de Twitch se fijan arriba."
+          : "Current and recently-finished sets across the ladder. Sets with a live Twitch stream are pinned to the top."}
       </p>
 
       {liveEntries.length > 0 && (
         <div className="mt-8 flex flex-col gap-4">
           {liveEntries.map((entry) => (
-            <LiveSetCard key={entry.id} entry={entry} parentHost={parentHost} />
+            <LiveSetCard key={entry.id} entry={entry} parentHost={parentHost} lang={lang} />
           ))}
         </div>
       )}
 
       <div className="mt-8 flex flex-col gap-2">
         {entries.length === 0 && (
-          <p className="text-sm text-muted-foreground">No sets in progress or recently finished.</p>
+          <p className="text-sm text-muted-foreground">
+            {lang === "es" ? "No hay partidas en curso ni recién terminadas." : "No sets in progress or recently finished."}
+          </p>
         )}
         {entries.map((entry) => (
-          <SetRow key={entry.id} entry={entry} />
+          <SetRow key={entry.id} entry={entry} lang={lang} />
         ))}
       </div>
     </main>
@@ -69,10 +82,19 @@ function streamingPlayer(entry: MatchFeedEntry) {
   return null;
 }
 
-function LiveSetCard({ entry, parentHost }: { entry: MatchFeedEntry; parentHost: string }) {
+function LiveSetCard({
+  entry,
+  parentHost,
+  lang,
+}: {
+  entry: MatchFeedEntry;
+  parentHost: string;
+  lang: Lang;
+}) {
   const streamer = streamingPlayer(entry);
   if (!streamer?.twitchUsername) return null;
   const opponent = streamer.id === entry.player1.id ? entry.player2 : entry.player1;
+  const statusLabel = (lang === "es" ? STATUS_LABEL_ES : STATUS_LABEL)[entry.status] ?? entry.status;
 
   return (
     <Card className="border-red-500/30">
@@ -85,12 +107,11 @@ function LiveSetCard({ entry, parentHost }: { entry: MatchFeedEntry; parentHost:
             className="flex items-center gap-1.5 text-sm font-medium text-red-500 hover:underline"
           >
             <Radio className="size-4" />
-            {streamer.twitchDisplayName ?? streamer.username} is live
+            {streamer.twitchDisplayName ?? streamer.username}{" "}
+            {lang === "es" ? "está en vivo" : "is live"}
             <ExternalLink className="size-3" />
           </a>
-          <Badge variant={STATUS_VARIANT[entry.status] ?? "outline"}>
-            {STATUS_LABEL[entry.status] ?? entry.status}
-          </Badge>
+          <Badge variant={STATUS_VARIANT[entry.status] ?? "outline"}>{statusLabel}</Badge>
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
           <PlayerLink player={streamer} /> vs <PlayerLink player={opponent} />
@@ -116,8 +137,9 @@ function PlayerLink({ player }: { player: { id: string; username: string } }) {
   );
 }
 
-function SetRow({ entry }: { entry: MatchFeedEntry }) {
+function SetRow({ entry, lang }: { entry: MatchFeedEntry; lang: Lang }) {
   const winnerId = entry.status === "CONFIRMED" ? entry.reportedWinnerId : null;
+  const statusLabel = (lang === "es" ? STATUS_LABEL_ES : STATUS_LABEL)[entry.status] ?? entry.status;
 
   return (
     <Card className={entry.hasLiveStreamer ? "border-red-500/30" : undefined}>
@@ -133,9 +155,7 @@ function SetRow({ entry }: { entry: MatchFeedEntry }) {
               {entry.wins.player1}–{entry.wins.player2}
             </span>
           )}
-          <Badge variant={STATUS_VARIANT[entry.status] ?? "outline"}>
-            {STATUS_LABEL[entry.status] ?? entry.status}
-          </Badge>
+          <Badge variant={STATUS_VARIANT[entry.status] ?? "outline"}>{statusLabel}</Badge>
         </div>
       </CardContent>
     </Card>
