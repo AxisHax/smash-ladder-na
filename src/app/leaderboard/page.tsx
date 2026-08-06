@@ -152,8 +152,8 @@ export default async function LeaderboardPage({
         </Card>
       )}
 
-      <form method="get" className="mt-4 flex items-end gap-2">
-        <label className="flex flex-col gap-1 text-sm">
+      <form method="get" className="mt-4 flex flex-wrap items-end gap-2">
+        <label className="flex w-full flex-col gap-1 text-sm sm:w-auto">
           {lang === "es" ? "Nombre de jugador" : "Player name"}
           <input
             type="text"
@@ -161,14 +161,15 @@ export default async function LeaderboardPage({
             defaultValue={query}
             placeholder={lang === "es" ? "Buscar por nombre de usuario" : "Search by username"}
             maxLength={32}
-            className="h-8 w-48 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring"
+            className="h-8 w-full rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring sm:w-48"
           />
         </label>
         <CharacterFilterSelect
           defaultValue={isValidCharacter ? character : ""}
           lang={lang}
+          className="w-full sm:w-48"
         />
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="flex w-full flex-col gap-1 text-sm sm:w-auto">
           {lang === "es" ? "País" : "Country"}
           <OptionSelect
             key={isValidCountry ? country : ""}
@@ -176,12 +177,12 @@ export default async function LeaderboardPage({
             defaultValue={isValidCountry ? country : ""}
             placeholder={lang === "es" ? "Todos los países" : "All countries"}
             clearLabel={lang === "es" ? "Todos los países" : "All countries"}
-            className="w-40"
+            className="w-full sm:w-40"
             options={COUNTRY_OPTIONS}
             autoSubmit
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="flex w-full flex-col gap-1 text-sm sm:w-auto">
           {lang === "es" ? "Región" : "Region"}
           {/* Narrowed to the chosen country's regions once one is picked
               (see regionOptions above) — pick a country, and the list here
@@ -192,14 +193,14 @@ export default async function LeaderboardPage({
             defaultValue={isValidRegion ? region : ""}
             placeholder={lang === "es" ? "Todas las regiones" : "All regions"}
             clearLabel={lang === "es" ? "Todas las regiones" : "All regions"}
-            className="w-48"
+            className="w-full sm:w-48"
             searchable
             searchPlaceholder={lang === "es" ? "Buscar regiones…" : "Search regions…"}
             options={regionOptions}
             autoSubmit
           />
         </label>
-        <Button type="submit" size="sm" variant="outline" className="h-8">
+        <Button type="submit" size="sm" variant="outline" className="h-8 w-full sm:w-auto">
           {lang === "es" ? "Filtrar" : "Filter"}
         </Button>
       </form>
@@ -218,84 +219,87 @@ export default async function LeaderboardPage({
       )}
 
       <Card className="mt-4 overflow-hidden py-0">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="border-b border-border text-muted-foreground">
-              <th className="py-2 pl-4 font-medium">#</th>
-              <th className="py-2 font-medium">{lang === "es" ? "Jugador" : "Player"}</th>
-              <th className="py-2 font-medium">{lang === "es" ? "Rango" : "Tier"}</th>
-              <th className="py-2 font-medium text-right tabular-nums">
-                {lang === "es" ? "Clasificación" : "Rating"}
-              </th>
-              <th className={`py-2 font-medium text-right tabular-nums ${isFiltered ? "pr-4" : ""}`}>
-                {lang === "es" ? "Partidas" : "Sets"}
-              </th>
-              {!isFiltered && (
-                <th className="py-2 pr-4 font-medium text-right tabular-nums">
-                  {lang === "es" ? "Premio" : "Prize"}
+        {/* Scrolls horizontally instead of clipping columns on narrow viewports */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-border text-muted-foreground">
+                <th className="py-2 pl-4 font-medium">#</th>
+                <th className="py-2 font-medium">{lang === "es" ? "Jugador" : "Player"}</th>
+                <th className="py-2 font-medium">{lang === "es" ? "Rango" : "Tier"}</th>
+                <th className="py-2 font-medium text-right tabular-nums">
+                  {lang === "es" ? "Clasificación" : "Rating"}
                 </th>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {players.map((player, index) => {
-              const rank = rankOffset + index;
-              const isViewer = player.id === viewerId;
-              // Only meaningful within the loaded page — the player directly
-              // above in the same array, not a cross-page lookup (index 0
-              // never gets a gap shown, even on page 2+, since we don't have
-              // the previous page's last row loaded to compare against).
-              const gapToNext = isViewer && index > 0 ? players[index - 1].rating - player.rating : null;
-              return (
-                <tr
-                  key={player.id}
-                  className={`border-b border-border/60 last:border-0 ${
-                    isViewer ? "bg-primary/10" : rank < 3 ? "bg-primary/[0.04]" : ""
-                  }`}
-                >
-                  <td className="py-2 pl-4 tabular-nums text-muted-foreground">
-                    {MEDALS[rank] ?? rank + 1}
-                  </td>
-                  <td className="py-2">
-                    <Link
-                      href={`/players/${player.id}`}
-                      className="flex items-center gap-2 hover:underline"
-                    >
-                      {player.mainCharacter && <CharacterIcon name={player.mainCharacter} size={20} />}
-                      {player.secondaryCharacters.map((c) => (
-                        <CharacterIcon key={c} name={c} size={16} className="opacity-60" />
-                      ))}
-                      {player.username}
-                      {gapToNext !== null && gapToNext > 0 && (
-                        <span className="text-xs font-normal text-muted-foreground">
-                          {lang === "es"
-                            ? `${gapToNext} para superar a ${players[index - 1].username}`
-                            : `${gapToNext} to pass ${players[index - 1].username}`}
-                        </span>
-                      )}
-                    </Link>
-                  </td>
-                  <td className="py-2">
-                    <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} />
-                  </td>
-                  <td className="py-2 text-right font-medium tabular-nums">{player.rating}</td>
-                  <td
-                    className={`py-2 text-right tabular-nums text-muted-foreground ${
-                      isFiltered ? "pr-4" : ""
+                <th className={`py-2 font-medium text-right tabular-nums ${isFiltered ? "pr-4" : ""}`}>
+                  {lang === "es" ? "Partidas" : "Sets"}
+                </th>
+                {!isFiltered && (
+                  <th className="py-2 pr-4 font-medium text-right tabular-nums">
+                    {lang === "es" ? "Premio" : "Prize"}
+                  </th>
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {players.map((player, index) => {
+                const rank = rankOffset + index;
+                const isViewer = player.id === viewerId;
+                // Only meaningful within the loaded page — the player directly
+                // above in the same array, not a cross-page lookup (index 0
+                // never gets a gap shown, even on page 2+, since we don't have
+                // the previous page's last row loaded to compare against).
+                const gapToNext = isViewer && index > 0 ? players[index - 1].rating - player.rating : null;
+                return (
+                  <tr
+                    key={player.id}
+                    className={`border-b border-border/60 last:border-0 ${
+                      isViewer ? "bg-primary/10" : rank < 3 ? "bg-primary/[0.04]" : ""
                     }`}
                   >
-                    {player.gamesPlayed}
-                  </td>
-                  {!isFiltered && (
-                    <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">
-                      {prizeForPlace(rank + 1) !== null ? `$${prizeForPlace(rank + 1)} USD` : "—"}
+                    <td className="py-2 pl-4 tabular-nums text-muted-foreground">
+                      {MEDALS[rank] ?? rank + 1}
                     </td>
-                  )}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                    <td className="py-2">
+                      <Link
+                        href={`/players/${player.id}`}
+                        className="flex items-center gap-2 hover:underline"
+                      >
+                        {player.mainCharacter && <CharacterIcon name={player.mainCharacter} size={20} />}
+                        {player.secondaryCharacters.map((c) => (
+                          <CharacterIcon key={c} name={c} size={16} className="opacity-60" />
+                        ))}
+                        {player.username}
+                        {gapToNext !== null && gapToNext > 0 && (
+                          <span className="text-xs font-normal text-muted-foreground">
+                            {lang === "es"
+                              ? `${gapToNext} para superar a ${players[index - 1].username}`
+                              : `${gapToNext} to pass ${players[index - 1].username}`}
+                          </span>
+                        )}
+                      </Link>
+                    </td>
+                    <td className="py-2">
+                      <RankBadge rating={player.rating} gamesPlayed={player.gamesPlayed} />
+                    </td>
+                    <td className="py-2 text-right font-medium tabular-nums">{player.rating}</td>
+                    <td
+                      className={`py-2 text-right tabular-nums text-muted-foreground ${
+                        isFiltered ? "pr-4" : ""
+                      }`}
+                    >
+                      {player.gamesPlayed}
+                    </td>
+                    {!isFiltered && (
+                      <td className="py-2 pr-4 text-right tabular-nums text-muted-foreground">
+                        {prizeForPlace(rank + 1) !== null ? `$${prizeForPlace(rank + 1)} USD` : "—"}
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
 
         {players.length === 0 && (
           <p className="p-4 text-sm text-muted-foreground">

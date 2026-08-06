@@ -29,6 +29,8 @@ export function CharacterSelect({
   onChange?: (value: string) => void;
   defaultValue?: string;
   placeholder?: string;
+  /** Controls the trigger's width (defaults to "w-48"); pass a responsive
+   *  value like "w-full sm:w-48" to let it stack full-width on mobile. */
   className?: string;
   /** When set, renders a hidden native <select> with this name so the value
    *  flows into the parent <form>'s FormData (useful with server actions).
@@ -90,7 +92,7 @@ export function CharacterSelect({
   );
 
   return (
-    <div ref={containerRef} className={`relative ${className ?? ""}`}>
+    <div ref={containerRef} className={`relative ${className ?? "w-48"}`}>
       {/* Hidden native select for form integration */}
       {name && (
         <select
@@ -111,7 +113,7 @@ export function CharacterSelect({
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className={`flex h-8 w-48 cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none hover:bg-muted/50 focus-visible:border-ring ${
+        className={`flex h-8 w-full cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-2.5 text-sm text-foreground outline-none hover:bg-muted/50 focus-visible:border-ring ${
           !selected ? "text-muted-foreground" : ""
         }`}
       >

@@ -10,12 +10,15 @@ import { CharacterSelect } from "@/components/character-select";
 export function CharacterFilterSelect({
   defaultValue,
   lang = "en",
+  className,
 }: {
   defaultValue: string;
   lang?: "en" | "es";
+  /** Forwarded to CharacterSelect's trigger — see its className doc. */
+  className?: string;
 }) {
   return (
-    <label className="flex flex-col gap-1 text-sm">
+    <label className="flex w-full flex-col gap-1 text-sm sm:w-auto">
       {lang === "es" ? "Personaje" : "Character"}
       {/* key forces remount so defaultValue syncs when searchParams change */}
       <CharacterSelect
@@ -24,6 +27,7 @@ export function CharacterFilterSelect({
         defaultValue={defaultValue}
         placeholder={lang === "es" ? "Todos los jugadores" : "All players"}
         clearLabel={lang === "es" ? "Todos los personajes" : "All Characters"}
+        className={className}
       />
     </label>
   );
