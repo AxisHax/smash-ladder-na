@@ -1473,15 +1473,16 @@ function ReportGameSection({
   opponentName: string;
   lang: Lang;
 }) {
-  // The report clock starts when the game's final stage is picked — the pick
-  // actions reset turnStartedAt — and autoResolveStaleGameReport accepts a
-  // lone hanging report once REPORT_TIMEOUT_MS elapses, so both sides see the
-  // same countdown here.
-  const reportDeadline = new Date(
-    game.turnStartedAt.getTime() + REPORT_TIMEOUT_MS,
-  );
-  const secondsLeft = secondsUntil(reportDeadline);
-  const deadline = reportDeadline.toISOString();
+  // The report clock only starts once someone has actually reported (see
+  // reportedAt) — not from when the stage was picked, so actually playing
+  // the game never eats into it. No deadline exists yet if neither side has
+  // reported: that case falls through to the 3h match-level fallback instead
+  // (see REPORT_TIMEOUT_MS's own comment in lib/match-games.ts).
+  const reportDeadline = game.reportedAt
+    ? new Date(game.reportedAt.getTime() + REPORT_TIMEOUT_MS)
+    : null;
+  const secondsLeft = reportDeadline ? secondsUntil(reportDeadline) : null;
+  const deadline = reportDeadline?.toISOString();
 
   // Each player reports their own result independently. The buttons never
   // change based on who reported first — the other side's claim (and the
@@ -1493,8 +1494,8 @@ function ReportGameSection({
       lang === "es" ? (
         <>
           Esperando a que {opponentName} confirme el resultado del juego {game.gameNumber}…{" "}
-          {secondsLeft > 0 ? (
-            <>Se confirma automáticamente en <Countdown deadline={deadline} />s.</>
+          {secondsLeft !== null && secondsLeft > 0 ? (
+            <>Se confirma automáticamente en <Countdown deadline={deadline!} />s.</>
           ) : (
             "Ya pasaron el plazo — esto debería resolverse a tu favor pronto."
           )}
@@ -1503,9 +1504,9 @@ function ReportGameSection({
         <>
           Waiting for {opponentName} to confirm game {game.gameNumber}&apos;s
           result…{" "}
-          {secondsLeft > 0 ? (
+          {secondsLeft !== null && secondsLeft > 0 ? (
             <>
-              It auto-confirms in <Countdown deadline={deadline} />s.
+              It auto-confirms in <Countdown deadline={deadline!} />s.
             </>
           ) : (
             "They're past the deadline — this should resolve in your favor shortly."
@@ -1514,51 +1515,33 @@ function ReportGameSection({
       );
   } else if (game.reportedById) {
     statusLine =
-      lang === "es"
-        ? game.reportedWinnerId === userId
-          ? `${opponentName} reportó que tú ganaste el juego ${game.gameNumber}.`
-          : `${opponentName} reportó que ganó el juego ${game.gameNumber}.`
-        : game.reportedWinnerId === userId
-          ? `${opponentName} reported you won game ${game.gameNumber}.`
-          : `${opponentName} reported they won game ${game.gameNumber}.`;
+      lang === "es" ? (
+        <>
+          {game.reportedWinnerId === userId
+            ? `${opponentName} reportó que tú ganaste el juego ${game.gameNumber}.`
+            : `${opponentName} reportó que ganó el juego ${game.gameNumber}.`}{" "}
+          {secondsLeft !== null && secondsLeft > 0 && (
+            <>Confirma o disputa antes de <Countdown deadline={deadline!} />s.</>
+          )}
+        </>
+      ) : (
+        <>
+          {game.reportedWinnerId === userId
+            ? `${opponentName} reported you won game ${game.gameNumber}.`
+            : `${opponentName} reported they won game ${game.gameNumber}.`}{" "}
+          {secondsLeft !== null && secondsLeft > 0 && (
+            <>Confirm or dispute within <Countdown deadline={deadline!} />s.</>
+          )}
+        </>
+      );
   }
 
   return (
     <CardContent className="border-t border-border pt-4">
       <p className="text-sm text-muted-foreground">
-        {lang === "es" ? (
-          <>
-            Reporta el resultado del juego {game.gameNumber} una vez que hayan jugado.{" "}
-            {secondsLeft > 0 ? (
-              <>
-                Tienes <Countdown deadline={deadline} />s para reportar — si solo uno de los dos
-                reporta, se confirma automáticamente cuando se acabe el tiempo y al jugador
-                silencioso se le marca un no-show.
-              </>
-            ) : (
-              <>
-                El plazo de {REPORT_TIMEOUT_MS / 60_000} minutos para reportar ya pasó — si solo
-                uno de los dos reportó, se confirmará automáticamente en el próximo refresco.
-              </>
-            )}
-          </>
-        ) : (
-          <>
-            Report game {game.gameNumber}&apos;s result once you&apos;ve played.{" "}
-            {secondsLeft > 0 ? (
-              <>
-                You have <Countdown deadline={deadline} />s left to report — if
-                only one of you reports, it auto-confirms when the clock runs out
-                and the silent player is charged a no-show.
-              </>
-            ) : (
-              <>
-                The {REPORT_TIMEOUT_MS / 60_000}-minute window to report has passed — if only one of
-                you reported, it&apos;ll auto-confirm on the next refresh.
-              </>
-            )}
-          </>
-        )}
+        {lang === "es"
+          ? `Reporta el resultado del juego ${game.gameNumber} una vez que hayan jugado. Si solo uno de los dos reporta, el otro tiene ${REPORT_TIMEOUT_MS / 60_000} minutos para confirmar o disputar antes de que se acepte automáticamente y se le marque un no-show al que no respondió.`
+          : `Report game ${game.gameNumber}'s result once you've played. If only one of you reports, the other has ${REPORT_TIMEOUT_MS / 60_000} minutes to confirm or dispute before it auto-confirms and the non-responder is charged a no-show.`}
       </p>
       <div className="mt-4 flex gap-2">
         <ConfirmSubmitButton

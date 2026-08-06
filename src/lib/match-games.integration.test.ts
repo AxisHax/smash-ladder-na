@@ -106,7 +106,7 @@ describe("auto-forfeit for a stale character pick", () => {
 });
 
 describe("auto-confirm for a stale game report", () => {
-  it("does nothing before REPORT_TIMEOUT_MS has elapsed since the stage was picked", async () => {
+  it("does nothing before REPORT_TIMEOUT_MS has elapsed since the report came in", async () => {
     const p1 = await createTestUser();
     const p2 = await createTestUser();
     const match = await createMatch(p1.id, p2.id);
@@ -117,6 +117,34 @@ describe("auto-confirm for a stale game report", () => {
       where: { id: game.id },
       data: {
         finalStage: "Final Destination",
+        reportedById: p1.id,
+        reportedWinnerId: p1.id,
+        reportedAt: new Date(),
+      },
+    });
+
+    const games = await getMatchGames(match.id);
+    expect(games.find((g) => g.gameNumber === 1)?.winnerId).toBeNull();
+  });
+
+  // Regression test: an earlier version anchored this deadline on
+  // turnStartedAt (when the stage was picked) instead of reportedAt (when
+  // the report came in) — a long-played game (games can legitimately run
+  // 7+ minutes) could then have its report window expire, or shrink to
+  // almost nothing, before either side even reported. Simulates exactly
+  // that: stage picked long ago, report just came in.
+  it("does nothing when the stage was picked long ago but the report just came in", async () => {
+    const p1 = await createTestUser();
+    const p2 = await createTestUser();
+    const match = await createMatch(p1.id, p2.id);
+    await startFirstGame(p1.id, match.id);
+    const game = await getCurrentGame(match.id);
+    if (!game) throw new Error("expected game 1 to exist");
+    await prisma.matchGame.update({
+      where: { id: game.id },
+      data: {
+        finalStage: "Final Destination",
+        turnStartedAt: new Date(Date.now() - REPORT_TIMEOUT_MS - 1000),
         reportedById: p1.id,
         reportedWinnerId: p1.id,
         reportedAt: new Date(),
