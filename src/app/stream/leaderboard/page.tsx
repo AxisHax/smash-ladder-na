@@ -1,6 +1,7 @@
 import { SMASH_CHARACTERS } from "@/lib/characters";
 import { MATCH_COUNTRIES } from "@/lib/regions";
 import { getLeaderboardPlayers } from "@/lib/leaderboard";
+import { getCharacterUsage } from "@/lib/players";
 import { CharacterIcon } from "@/components/character-icon";
 import { RankBadge } from "@/components/rank-badge";
 import { StreamRefreshPoller } from "@/components/stream-refresh-poller";
@@ -44,6 +45,15 @@ export default async function StreamLeaderboardPage({
     getLang(),
   ]);
 
+  // No hover/tap interaction makes sense on a passive OBS overlay, so this
+  // only needs the single most-played character live from getCharacterUsage
+  // — not the full CharacterUsageIcons stack with its overflow tooltip.
+  const mainCharacterByPlayerId = new Map(
+    await Promise.all(
+      players.map(async (p) => [p.id, (await getCharacterUsage(p.id))[0]?.character ?? null] as const),
+    ),
+  );
+
   return (
     <div className="p-4">
       <StreamRefreshPoller />
@@ -56,7 +66,9 @@ export default async function StreamLeaderboardPage({
               </td>
               <td className="py-1 pr-2">
                 <div className="flex items-center gap-2 font-medium">
-                  {player.mainCharacter && <CharacterIcon name={player.mainCharacter} size={20} />}
+                  {mainCharacterByPlayerId.get(player.id) && (
+                    <CharacterIcon name={mainCharacterByPlayerId.get(player.id)!} size={20} />
+                  )}
                   {player.username}
                 </div>
               </td>

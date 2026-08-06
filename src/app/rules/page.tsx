@@ -1,5 +1,5 @@
 import { LEADERBOARD_MIN_GAMES } from "@/lib/rank-tier";
-import { SEASON_PRIZE_POOL_USD, PRIZE_SPLIT_PERCENT } from "@/lib/prizes";
+import { SEASON_PRIZE_POOL_USD, PRIZE_SPLIT_PERCENT, approxMxn } from "@/lib/prizes";
 import { PRE_SEASON_DURATION_MONTHS, PRE_SEASON_EXPECTED_END_AT } from "@/lib/seasons";
 import { getLang } from "@/lib/i18n";
 
@@ -266,7 +266,9 @@ function RulesPageEs() {
         <Section title="Bolsa de premios de temporada">
           <p>
             Los 5 primeros en la tabla de posiciones cuando termina la temporada se reparten una
-            bolsa de ${SEASON_PRIZE_POOL_USD} USD: 1° recibe {PRIZE_SPLIT_PERCENT[0]}%, 2°{" "}
+            bolsa de ${SEASON_PRIZE_POOL_USD} USD (≈ ${approxMxn(SEASON_PRIZE_POOL_USD).toLocaleString("es-MX")} MXN,
+            solo de referencia — el pago siempre se hace en USD por PayPal): 1° recibe{" "}
+            {PRIZE_SPLIT_PERCENT[0]}%, 2°{" "}
             {PRIZE_SPLIT_PERCENT[1]}%, 3° {PRIZE_SPLIT_PERCENT[2]}%, 4° {PRIZE_SPLIT_PERCENT[3]}%,
             y 5° {PRIZE_SPLIT_PERCENT[4]}%. Necesitas {LEADERBOARD_MIN_GAMES}+ partidas jugadas
             para aparecer en la tabla de posiciones.

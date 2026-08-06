@@ -58,9 +58,6 @@ export default async function SettingsPage({
         twitchProfileImageUrl: true,
         arenaPassword: true,
         avoidPracticeOpponents: true,
-        mainCharacter: true,
-        secondaryCharacters: true,
-        charactersSelfDeclared: true,
       },
     }),
     listBlockedUsers(session.user.id),
@@ -123,18 +120,6 @@ export default async function SettingsPage({
           <PreferredLanguageForm currentLang={lang} />
         </CardContent>
       </Card>
-
-      {/* "Your characters" self-declaration form hidden for now — mainCharacter/
-          secondaryCharacters are auto-recomputed from actual play since the
-          recomputeCharacterUsage rollout, and self-declaring here opts a
-          player out of that (charactersSelfDeclared). Restore by re-adding
-          the OwnCharactersForm import and this block:
-          <OwnCharactersForm
-            action={updateOwnCharacters}
-            defaultMainCharacter={me?.mainCharacter ?? ""}
-            defaultSecondaryCharacters={me?.secondaryCharacters ?? []}
-            selfDeclared={me?.charactersSelfDeclared ?? false}
-          /> */}
 
       <Card className="mt-4">
         <CardContent className="pt-4">

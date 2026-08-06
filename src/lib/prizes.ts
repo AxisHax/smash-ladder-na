@@ -11,3 +11,15 @@ export function prizeForPlace(place: number): number | null {
   if (percent === undefined) return null;
   return Math.round((SEASON_PRIZE_POOL_USD * percent) / 100);
 }
+
+// Reference rate only (~17.25 MXN/USD as of 2026-08-06) — payouts are always
+// made in USD via PayPal regardless of the winner's country, so this exists
+// purely to give Spanish-reading players a rough sense of the amount, shown
+// alongside (never instead of) the real USD figure. A few pesos of drift
+// from the live rate is fine for a "roughly this much" label; update
+// periodically rather than wiring up a live-rate API for it.
+const USD_TO_MXN_REFERENCE_RATE = 17.25;
+
+export function approxMxn(usd: number): number {
+  return Math.round(usd * USD_TO_MXN_REFERENCE_RATE);
+}

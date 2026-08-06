@@ -147,9 +147,8 @@ model User {
   suspendedUntil       DateTime? // set only for a timed SUSPENDED; null means indefinite (or n/a if not suspended). Past-due is lazily lifted back to ACTIVE on next access.
   lastKnownIp          String? // captured from x-forwarded-for at sign-in — lets a mod banning an account also ban the IP it was last seen using (see BannedIp)
   lastSignInAt         DateTime? // set only in auth.ts's signIn callback — unlike updatedAt (bumped by any write: rating changes, admin backfills, etc.), this is the one field that only ever reflects an actual sign-in, so it's what "Active in last 24h" on the admin overview keys off of
-  mainCharacter        String? // auto-computed from real play by recomputeCharacterUsage by default, but a player can self-declare via setOwnCharacters — once they do, charactersSelfDeclared locks out further auto-recompute for this profile
-  secondaryCharacters  String[]   @default([]) // same source as mainCharacter — auto-computed until self-declared, then player-controlled
-  charactersSelfDeclared Boolean  @default(false) // once true, recomputeCharacterUsage no-ops — players complained the old peer-report mechanism kept landing on the wrong main, so self-declaration (once made) is authoritative
+  mainCharacter        String? // auto-computed from real play by recomputeCharacterUsage — powers the character-filtered leaderboard and /characters index; display elsewhere reads live usage instead (see getCharacterUsage)
+  secondaryCharacters  String[]   @default([]) // same source as mainCharacter
   region               String? // self-declared match region; drives distance-based matchmaking
   preferredLanguage    String? // "es" or null (English, the default) — only controls which landing page ("/" vs "/es") a signed-in visit to "/" bounces to; the rest of the site has no Spanish translation yet, so this isn't a general i18n switch
   maxMatchDistanceKm   Int?       @default(2400) // self-declared match radius; null means worldwide. Matching requires BOTH sides' radius to cover the actual distance. Default matches MATCH_DISTANCE_PRESETS' "Moderate" tier.

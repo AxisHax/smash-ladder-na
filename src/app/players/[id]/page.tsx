@@ -21,6 +21,7 @@ import { getMatchHistoryAchievements } from "@/lib/match-achievements";
 import { computeAchievements, pointsToNextTier } from "@/lib/rank-tier";
 import { CharacterIcon } from "@/components/character-icon";
 import { CharacterUsageCard } from "@/components/character-usage-card";
+import { CharacterUsageIcons } from "@/components/character-usage-icons";
 import { RankBadge } from "@/components/rank-badge";
 import { RatingChart } from "@/components/rating-chart";
 import { DeleteAccountButton } from "@/components/delete-account-button";
@@ -145,7 +146,6 @@ export default async function PlayerProfilePage({
   const inMatch = currentMatch !== null;
   const parentHost = (await headers()).get("host") ?? "smash-ladder-na.vercel.app";
   const reportHistory = isModerator ? await listReportsForUser(id) : [];
-  const topCharacters = characterUsage.slice(0, 3).map((u) => u.character);
   // Practice matches still show up in the list below (clearly labeled) but
   // never count toward the record/win-rate/streak — same "never touches
   // your main profile" promise as everywhere else practice mode is handled.
@@ -174,37 +174,15 @@ export default async function PlayerProfilePage({
           <div>
             <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
               {player.username}
-              {player.mainCharacter && <CharacterIcon name={player.mainCharacter} size={22} />}
-              {player.secondaryCharacters.map((c) => (
-                <CharacterIcon key={c} name={c} size={18} className="opacity-60" />
-              ))}
+              <CharacterUsageIcons usage={characterUsage} />
             </h1>
             {player.discordUsername && player.discordUsername !== player.username && (
               <p className="text-xs text-muted-foreground">Discord: {player.discordUsername}</p>
             )}
             <p className="text-sm tabular-nums text-muted-foreground">
-              {lang === "es" ? (
-                <>
-                  {player.rating} de clasificación · {player.gamesPlayed} partidas jugadas
-                </>
-              ) : (
-                <>
-                  {player.rating} rating · {player.gamesPlayed} sets played
-                </>
-              )}
-              {topCharacters.length > 0 && (
-                <>
-                  {" · "}
-                  <span className="group/characters relative inline-flex items-center gap-1 align-middle">
-                    <span className="pointer-events-none absolute -top-6 left-0 z-10 rounded border border-border bg-popover px-1.5 py-0.5 text-xs whitespace-nowrap text-popover-foreground opacity-0 shadow-sm transition-opacity group-hover/characters:opacity-100">
-                      {lang === "es" ? "Personajes más usados" : "Most played characters"}
-                    </span>
-                    {topCharacters.map((character) => (
-                      <CharacterIcon key={character} name={character} size={16} />
-                    ))}
-                  </span>
-                </>
-              )}
+              {lang === "es"
+                ? `${player.rating} de clasificación · ${player.gamesPlayed} partidas jugadas`
+                : `${player.rating} rating · ${player.gamesPlayed} sets played`}
             </p>
             {headToHead && (
               <p className="text-sm tabular-nums text-muted-foreground">
