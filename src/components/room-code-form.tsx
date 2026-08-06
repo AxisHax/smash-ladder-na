@@ -12,9 +12,11 @@ import type { RoomCodeState } from "@/app/lobby/actions";
 export function RoomCodeForm({
   initialValue,
   action,
+  lang = "en",
 }: {
   initialValue: string;
   action: (prevState: RoomCodeState, formData: FormData) => Promise<RoomCodeState>;
+  lang?: "en" | "es";
 }) {
   const [state, formAction, isPending] = useActionState(action, { error: null, savedValue: null });
   const flashing = useFlashOnChange(state.savedValue);
@@ -24,7 +26,7 @@ export function RoomCodeForm({
     <div className="flex flex-col gap-1">
       <form action={formAction} className="flex items-end gap-2">
         <label className="flex flex-col gap-1 text-sm">
-          Room code
+          {lang === "es" ? "Código de sala" : "Room code"}
           <input
             name="roomCode"
             value={roomCode}
@@ -48,11 +50,13 @@ export function RoomCodeForm({
           />
         </label>
         <Button type="submit" size="sm" disabled={isPending}>
-          Save
+          {lang === "es" ? "Guardar" : "Save"}
         </Button>
       </form>
       {state.error && <p className="text-xs text-destructive">{state.error}</p>}
-      {flashing && !state.error && <p className="text-xs text-muted-foreground">Saved!</p>}
+      {flashing && !state.error && (
+        <p className="text-xs text-muted-foreground">{lang === "es" ? "¡Guardado!" : "Saved!"}</p>
+      )}
     </div>
   );
 }

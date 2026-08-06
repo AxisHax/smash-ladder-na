@@ -78,11 +78,13 @@ export function VictoryCelebration({
   ratingAfter,
   tierUp,
   tierName,
+  lang = "en",
 }: {
   ratingBefore: number;
   ratingAfter: number;
   tierUp: boolean;
   tierName?: string;
+  lang?: "en" | "es";
 }) {
   const displayRating = useCountUp(ratingBefore, ratingAfter);
   const delta = ratingAfter - ratingBefore;
@@ -99,11 +101,17 @@ export function VictoryCelebration({
       <div className="victory-pop relative flex flex-col items-center gap-1">
         <Trophy className="size-6 text-primary" />
         <p className="text-xl font-bold tracking-tight text-primary">
-          {tierUp && tierName ? `Tier up — ${tierName}!` : "Victory!"}
+          {lang === "es"
+            ? tierUp && tierName
+              ? `¡Subiste de rango — ${tierName}!`
+              : "¡Victoria!"
+            : tierUp && tierName
+              ? `Tier up — ${tierName}!`
+              : "Victory!"}
         </p>
         <p className="mt-1 text-3xl font-semibold tabular-nums">{displayRating}</p>
         <p className="text-sm font-medium tabular-nums text-primary">
-          +{delta} rating
+          {lang === "es" ? `+${delta} de clasificación` : `+${delta} rating`}
         </p>
       </div>
     </div>
