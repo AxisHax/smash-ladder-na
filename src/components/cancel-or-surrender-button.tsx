@@ -15,18 +15,24 @@ type ActionState = { error: string | null };
 export function CancelOrSurrenderButton({
   mode,
   action,
+  lang = "en",
 }: {
   mode: "cancel" | "surrender";
   action: (prevState: ActionState, formData: FormData) => Promise<ActionState>;
+  lang?: "en" | "es";
 }) {
   const [state, formAction, isPending] = useActionState(action, { error: null });
   const [confirm, confirmDialog] = useConfirm();
   const confirmReadyRef = useRef(false);
 
   const confirmMessage =
-    mode === "surrender"
-      ? "Surrender this match? Your opponent has already started, so this counts as a loss and will affect your rating. This can't be undone."
-      : "Cancel this match? This can't be undone.";
+    lang === "es"
+      ? mode === "surrender"
+        ? "¿Rendirte en esta partida? Tu rival ya empezó, así que esto cuenta como derrota y afectará tu clasificación. Esto no se puede deshacer."
+        : "¿Cancelar esta partida? Esto no se puede deshacer."
+      : mode === "surrender"
+        ? "Surrender this match? Your opponent has already started, so this counts as a loss and will affect your rating. This can't be undone."
+        : "Cancel this match? This can't be undone.";
 
   return (
     <div className="flex flex-col items-end gap-1">
@@ -38,7 +44,7 @@ export function CancelOrSurrenderButton({
             return;
           }
           e.preventDefault();
-          confirm(confirmMessage, { cancelLabel: "Go back" }).then((ok) => {
+          confirm(confirmMessage, { cancelLabel: lang === "es" ? "Volver" : "Go back" }).then((ok) => {
             if (ok) {
               confirmReadyRef.current = true;
               e.currentTarget.requestSubmit();
@@ -47,7 +53,13 @@ export function CancelOrSurrenderButton({
         }}
       >
         <Button type="submit" variant="destructive" size="sm" disabled={isPending}>
-          {mode === "surrender" ? "Surrender (counts as a loss)" : "Cancel match"}
+          {lang === "es"
+            ? mode === "surrender"
+              ? "Rendirse (cuenta como derrota)"
+              : "Cancelar partida"
+            : mode === "surrender"
+              ? "Surrender (counts as a loss)"
+              : "Cancel match"}
         </Button>
       </form>
       {state.error && <p className="text-xs text-destructive">{state.error}</p>}

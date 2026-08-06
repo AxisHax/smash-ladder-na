@@ -67,6 +67,7 @@ import {
   MatchSettingsForm,
   type MatchSettingsState,
 } from "@/components/match-settings-form";
+import { getLang, type Lang } from "@/lib/i18n";
 import {
   beginFirstGame,
   cancelLobby,
@@ -105,22 +106,24 @@ type Match = NonNullable<
 >;
 
 export default async function LobbyPage() {
-  const session = await auth();
-  const activity = await getLobbyActivityStats();
+  const [session, activity, lang] = await Promise.all([auth(), getLobbyActivityStats(), getLang()]);
 
   if (!session?.user?.id) {
     return (
       <main className="mx-auto max-w-2xl px-6 py-16">
-        <PageTitle />
+        <PageTitle lang={lang} />
         <ActivityLine
           waiting={activity.waiting}
           inMatch={activity.inMatch}
           matched={false}
           isWaiting={false}
           poll={false}
+          lang={lang}
         />
         <p className="mt-2 text-sm text-muted-foreground">
-          Sign in with Discord (top right) to join the matchmaking lobby.
+          {lang === "es"
+            ? "Inicia sesión con Discord (arriba a la derecha) para unirte a la sala de emparejamiento."
+            : "Sign in with Discord (top right) to join the matchmaking lobby."}
         </p>
       </main>
     );
@@ -157,7 +160,7 @@ export default async function LobbyPage() {
     <main
       className={`mx-auto px-6 py-16 ${showChatPanel ? "max-w-5xl" : "max-w-2xl"}`}
     >
-      <PageTitle />
+      <PageTitle lang={lang} />
       <ActivityLine
         waiting={activity.waiting}
         inMatch={activity.inMatch}
@@ -169,18 +172,22 @@ export default async function LobbyPage() {
           matchJustEnded: !!matchJustEnded,
           hasLeftMatch: !!myLeftAt,
         })}
+        lang={lang}
       />
 
       {matchJustEnded && (
         <Card className="mt-4 border-primary/30">
           <CardContent className="pt-4">
-            <p className="text-sm font-medium">Ready for another match?</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              This starts a brand new search — it&apos;s not related to the
-              match below.
+            <p className="text-sm font-medium">
+              {lang === "es" ? "¿Listo para otra partida?" : "Ready for another match?"}
             </p>
-            <QueueCooldownGate cooldownUntil={queueCooldownUntil}>
-              <JoinLobbyForm action={joinLobby} className="mt-3" />
+            <p className="mt-1 text-xs text-muted-foreground">
+              {lang === "es"
+                ? "Esto empieza una búsqueda totalmente nueva — no tiene relación con la partida de abajo."
+                : "This starts a brand new search — it's not related to the match below."}
+            </p>
+            <QueueCooldownGate cooldownUntil={queueCooldownUntil} lang={lang}>
+              <JoinLobbyForm action={joinLobby} className="mt-3" lang={lang} />
             </QueueCooldownGate>
           </CardContent>
         </Card>
@@ -190,15 +197,16 @@ export default async function LobbyPage() {
         <Card className="mt-8">
           <CardContent className="pt-4">
             <p className="text-sm text-muted-foreground">
-              Profile and matchmaking settings are locked while a match is in
-              progress.
+              {lang === "es"
+                ? "El perfil y los ajustes de emparejamiento están bloqueados mientras hay una partida en curso."
+                : "Profile and matchmaking settings are locked while a match is in progress."}
             </p>
           </CardContent>
         </Card>
       ) : (
         <Card className="mt-8">
           <CardContent className="pt-4">
-            <MatchmakingForm userId={session.user.id} />
+            <MatchmakingForm userId={session.user.id} lang={lang} />
           </CardContent>
         </Card>
       )}
@@ -207,10 +215,10 @@ export default async function LobbyPage() {
         <Card className="mt-4">
           <CardContent className="pt-4">
             <p className="text-sm text-muted-foreground">
-              You&apos;re not in the queue.
+              {lang === "es" ? "No estás en la cola." : "You're not in the queue."}
             </p>
-            <QueueCooldownGate cooldownUntil={queueCooldownUntil}>
-              <JoinLobbyForm action={joinLobby} className="mt-4" />
+            <QueueCooldownGate cooldownUntil={queueCooldownUntil} lang={lang}>
+              <JoinLobbyForm action={joinLobby} className="mt-4" lang={lang} />
             </QueueCooldownGate>
           </CardContent>
         </Card>
@@ -221,13 +229,13 @@ export default async function LobbyPage() {
           <CardContent className="flex items-center gap-3 pt-4">
             <Loader2 className="size-4 animate-spin text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
-              Waiting for an opponent…
+              {lang === "es" ? "Esperando a un rival…" : "Waiting for an opponent…"}
             </p>
           </CardContent>
           <CardContent className="pt-0">
             <form action={cancelLobby}>
               <Button type="submit" variant="outline">
-                Cancel
+                {lang === "es" ? "Cancelar" : "Cancel"}
               </Button>
             </form>
           </CardContent>
@@ -235,17 +243,17 @@ export default async function LobbyPage() {
       )}
 
       {entry?.status === "PAIRED" && entry.match && (
-        <PairedView userId={session.user.id} match={entry.match} />
+        <PairedView userId={session.user.id} match={entry.match} lang={lang} />
       )}
     </main>
   );
 }
 
-function PageTitle() {
+function PageTitle({ lang }: { lang: Lang }) {
   return (
     <div className="flex items-center gap-2">
       <Swords className="size-5 text-muted-foreground" />
-      <h1 className="text-2xl font-semibold tracking-tight">Lobby</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">{lang === "es" ? "Sala" : "Lobby"}</h1>
     </div>
   );
 }
@@ -256,26 +264,38 @@ function ActivityLine({
   matched,
   isWaiting,
   poll,
+  lang,
 }: {
   waiting: number;
   inMatch: number;
   matched: boolean;
   isWaiting: boolean;
   poll: boolean;
+  lang: Lang;
 }) {
   return (
     <div className="mt-1.5 flex items-center gap-1.5 text-sm text-muted-foreground">
       <Users className="size-3.5" />
       <span className="tabular-nums">
-        <span className="font-medium text-foreground">{waiting}</span> waiting
-        to be matched
-        {inMatch > 0 && (
+        {lang === "es" ? (
           <>
-            {" "}
-            · <span className="font-medium text-foreground">
-              {inMatch}
-            </span>{" "}
-            currently playing
+            <span className="font-medium text-foreground">{waiting}</span> esperando ser emparejado
+            {inMatch > 0 && (
+              <>
+                {" "}
+                · <span className="font-medium text-foreground">{inMatch}</span> jugando ahora
+              </>
+            )}
+          </>
+        ) : (
+          <>
+            <span className="font-medium text-foreground">{waiting}</span> waiting to be matched
+            {inMatch > 0 && (
+              <>
+                {" "}
+                · <span className="font-medium text-foreground">{inMatch}</span> currently playing
+              </>
+            )}
           </>
         )}
       </span>
@@ -290,6 +310,15 @@ const WORLDWIDE_VALUE = "worldwide";
 const ANY_RATING_VALUE = "any";
 const ANYTIME_VALUE = "anytime";
 
+const MATCH_STATUS_LABEL_ES: Record<string, string> = {
+  PENDING_REPORT: "reporte pendiente",
+  REPORTED: "reportado",
+  DISPUTED: "en disputa",
+  CONFIRMED: "confirmado",
+  CANCELLED: "cancelado",
+  EXPIRED: "expirado",
+};
+
 const REGION_OPTIONS: OptionSelectOption[] = MATCH_REGION_GROUPS.flatMap((group) =>
   group.regions.map((r) => ({
     value: r,
@@ -298,7 +327,7 @@ const REGION_OPTIONS: OptionSelectOption[] = MATCH_REGION_GROUPS.flatMap((group)
   })),
 );
 
-async function MatchmakingForm({ userId }: { userId: string }) {
+async function MatchmakingForm({ userId, lang }: { userId: string; lang: Lang }) {
   const me = await prisma.user.findUnique({
     where: { id: userId },
     select: {
@@ -356,33 +385,32 @@ async function MatchmakingForm({ userId }: { userId: string }) {
   }
 
   return (
-    <MatchSettingsForm action={action} className="flex flex-col gap-2">
+    <MatchSettingsForm action={action} className="flex flex-col gap-2" lang={lang}>
       <label className="flex flex-col gap-1 text-sm">
-        Match region
+        {lang === "es" ? "Región de partida" : "Match region"}
         <span className="text-xs font-normal text-muted-foreground">
-          Required to queue — matching works off the distance between regions,
-          so pick whichever is physically closest to you, even if it&apos;s not
-          your own country. Other has no location, so it only ever matches other
-          Other players.
+          {lang === "es"
+            ? "Necesaria para entrar a la cola — el emparejamiento se basa en la distancia entre regiones, así que elige la que esté físicamente más cerca de ti, aunque no sea tu propio país. Other no tiene ubicación, así que solo empareja con otros jugadores Other."
+            : "Required to queue — matching works off the distance between regions, so pick whichever is physically closest to you, even if it's not your own country. Other has no location, so it only ever matches other Other players."}
         </span>
         <OptionSelect
           key={me?.region ?? ""}
           name="region"
           defaultValue={me?.region ?? ""}
-          placeholder="Not set"
-          clearLabel="Not set"
+          placeholder={lang === "es" ? "Sin definir" : "Not set"}
+          clearLabel={lang === "es" ? "Sin definir" : "Not set"}
           className="w-52"
           searchable
-          searchPlaceholder="Search regions…"
+          searchPlaceholder={lang === "es" ? "Buscar regiones…" : "Search regions…"}
           options={REGION_OPTIONS}
         />
       </label>
       <label className="flex flex-col gap-1 text-sm">
-        Match distance
+        {lang === "es" ? "Distancia de partida" : "Match distance"}
         <span className="text-xs font-normal text-muted-foreground">
-          Matching requires BOTH players&apos; distance setting to cover the
-          actual distance between them — widening yours doesn&apos;t override
-          the other side&apos;s.
+          {lang === "es"
+            ? "El emparejamiento requiere que el ajuste de distancia de AMBOS jugadores cubra la distancia real entre ellos — ampliar el tuyo no anula el del otro lado."
+            : "Matching requires BOTH players' distance setting to cover the actual distance between them — widening yours doesn't override the other side's."}
         </span>
         <OptionSelect
           key={String(me?.maxMatchDistanceKm ?? WORLDWIDE_VALUE)}
@@ -396,10 +424,11 @@ async function MatchmakingForm({ userId }: { userId: string }) {
         />
       </label>
       <label className="flex flex-col gap-1 text-sm">
-        Rating gap
+        {lang === "es" ? "Diferencia de clasificación" : "Rating gap"}
         <span className="text-xs font-normal text-muted-foreground">
-          Matching requires BOTH players&apos; rating-gap setting to cover the
-          actual difference in rating.
+          {lang === "es"
+            ? "El emparejamiento requiere que el ajuste de diferencia de clasificación de AMBOS jugadores cubra la diferencia real."
+            : "Matching requires BOTH players' rating-gap setting to cover the actual difference in rating."}
         </span>
         <OptionSelect
           key={String(me?.maxRatingGap ?? ANY_RATING_VALUE)}
@@ -413,10 +442,11 @@ async function MatchmakingForm({ userId }: { userId: string }) {
         />
       </label>
       <label className="flex flex-col gap-1 text-sm">
-        Rematch cooldown
+        {lang === "es" ? "Tiempo de espera para revancha" : "Rematch cooldown"}
         <span className="text-xs font-normal text-muted-foreground">
-          Matching requires BOTH players&apos; cooldown to have elapsed since
-          you two last played.
+          {lang === "es"
+            ? "El emparejamiento requiere que el tiempo de espera de AMBOS jugadores haya pasado desde la última vez que jugaron entre ustedes."
+            : "Matching requires BOTH players' cooldown to have elapsed since you two last played."}
         </span>
         <OptionSelect
           key={String(me?.rematchCooldownHours ?? ANYTIME_VALUE)}
@@ -438,12 +468,23 @@ async function MatchmakingForm({ userId }: { userId: string }) {
             defaultChecked={me?.wiredConnection ?? false}
             className="size-4 rounded border-border"
           />
-          On a wired (LAN) connection
+          {lang === "es" ? "En una conexión por cable (LAN)" : "On a wired (LAN) connection"}
         </label>
         <span className="pl-6 text-xs text-muted-foreground">
-          Auto-clears (and can&apos;t be re-checked until it recovers) if your cancels pass 25% of
-          your cancels-plus-games-played, or if enough opponents report a connection issue with
-          you — see the Rules page.
+          {lang === "es" ? (
+            <>
+              Se quita automáticamente (y no se puede volver a marcar hasta que se recupere) si
+              tus cancelaciones superan el 25% de tus cancelaciones-más-partidas-jugadas, o si
+              suficientes rivales reportan un problema de conexión contigo — ver la página de
+              Reglas.
+            </>
+          ) : (
+            <>
+              Auto-clears (and can&apos;t be re-checked until it recovers) if your cancels pass 25% of
+              your cancels-plus-games-played, or if enough opponents report a connection issue with
+              you — see the Rules page.
+            </>
+          )}
         </span>
       </div>
       <label className="flex items-center gap-2 text-sm">
@@ -454,7 +495,7 @@ async function MatchmakingForm({ userId }: { userId: string }) {
           defaultChecked={me?.requireWiredOpponent ?? false}
           className="size-4 rounded border-border"
         />
-        Only match with wired opponents
+        {lang === "es" ? "Solo emparejar con rivales por cable" : "Only match with wired opponents"}
       </label>
       <label className="flex items-center gap-2 text-sm">
         <input
@@ -464,7 +505,9 @@ async function MatchmakingForm({ userId }: { userId: string }) {
           defaultChecked={me?.avoidPracticeOpponents ?? false}
           className="size-4 rounded border-border"
         />
-        Don&apos;t match me with opponents who are practicing
+        {lang === "es"
+          ? "No emparejarme con rivales que están practicando"
+          : "Don't match me with opponents who are practicing"}
       </label>
       <label className="flex items-center gap-2 text-sm">
         <input
@@ -474,7 +517,9 @@ async function MatchmakingForm({ userId }: { userId: string }) {
           defaultChecked={me?.zenMode ?? false}
           className="size-4 rounded border-border"
         />
-        Zen Mode — hide opponent&apos;s rating, name, characters, and avatar
+        {lang === "es"
+          ? "Modo Zen — oculta la clasificación, nombre, personajes y avatar del rival"
+          : "Zen Mode — hide opponent's rating, name, characters, and avatar"}
       </label>
     </MatchSettingsForm>
   );
@@ -485,7 +530,7 @@ async function MatchmakingForm({ userId }: { userId: string }) {
 // page as clutter — that's what the player's own match history on their
 // profile is for. But comments are kept open by default so both players
 // can keep talking; either can end their own view of it via Leave.
-async function PairedView({ userId, match }: { userId: string; match: Match }) {
+async function PairedView({ userId, match, lang }: { userId: string; match: Match; lang: Lang }) {
   const opponent = match.player1Id === userId ? match.player2 : match.player1;
   const isPlayer1 = match.player1Id === userId;
   const myLeftAt = isPlayer1 ? match.player1LeftAt : match.player2LeftAt;
@@ -495,7 +540,7 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
     select: { zenMode: true, rating: true, region: true },
   });
   const zenMode = me?.zenMode ?? false;
-  const displayName = zenMode ? "Opponent" : opponent.username;
+  const displayName = zenMode ? (lang === "es" ? "Rival" : "Opponent") : opponent.username;
 
   if (
     match.status === "CONFIRMED" ||
@@ -517,15 +562,16 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
         opponentName={displayName}
         opponentHasLeft={!!opponentLeftAt}
         zenMode={zenMode}
+        lang={lang}
       />
     );
     return (
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
         <Card>
           {match.status === "CONFIRMED" ? (
-            <ConfirmedSection userId={userId} match={match} />
+            <ConfirmedSection userId={userId} match={match} lang={lang} />
           ) : (
-            <TerminatedSection status={match.status} />
+            <TerminatedSection status={match.status} lang={lang} />
           )}
           {!myLeftAt && (
             <CardContent className="flex items-center gap-3 border-t border-border pt-4">
@@ -544,13 +590,14 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
                 }
                 opponentLeftAt={opponentLeftAt}
                 opponentUnavailable={opponentUnavailable}
+                lang={lang}
               />
               <form
                 action={leaveMatchAction.bind(null, match.id)}
                 className="ml-auto"
               >
                 <Button type="submit" variant="outline" size="sm">
-                  Leave
+                  {lang === "es" ? "Salir" : "Leave"}
                 </Button>
               </form>
             </CardContent>
@@ -560,7 +607,9 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
               href={`/players/${userId}`}
               className="text-xs text-muted-foreground hover:text-foreground hover:underline"
             >
-              View full match details on your profile →
+              {lang === "es"
+                ? "Ver todos los detalles de la partida en tu perfil →"
+                : "View full match details on your profile →"}
             </Link>
           </CardContent>
         </Card>
@@ -598,8 +647,11 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
       opponentName={displayName}
       opponentHasLeft={!!opponentLeftAt}
       zenMode={zenMode}
+      lang={lang}
     />
   );
+
+  const statusLabel = lang === "es" ? MATCH_STATUS_LABEL_ES[match.status] : match.status.replace("_", " ").toLowerCase();
 
   return (
     <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
@@ -607,16 +659,14 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
         <CardHeader>
           <div className="flex items-center justify-between">
             <p className="badge-pop text-base font-semibold text-foreground">
-              🎮 You&apos;ve been matched!
+              {lang === "es" ? "🎮 ¡Te han emparejado!" : "🎮 You've been matched!"}
             </p>
-            <Badge variant="secondary">
-              {match.status.replace("_", " ").toLowerCase()}
-            </Badge>
+            <Badge variant="secondary">{statusLabel}</Badge>
           </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
           <p className="text-xs text-muted-foreground tabular-nums">
-            You: {me?.rating} rating
+            {lang === "es" ? `Tú: ${me?.rating} de clasificación` : `You: ${me?.rating} rating`}
             {me?.region && (
               <span className="ml-2 inline-flex items-center gap-1">
                 <MapPin className="size-3" />
@@ -640,14 +690,14 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
                   {displayName}
                   {opponentStreak > 0 && (
                     <Badge variant="success" className="tabular-nums">
-                      {opponentStreak} win streak
+                      {lang === "es" ? `${opponentStreak} victorias seguidas` : `${opponentStreak} win streak`}
                     </Badge>
                   )}
                 </p>
               )}
               {(!zenMode || opponent.region) && (
                 <p className="flex items-center gap-2 text-sm text-muted-foreground tabular-nums">
-                  {!zenMode && <span>{opponent.rating} rating</span>}
+                  {!zenMode && <span>{lang === "es" ? `${opponent.rating} de clasificación` : `${opponent.rating} rating`}</span>}
                   {opponent.region && (
                     <span className="inline-flex items-center gap-1">
                       <MapPin className="size-3" />
@@ -659,7 +709,7 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
               {!zenMode && topCharacters.length > 0 && (
                 <div className="group/characters relative mt-1 flex items-center gap-1.5">
                   <span className="pointer-events-none absolute -top-6 left-0 z-10 rounded border border-border bg-popover px-1.5 py-0.5 text-xs whitespace-nowrap text-popover-foreground opacity-0 shadow-sm transition-opacity group-hover/characters:opacity-100">
-                    Most played characters
+                    {lang === "es" ? "Personajes más usados" : "Most played characters"}
                   </span>
                   {topCharacters.map((character) => (
                     <CharacterIcon key={character} name={character} size={20} />
@@ -687,6 +737,7 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
               match.player1Id === userId ? match.player1 : match.player2,
             )}
             opponentArenaPassword={effectiveArenaPassword(opponent)}
+            lang={lang}
           />
         </CardContent>
 
@@ -694,8 +745,9 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
           g.disputeRequestedAt ? (
             <CardContent key={g.id} className="border-t border-border pt-4">
               <p className="text-sm text-muted-foreground">
-                ⚠️ Game {g.gameNumber}&apos;s result is disputed and awaiting mod
-                review — this doesn&apos;t block the rest of the set.
+                {lang === "es"
+                  ? `⚠️ El resultado del juego ${g.gameNumber} está en disputa y a la espera de revisión por un mod — esto no bloquea el resto de la partida.`
+                  : `⚠️ Game ${g.gameNumber}'s result is disputed and awaiting mod review — this doesn't block the rest of the set.`}
               </p>
               <DisputeResolutionForm
                 action={requestDisputeResolutionAction.bind(
@@ -706,29 +758,38 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
                 myId={userId}
                 opponentId={opponent.id}
                 opponentUsername={displayName}
+                lang={lang}
               />
             </CardContent>
           ) : (
             <CardContent key={g.id} className="border-t border-border pt-4">
               <p className="text-sm text-muted-foreground">
-                ⚠️ You and {displayName} reported different results for game{" "}
-                {g.gameNumber}. Re-report your result to confirm it, or dispute
-                the game for a mod to review.
+                {lang === "es"
+                  ? `⚠️ Tú y ${displayName} reportaron resultados distintos para el juego ${g.gameNumber}. Vuelve a reportar tu resultado para confirmarlo, o disputa el juego para que un mod lo revise.`
+                  : `⚠️ You and ${displayName} reported different results for game ${g.gameNumber}. Re-report your result to confirm it, or dispute the game for a mod to review.`}
               </p>
               <div className="mt-2 flex gap-2">
                 <ConfirmSubmitButton
                   action={reportGame.bind(null, match.id, g.gameNumber, true)}
-                  confirmMessage={`Confirm that you won game ${g.gameNumber}?`}
+                  confirmMessage={
+                    lang === "es"
+                      ? `¿Confirmar que ganaste el juego ${g.gameNumber}?`
+                      : `Confirm that you won game ${g.gameNumber}?`
+                  }
                   variant="success"
                 >
-                  I Won
+                  {lang === "es" ? "Gané" : "I Won"}
                 </ConfirmSubmitButton>
                 <ConfirmSubmitButton
                   action={reportGame.bind(null, match.id, g.gameNumber, false)}
-                  confirmMessage={`Confirm that you lost game ${g.gameNumber}?`}
+                  confirmMessage={
+                    lang === "es"
+                      ? `¿Confirmar que perdiste el juego ${g.gameNumber}?`
+                      : `Confirm that you lost game ${g.gameNumber}?`
+                  }
                   variant="destructive"
                 >
-                  I Lost
+                  {lang === "es" ? "Perdí" : "I Lost"}
                 </ConfirmSubmitButton>
               </div>
               <p className="mt-2 text-xs text-muted-foreground">
@@ -741,6 +802,18 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
                     g.reportedById === userId
                       ? g.secondReporterConfirmedAt
                       : g.reporterConfirmedAt;
+                  if (lang === "es") {
+                    if (myConfirmed && oppConfirmed) {
+                      return "Ambos volvieron a confirmar sus reportes — este juego pasa a un mod.";
+                    }
+                    if (myConfirmed) {
+                      return `Confirmaste tu reporte — esperando a que ${displayName} vuelva a confirmar o dispute.`;
+                    }
+                    if (oppConfirmed) {
+                      return `${displayName} volvió a confirmar su reporte — confirma el tuyo para terminar de reconciliar.`;
+                    }
+                    return "Reportar el resultado opuesto al anterior resuelve el juego a favor de tu rival.";
+                  }
                   if (myConfirmed && oppConfirmed) {
                     return "You've both re-confirmed your reports — this game is headed to a mod.";
                   }
@@ -758,7 +831,7 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
                 className="mt-2"
               >
                 <Button type="submit" variant="outline" size="sm">
-                  Dispute this game
+                  {lang === "es" ? "Disputar este juego" : "Dispute this game"}
                 </Button>
               </form>
             </CardContent>
@@ -772,14 +845,16 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
             games={games}
             opponentName={displayName}
             myTopCharacter={myTopCharacter}
+            lang={lang}
           />
         )}
 
         {match.status === "DISPUTED" && (
           <CardContent className="border-t border-border pt-4">
             <p className="text-sm text-muted-foreground">
-              You and {displayName} reported different results. This match is
-              awaiting review.
+              {lang === "es"
+                ? `Tú y ${displayName} reportaron resultados distintos. Esta partida está a la espera de revisión.`
+                : `You and ${displayName} reported different results. This match is awaiting review.`}
             </p>
           </CardContent>
         )}
@@ -791,11 +866,12 @@ async function PairedView({ userId, match }: { userId: string; match: Match }) {
             opponentName={displayName}
             opponentEngaged={opponentEngaged}
             gameDecided={gameDecided}
+            lang={lang}
           />
         ) : (
           <CardContent className="border-t border-border pt-4">
             <p className="text-sm text-muted-foreground">
-              This match is awaiting mod review.
+              {lang === "es" ? "Esta partida está a la espera de revisión por un mod." : "This match is awaiting mod review."}
             </p>
           </CardContent>
         )}
@@ -813,22 +889,30 @@ function MatchFooterActions({
   opponentName,
   opponentEngaged,
   gameDecided,
+  lang,
 }: {
   match: Match;
   isPlayer1: boolean;
   opponentName: string;
   opponentEngaged: boolean;
   gameDecided: boolean;
+  lang: Lang;
 }) {
   return (
     <CardContent className="flex flex-col gap-3 border-t border-border pt-4">
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-muted-foreground">
-          {gameDecided
-            ? `A game's already been decided in this set, so backing out now always counts as a surrender (a loss). If ${opponentName} has gone quiet, you don't need to surrender for them — an unresponsive opponent auto-forfeits their turn after a few minutes and the set just continues.`
-            : opponentEngaged
-              ? `${opponentName} has already started this match, so backing out now counts as a surrender (a loss) instead of a free cancel.`
-              : `${opponentName} hasn't shown up yet — cancelling now is free.`}
+          {lang === "es"
+            ? gameDecided
+              ? `Ya se decidió un juego en esta partida, así que retirarte ahora siempre cuenta como rendición (una derrota). Si ${opponentName} dejó de responder, no necesitas rendirte por ellos — un rival que no responde pierde automáticamente su turno después de unos minutos y la partida simplemente continúa.`
+              : opponentEngaged
+                ? `${opponentName} ya empezó esta partida, así que retirarte ahora cuenta como rendición (una derrota) en vez de una cancelación gratuita.`
+                : `${opponentName} no se ha presentado aún — cancelar ahora es gratis.`
+            : gameDecided
+              ? `A game's already been decided in this set, so backing out now always counts as a surrender (a loss). If ${opponentName} has gone quiet, you don't need to surrender for them — an unresponsive opponent auto-forfeits their turn after a few minutes and the set just continues.`
+              : opponentEngaged
+                ? `${opponentName} has already started this match, so backing out now counts as a surrender (a loss) instead of a free cancel.`
+                : `${opponentName} hasn't shown up yet — cancelling now is free.`}
         </p>
         {(match.status === "PENDING_REPORT" || match.status === "REPORTED") && (
           <CancelOrSurrenderButton
@@ -838,13 +922,15 @@ function MatchFooterActions({
                 ? surrenderMatchAction.bind(null, match.id)
                 : cancelMatchInProgress.bind(null, match.id)
             }
+            lang={lang}
           />
         )}
       </div>
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-muted-foreground">
-          Can&apos;t finish this set? Both sides can agree to call it off — no
-          rating impact.
+          {lang === "es"
+            ? "¿No pueden terminar esta partida? Ambos lados pueden acordar cancelarla — sin afectar la clasificación."
+            : "Can't finish this set? Both sides can agree to call it off — no rating impact."}
         </p>
         <MutualCancelSection
           matchId={match.id}
@@ -859,16 +945,19 @@ function MatchFooterActions({
               : match.player1CancelRequestedAt
           }
           opponentName={opponentName}
+          lang={lang}
         />
       </div>
-      <ReportConductForm action={reportConductAction.bind(null, match.id)} />
+      <ReportConductForm action={reportConductAction.bind(null, match.id)} lang={lang} />
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-muted-foreground">
-          Laggy, rollback-heavy, or disconnected during this match?
+          {lang === "es"
+            ? "¿Lag, muchos rollbacks, o desconexión durante esta partida?"
+            : "Laggy, rollback-heavy, or disconnected during this match?"}
         </p>
         <form action={reportConnection.bind(null, match.id)}>
           <Button type="submit" size="sm" variant="outline">
-            Connection Report
+            {lang === "es" ? "Reportar conexión" : "Connection Report"}
           </Button>
         </form>
       </div>
@@ -894,12 +983,14 @@ function GameSection({
   games,
   opponentName,
   myTopCharacter,
+  lang,
 }: {
   userId: string;
   match: Match;
   games: Awaited<ReturnType<typeof getMatchGames>>;
   opponentName: string;
   myTopCharacter: string | null;
+  lang: Lang;
 }) {
   // A disputed game is skipped here — it doesn't block the rest of the set,
   // so the next (or first playable) game becomes "current" instead.
@@ -911,10 +1002,21 @@ function GameSection({
       return (
         <CardContent className="border-t border-border pt-4">
           <p className="text-sm text-muted-foreground">
-            {lastGame.disputeRequestedAt
-              ? `Game ${lastGame.gameNumber}'s result is disputed — a mod will resolve it.`
-              : `Game ${lastGame.gameNumber}'s result is being reconciled — re-confirm your report or dispute it above.`}
-            {lastGame.finalStage && ` Stage was ${lastGame.finalStage}.`}
+            {lang === "es" ? (
+              <>
+                {lastGame.disputeRequestedAt
+                  ? `El resultado del juego ${lastGame.gameNumber} está en disputa — un mod lo resolverá.`
+                  : `El resultado del juego ${lastGame.gameNumber} se está reconciliando — vuelve a confirmar tu reporte o disputa arriba.`}
+                {lastGame.finalStage && ` El escenario fue ${lastGame.finalStage}.`}
+              </>
+            ) : (
+              <>
+                {lastGame.disputeRequestedAt
+                  ? `Game ${lastGame.gameNumber}'s result is disputed — a mod will resolve it.`
+                  : `Game ${lastGame.gameNumber}'s result is being reconciled — re-confirm your report or dispute it above.`}
+                {lastGame.finalStage && ` Stage was ${lastGame.finalStage}.`}
+              </>
+            )}
           </p>
         </CardContent>
       );
@@ -924,18 +1026,24 @@ function GameSection({
     return (
       <CardContent className="border-t border-border pt-4">
         <p className="text-sm font-medium">
-          {gameNumber === 1
-            ? "Ready to pick a stage"
-            : `Game ${gameNumber} — winner of the last game strikes first`}
+          {lang === "es"
+            ? gameNumber === 1
+              ? "Listo para elegir escenario"
+              : `Juego ${gameNumber} — quien ganó el último juego descarta primero`
+            : gameNumber === 1
+              ? "Ready to pick a stage"
+              : `Game ${gameNumber} — winner of the last game strikes first`}
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Click the button below to start stage striking with {opponentName} —
-          this isn&apos;t something to sort out over chat, the site walks you
-          through it turn by turn.
+          {lang === "es"
+            ? `Presiona el botón de abajo para empezar el descarte de escenario con ${opponentName} — esto no es algo para resolver por chat, el sitio te guía turno por turno.`
+            : `Click the button below to start stage striking with ${opponentName} — this isn't something to sort out over chat, the site walks you through it turn by turn.`}
         </p>
         <form action={beginFirstGame.bind(null, match.id)} className="mt-3">
           <Button type="submit" size="sm">
-            Start Game {gameNumber} stage striking →
+            {lang === "es"
+              ? `Empezar descarte de escenario del juego ${gameNumber} →`
+              : `Start Game ${gameNumber} stage striking →`}
           </Button>
         </form>
       </CardContent>
@@ -960,6 +1068,7 @@ function GameSection({
       opponentName={opponentName}
       isPracticing={isPracticing}
       defaultCharacter={defaultCharacter}
+      lang={lang}
     />
   );
 
@@ -969,7 +1078,7 @@ function GameSection({
         {characterSection}
         <CardContent className="border-t border-border pt-4">
           <p className="text-sm text-muted-foreground">
-            Game {current.gameNumber} stage
+            {lang === "es" ? `Escenario del juego ${current.gameNumber}` : `Game ${current.gameNumber} stage`}
           </p>
           {current.finalStage &&
             (() => {
@@ -997,6 +1106,7 @@ function GameSection({
           match={match}
           game={current}
           opponentName={opponentName}
+          lang={lang}
         />
       </>
     );
@@ -1007,6 +1117,7 @@ function GameSection({
   const canAct = myTurn && bothLocked;
   const action = turn.phase === "striking" ? strikeStage : pickStage;
   const verb = turn.phase === "striking" ? "strike" : "pick";
+  const verbEs = turn.phase === "striking" ? "descartar" : "elegir";
 
   // Strikes happen actorA's-share-then-actorB's-share, in order, so the
   // count already struck tells us how many the current actor still owes
@@ -1020,9 +1131,13 @@ function GameSection({
         : current.actorAStrikes + current.actorBStrikes - struckSoFar
       : 1;
   const turnDescription =
-    turn.phase === "striking"
-      ? `${verb} ${remainingStrikes} stage${remainingStrikes === 1 ? "" : "s"}`
-      : `${verb} a stage`;
+    lang === "es"
+      ? turn.phase === "striking"
+        ? `descartar ${remainingStrikes} escenario${remainingStrikes === 1 ? "" : "s"}`
+        : "elegir un escenario"
+      : turn.phase === "striking"
+        ? `${verb} ${remainingStrikes} stage${remainingStrikes === 1 ? "" : "s"}`
+        : `${verb} a stage`;
 
   // Only shown once both characters are locked in (see the !bothLocked
   // branch below) — at that point turnStartedAt is purely a stage-strike
@@ -1059,13 +1174,27 @@ function GameSection({
       {characterSection}
       <CardContent className="border-t border-border pt-4">
         <p className="text-sm text-muted-foreground">
-          Game {current.gameNumber} —{" "}
+          {lang === "es" ? `Juego ${current.gameNumber} — ` : `Game ${current.gameNumber} — `}
           {!bothLocked ? (
-            "Stage selection will start once both characters are locked in."
+            lang === "es"
+              ? "La selección de escenario empezará cuando ambos personajes estén elegidos."
+              : "Stage selection will start once both characters are locked in."
           ) : !myTurn ? (
+            lang === "es" ? (
+              <>
+                Esperando a que {opponentName} {verbEs}… (
+                <Countdown deadline={deadline} />s restantes)
+              </>
+            ) : (
+              <>
+                Waiting for {opponentName} to {verb}… (
+                <Countdown deadline={deadline} />s left)
+              </>
+            )
+          ) : lang === "es" ? (
             <>
-              Waiting for {opponentName} to {verb}… (
-              <Countdown deadline={deadline} />s left)
+              Tu turno — {turnDescription} (<Countdown deadline={deadline} />s
+              restantes, o se elige automáticamente).
             </>
           ) : (
             <>
@@ -1081,6 +1210,7 @@ function GameSection({
               gameNumber={sameBans.gameNumber}
               stages={sameBans.stages}
               canAct={canAct}
+              lang={lang}
             />
           </div>
         )}
@@ -1093,7 +1223,7 @@ function GameSection({
                 variant="default"
                 disabled={!canAct}
               >
-                Run it back ({runItBackStage})
+                {lang === "es" ? `Repetir escenario (${runItBackStage})` : `Run it back (${runItBackStage})`}
               </Button>
             </form>
           </div>
@@ -1154,7 +1284,7 @@ function GameSection({
             className="mt-2"
           >
             <Button type="submit" size="sm" variant="ghost">
-              Undo my last strike
+              {lang === "es" ? "Deshacer mi último descarte" : "Undo my last strike"}
             </Button>
           </form>
         )}
@@ -1170,6 +1300,7 @@ function CharacterPickSection({
   opponentName,
   isPracticing,
   defaultCharacter,
+  lang,
 }: {
   userId: string;
   matchId: string;
@@ -1184,6 +1315,7 @@ function CharacterPickSection({
   opponentName: string;
   defaultCharacter: string | null;
   isPracticing: boolean;
+  lang: Lang;
 }) {
   const { yourCharacter, opponentCharacter, canPickNow } = characterPickState(
     game,
@@ -1202,12 +1334,21 @@ function CharacterPickSection({
     return (
       <CardContent className="border-t border-border pt-4">
         <p className="text-sm text-muted-foreground">
-          Game {game.gameNumber} characters — you:{" "}
-          <span className="font-medium text-foreground">{yourCharacter}</span>,{" "}
-          {opponentName}:{" "}
-          <span className="font-medium text-foreground">
-            {opponentCharacter}
-          </span>
+          {lang === "es" ? (
+            <>
+              Personajes del juego {game.gameNumber} — tú:{" "}
+              <span className="font-medium text-foreground">{yourCharacter}</span>,{" "}
+              {opponentName}:{" "}
+              <span className="font-medium text-foreground">{opponentCharacter}</span>
+            </>
+          ) : (
+            <>
+              Game {game.gameNumber} characters — you:{" "}
+              <span className="font-medium text-foreground">{yourCharacter}</span>,{" "}
+              {opponentName}:{" "}
+              <span className="font-medium text-foreground">{opponentCharacter}</span>
+            </>
+          )}
         </p>
       </CardContent>
     );
@@ -1217,17 +1358,34 @@ function CharacterPickSection({
     return (
       <CardContent className="border-t border-border pt-4">
         <p className="text-sm text-muted-foreground">
-          Game {game.gameNumber} — you locked in{" "}
-          <span className="font-medium text-foreground">{yourCharacter}</span>.
-          Waiting for {opponentName} to pick…{" "}
-          {secondsLeft > 0 ? (
+          {lang === "es" ? (
             <>
-              You win this game by forfeit if they don&apos;t in{" "}
-              <Countdown deadline={deadline} />
-              s.
+              Juego {game.gameNumber} — elegiste{" "}
+              <span className="font-medium text-foreground">{yourCharacter}</span>. Esperando a
+              que {opponentName} elija…{" "}
+              {secondsLeft > 0 ? (
+                <>
+                  Ganas este juego por abandono si no lo hacen en <Countdown deadline={deadline} />s.
+                </>
+              ) : (
+                "Ya pasaron el plazo — esto debería resolverse a tu favor pronto."
+              )}
             </>
           ) : (
-            "They're past the deadline — this should resolve in your favor shortly."
+            <>
+              Game {game.gameNumber} — you locked in{" "}
+              <span className="font-medium text-foreground">{yourCharacter}</span>.
+              Waiting for {opponentName} to pick…{" "}
+              {secondsLeft > 0 ? (
+                <>
+                  You win this game by forfeit if they don&apos;t in{" "}
+                  <Countdown deadline={deadline} />
+                  s.
+                </>
+              ) : (
+                "They're past the deadline — this should resolve in your favor shortly."
+              )}
+            </>
           )}
         </p>
       </CardContent>
@@ -1238,8 +1396,9 @@ function CharacterPickSection({
     return (
       <CardContent className="border-t border-border pt-4">
         <p className="text-sm text-muted-foreground">
-          Game {game.gameNumber} — waiting for {opponentName} to lock in their
-          character first.
+          {lang === "es"
+            ? `Juego ${game.gameNumber} — esperando a que ${opponentName} elija su personaje primero.`
+            : `Game ${game.gameNumber} — waiting for ${opponentName} to lock in their character first.`}
         </p>
       </CardContent>
     );
@@ -1248,27 +1407,39 @@ function CharacterPickSection({
   return (
     <CardContent className="border-t border-border pt-4">
       <p className="text-sm text-muted-foreground">
-        Game {game.gameNumber} —{" "}
-        {game.gameNumber === 1
-          ? "pick your character (blind — hidden until you're both locked in)."
-          : opponentCharacter
-            ? `${opponentName} locked in ${opponentCharacter}. Your pick:`
-            : "pick your character — you're up first, this locks in before the opponent picks."}{" "}
+        {lang === "es" ? `Juego ${game.gameNumber} — ` : `Game ${game.gameNumber} — `}
+        {lang === "es"
+          ? game.gameNumber === 1
+            ? "elige tu personaje (a ciegas — oculto hasta que ambos hayan elegido)."
+            : opponentCharacter
+              ? `${opponentName} eligió ${opponentCharacter}. Tu elección:`
+              : "elige tu personaje — vas primero, esto se fija antes de que tu rival elija."
+          : game.gameNumber === 1
+            ? "pick your character (blind — hidden until you're both locked in)."
+            : opponentCharacter
+              ? `${opponentName} locked in ${opponentCharacter}. Your pick:`
+              : "pick your character — you're up first, this locks in before the opponent picks."}{" "}
         {secondsLeft > 0 ? (
           <span className="font-medium text-foreground">
-            Lock in within <Countdown deadline={deadline} />s or you forfeit
-            this game.
+            {lang === "es" ? (
+              <>Elige en <Countdown deadline={deadline} />s o pierdes este juego por abandono.</>
+            ) : (
+              <>Lock in within <Countdown deadline={deadline} />s or you forfeit this game.</>
+            )}
           </span>
         ) : (
           <span className="font-medium text-destructive">
-            You&apos;re past the deadline — lock in now before this forfeits.
+            {lang === "es"
+              ? "Ya pasaste el plazo — elige ahora antes de perder por abandono."
+              : "You're past the deadline — lock in now before this forfeits."}
           </span>
         )}
       </p>
       {isPracticing && (
         <p className="mt-2 text-xs text-muted-foreground">
-          You queued this match as Practicing — this set only affects your
-          separate practice rating, not your ladder rating.
+          {lang === "es"
+            ? "Entraste a la cola de esta partida en modo Práctica — solo afecta tu clasificación de práctica aparte, no tu clasificación del ladder."
+            : "You queued this match as Practicing — this set only affects your separate practice rating, not your ladder rating."}
         </p>
       )}
       <form
@@ -1279,10 +1450,10 @@ function CharacterPickSection({
           key={game.gameNumber}
           name="character"
           defaultValue={defaultCharacter ?? ""}
-          placeholder="Select character"
+          placeholder={lang === "es" ? "Elegir personaje" : "Select character"}
         />
         <Button type="submit" size="sm" variant="outline">
-          Lock in
+          {lang === "es" ? "Elegir" : "Lock in"}
         </Button>
       </form>
     </CardContent>
@@ -1294,11 +1465,13 @@ function ReportGameSection({
   match,
   game,
   opponentName,
+  lang,
 }: {
   userId: string;
   match: Match;
   game: Awaited<ReturnType<typeof getMatchGames>>[number];
   opponentName: string;
+  lang: Lang;
 }) {
   // The report clock starts when the game's final stage is picked — the pick
   // actions reset turnStartedAt — and autoResolveStaleGameReport accepts a
@@ -1316,57 +1489,99 @@ function ReportGameSection({
   // controls.
   let statusLine: React.ReactNode = null;
   if (game.reportedById === userId) {
-    statusLine = (
-      <>
-        Waiting for {opponentName} to confirm game {game.gameNumber}&apos;s
-        result…{" "}
-        {secondsLeft > 0 ? (
-          <>
-            It auto-confirms in <Countdown deadline={deadline} />s.
-          </>
-        ) : (
-          "They're past the deadline — this should resolve in your favor shortly."
-        )}
-      </>
-    );
+    statusLine =
+      lang === "es" ? (
+        <>
+          Esperando a que {opponentName} confirme el resultado del juego {game.gameNumber}…{" "}
+          {secondsLeft > 0 ? (
+            <>Se confirma automáticamente en <Countdown deadline={deadline} />s.</>
+          ) : (
+            "Ya pasaron el plazo — esto debería resolverse a tu favor pronto."
+          )}
+        </>
+      ) : (
+        <>
+          Waiting for {opponentName} to confirm game {game.gameNumber}&apos;s
+          result…{" "}
+          {secondsLeft > 0 ? (
+            <>
+              It auto-confirms in <Countdown deadline={deadline} />s.
+            </>
+          ) : (
+            "They're past the deadline — this should resolve in your favor shortly."
+          )}
+        </>
+      );
   } else if (game.reportedById) {
     statusLine =
-      game.reportedWinnerId === userId
-        ? `${opponentName} reported you won game ${game.gameNumber}.`
-        : `${opponentName} reported they won game ${game.gameNumber}.`;
+      lang === "es"
+        ? game.reportedWinnerId === userId
+          ? `${opponentName} reportó que tú ganaste el juego ${game.gameNumber}.`
+          : `${opponentName} reportó que ganó el juego ${game.gameNumber}.`
+        : game.reportedWinnerId === userId
+          ? `${opponentName} reported you won game ${game.gameNumber}.`
+          : `${opponentName} reported they won game ${game.gameNumber}.`;
   }
 
   return (
     <CardContent className="border-t border-border pt-4">
       <p className="text-sm text-muted-foreground">
-        Report game {game.gameNumber}&apos;s result once you&apos;ve played.{" "}
-        {secondsLeft > 0 ? (
+        {lang === "es" ? (
           <>
-            You have <Countdown deadline={deadline} />s left to report — if
-            only one of you reports, it auto-confirms when the clock runs out
-            and the silent player is charged a no-show.
+            Reporta el resultado del juego {game.gameNumber} una vez que hayan jugado.{" "}
+            {secondsLeft > 0 ? (
+              <>
+                Tienes <Countdown deadline={deadline} />s para reportar — si solo uno de los dos
+                reporta, se confirma automáticamente cuando se acabe el tiempo y al jugador
+                silencioso se le marca un no-show.
+              </>
+            ) : (
+              <>
+                El plazo de {REPORT_TIMEOUT_MS / 60_000} minutos para reportar ya pasó — si solo
+                uno de los dos reportó, se confirmará automáticamente en el próximo refresco.
+              </>
+            )}
           </>
         ) : (
           <>
-            The {REPORT_TIMEOUT_MS / 60_000}-minute window to report has passed — if only one of
-            you reported, it&apos;ll auto-confirm on the next refresh.
+            Report game {game.gameNumber}&apos;s result once you&apos;ve played.{" "}
+            {secondsLeft > 0 ? (
+              <>
+                You have <Countdown deadline={deadline} />s left to report — if
+                only one of you reports, it auto-confirms when the clock runs out
+                and the silent player is charged a no-show.
+              </>
+            ) : (
+              <>
+                The {REPORT_TIMEOUT_MS / 60_000}-minute window to report has passed — if only one of
+                you reported, it&apos;ll auto-confirm on the next refresh.
+              </>
+            )}
           </>
         )}
       </p>
       <div className="mt-4 flex gap-2">
         <ConfirmSubmitButton
           action={reportGame.bind(null, match.id, game.gameNumber, true)}
-          confirmMessage={`Report that you won game ${game.gameNumber}?`}
+          confirmMessage={
+            lang === "es"
+              ? `¿Reportar que ganaste el juego ${game.gameNumber}?`
+              : `Report that you won game ${game.gameNumber}?`
+          }
           variant="success"
         >
-          I Won
+          {lang === "es" ? "Gané" : "I Won"}
         </ConfirmSubmitButton>
         <ConfirmSubmitButton
           action={reportGame.bind(null, match.id, game.gameNumber, false)}
-          confirmMessage={`Report that you lost game ${game.gameNumber}?`}
+          confirmMessage={
+            lang === "es"
+              ? `¿Reportar que perdiste el juego ${game.gameNumber}?`
+              : `Report that you lost game ${game.gameNumber}?`
+          }
           variant="destructive"
         >
-          I Lost
+          {lang === "es" ? "Perdí" : "I Lost"}
         </ConfirmSubmitButton>
       </div>
       {statusLine && (
@@ -1379,9 +1594,11 @@ function ReportGameSection({
 async function ConfirmedSection({
   userId,
   match,
+  lang,
 }: {
   userId: string;
   match: Match;
+  lang: Lang;
 }) {
   const won = match.reportedWinnerId === userId;
   const ratingBefore =
@@ -1409,6 +1626,7 @@ async function ConfirmedSection({
         ratingAfter={ratingAfter}
         tierUp={tierUp}
         tierName={tier?.name}
+        lang={lang}
       />
     );
   }
@@ -1417,7 +1635,9 @@ async function ConfirmedSection({
     <CardContent className="pt-4">
       {celebration ?? (
         <>
-          <p className="text-sm font-medium">Set confirmed — you lost</p>
+          <p className="text-sm font-medium">
+            {lang === "es" ? "Partida confirmada — perdiste" : "Set confirmed — you lost"}
+          </p>
           <p className="mt-1 text-sm tabular-nums text-muted-foreground">
             {ratingBefore} → {ratingAfter} ({delta >= 0 ? "+" : ""}
             {delta})
@@ -1439,6 +1659,7 @@ function RematchSection({
   opponentRequestedAt,
   opponentLeftAt,
   opponentUnavailable,
+  lang,
 }: {
   matchId: string;
   opponentName: string;
@@ -1446,11 +1667,14 @@ function RematchSection({
   opponentRequestedAt: Date | null;
   opponentLeftAt: Date | null;
   opponentUnavailable: boolean;
+  lang: Lang;
 }) {
   if (opponentLeftAt) {
     return (
       <p className="text-xs text-muted-foreground">
-        {opponentName} has left — rematch unavailable.
+        {lang === "es"
+          ? `${opponentName} se fue — revancha no disponible.`
+          : `${opponentName} has left — rematch unavailable.`}
       </p>
     );
   }
@@ -1459,14 +1683,17 @@ function RematchSection({
     if (opponentUnavailable) {
       return (
         <p className="text-xs text-muted-foreground">
-          {opponentName} is no longer available — they&apos;ve moved on to
-          another match.
+          {lang === "es"
+            ? `${opponentName} ya no está disponible — pasó a otra partida.`
+            : `${opponentName} is no longer available — they've moved on to another match.`}
         </p>
       );
     }
     return (
       <p className="text-xs text-muted-foreground">
-        Waiting for {opponentName} to accept the rematch…
+        {lang === "es"
+          ? `Esperando a que ${opponentName} acepte la revancha…`
+          : `Waiting for ${opponentName} to accept the rematch…`}
       </p>
     );
   }
@@ -1474,8 +1701,9 @@ function RematchSection({
   if (opponentUnavailable) {
     return (
       <p className="text-xs text-muted-foreground">
-        {opponentName} is no longer available — they&apos;ve moved on to another
-        match.
+        {lang === "es"
+          ? `${opponentName} ya no está disponible — pasó a otra partida.`
+          : `${opponentName} is no longer available — they've moved on to another match.`}
       </p>
     );
   }
@@ -1484,12 +1712,18 @@ function RematchSection({
     <div className="flex items-center gap-2">
       {opponentRequestedAt && (
         <p className="text-xs text-muted-foreground">
-          {opponentName} wants a rematch!
+          {lang === "es" ? `¡${opponentName} quiere revancha!` : `${opponentName} wants a rematch!`}
         </p>
       )}
       <form action={requestRematchAction.bind(null, matchId)}>
         <Button type="submit" variant="outline" size="sm">
-          {opponentRequestedAt ? "Accept Rematch" : "Request Rematch"}
+          {lang === "es"
+            ? opponentRequestedAt
+              ? "Aceptar revancha"
+              : "Pedir revancha"
+            : opponentRequestedAt
+              ? "Accept Rematch"
+              : "Request Rematch"}
         </Button>
       </form>
     </div>
@@ -1501,16 +1735,18 @@ function MutualCancelSection({
   myRequestedAt,
   opponentRequestedAt,
   opponentName,
+  lang,
 }: {
   matchId: string;
   myRequestedAt: Date | null;
   opponentRequestedAt: Date | null;
   opponentName: string;
+  lang: Lang;
 }) {
   if (myRequestedAt) {
     return (
       <p className="text-xs text-muted-foreground">
-        Waiting for {opponentName} to agree…
+        {lang === "es" ? `Esperando a que ${opponentName} esté de acuerdo…` : `Waiting for ${opponentName} to agree…`}
       </p>
     );
   }
@@ -1519,25 +1755,35 @@ function MutualCancelSection({
     <div className="flex items-center gap-2">
       {opponentRequestedAt && (
         <p className="text-xs text-muted-foreground">
-          {opponentName} wants to cancel!
+          {lang === "es" ? `¡${opponentName} quiere cancelar!` : `${opponentName} wants to cancel!`}
         </p>
       )}
       <form action={requestMutualCancelAction.bind(null, matchId)}>
         <Button type="submit" variant="outline" size="sm">
-          {opponentRequestedAt ? "Agree to Cancel" : "Request Cancel"}
+          {lang === "es"
+            ? opponentRequestedAt
+              ? "Aceptar cancelación"
+              : "Pedir cancelación"
+            : opponentRequestedAt
+              ? "Agree to Cancel"
+              : "Request Cancel"}
         </Button>
       </form>
     </div>
   );
 }
 
-function TerminatedSection({ status }: { status: "CANCELLED" | "EXPIRED" }) {
+function TerminatedSection({ status, lang }: { status: "CANCELLED" | "EXPIRED"; lang: Lang }) {
   return (
     <CardContent className="pt-4">
       <p className="text-sm text-muted-foreground">
-        {status === "CANCELLED"
-          ? "This match was cancelled — no rating impact."
-          : "Nobody reported a result in time, so this match expired with no rating impact."}
+        {lang === "es"
+          ? status === "CANCELLED"
+            ? "Esta partida fue cancelada — sin afectar la clasificación."
+            : "Nadie reportó un resultado a tiempo, así que esta partida expiró sin afectar la clasificación."
+          : status === "CANCELLED"
+            ? "This match was cancelled — no rating impact."
+            : "Nobody reported a result in time, so this match expired with no rating impact."}
       </p>
     </CardContent>
   );
@@ -1549,12 +1795,14 @@ async function CommentsSection({
   opponentName,
   opponentHasLeft,
   zenMode,
+  lang,
 }: {
   userId: string;
   match: Match;
   opponentName: string;
   opponentHasLeft: boolean;
   zenMode?: boolean;
+  lang: Lang;
 }) {
   const rawComments = await listMatchComments(userId, match.id);
   const opponentTyping = await isOpponentTyping(match.id, userId);
@@ -1568,7 +1816,11 @@ async function CommentsSection({
     id: c.id,
     author: {
       username:
-        zenMode && c.author.id === opponentId ? "Opponent" : c.author.username,
+        zenMode && c.author.id === opponentId
+          ? lang === "es"
+            ? "Rival"
+            : "Opponent"
+          : c.author.username,
     },
     body: c.body,
     translatedBody: c.translatedBody,
@@ -1583,23 +1835,24 @@ async function CommentsSection({
       <CardContent className="flex min-h-0 flex-1 flex-col gap-0 pt-0">
         {opponentHasLeft && (
           <p className="mb-2 text-xs text-muted-foreground">
-            {opponentName} has left the chat.
+            {lang === "es" ? `${opponentName} dejó el chat.` : `${opponentName} has left the chat.`}
           </p>
         )}
         <ChatMessages
           comments={comments}
           empty={
             <p className="mt-2 text-sm text-muted-foreground">
-              No messages yet.
+              {lang === "es" ? "Aún no hay mensajes." : "No messages yet."}
             </p>
           }
         />
         {opponentTyping && !opponentHasLeft && (
-          <TypingIndicator opponentName={opponentName} />
+          <TypingIndicator opponentName={opponentName} lang={lang} />
         )}
         <CommentForm
           action={sendMatchCommentAction.bind(null, match.id)}
           onTyping={signalTypingAction.bind(null, match.id)}
+          lang={lang}
         />
       </CardContent>
     </Card>
@@ -1613,6 +1866,7 @@ function RoomCodeSection({
   setByOpponent,
   myArenaPassword,
   opponentArenaPassword,
+  lang,
 }: {
   matchId: string;
   initialValue: string;
@@ -1620,6 +1874,7 @@ function RoomCodeSection({
   setByOpponent: boolean;
   myArenaPassword: string;
   opponentArenaPassword: string;
+  lang: Lang;
 }) {
   // Whoever actually ends up hosting is whoever's code stuck (locked in via
   // setMatchRoomCode) — before that, either side could still become the
@@ -1631,23 +1886,29 @@ function RoomCodeSection({
   if (readOnly) {
     return (
       <div className="flex flex-col gap-1 text-sm">
-        Room code
+        {lang === "es" ? "Código de sala" : "Room code"}
         <p className="font-medium tabular-nums">
           <FlashOnChange value={initialValue}>
-            {initialValue || "Not set yet"}
+            {initialValue || (lang === "es" ? "Aún sin definir" : "Not set yet")}
           </FlashOnChange>
         </p>
         {setByOpponent && (
           <p className="text-xs text-muted-foreground">
-            Set by your opponent — join with this.
+            {lang === "es" ? "Definido por tu rival — únete con este." : "Set by your opponent — join with this."}
           </p>
         )}
         <p className="text-xs text-muted-foreground">
-          Set the in-game room password to{" "}
-          <span className="font-medium text-foreground">
-            {hostArenaPassword}
-          </span>
-          .
+          {lang === "es" ? (
+            <>
+              Pon la contraseña de la sala del juego en{" "}
+              <span className="font-medium text-foreground">{hostArenaPassword}</span>.
+            </>
+          ) : (
+            <>
+              Set the in-game room password to{" "}
+              <span className="font-medium text-foreground">{hostArenaPassword}</span>.
+            </>
+          )}
         </p>
       </div>
     );
@@ -1658,15 +1919,30 @@ function RoomCodeSection({
       <RoomCodeForm
         initialValue={initialValue}
         action={submitRoomCode.bind(null, matchId)}
+        lang={lang}
       />
       <p className="text-xs text-muted-foreground">
-        Set the in-game room password to{" "}
-        <span className="font-medium text-foreground">{hostArenaPassword}</span>{" "}
-        — this is your default, you can{" "}
-        <Link href="/settings" className="underline hover:text-foreground">
-          change it in Settings
-        </Link>
-        .
+        {lang === "es" ? (
+          <>
+            Pon la contraseña de la sala del juego en{" "}
+            <span className="font-medium text-foreground">{hostArenaPassword}</span> — este es tu
+            valor por defecto, puedes{" "}
+            <Link href="/settings" className="underline hover:text-foreground">
+              cambiarlo en Ajustes
+            </Link>
+            .
+          </>
+        ) : (
+          <>
+            Set the in-game room password to{" "}
+            <span className="font-medium text-foreground">{hostArenaPassword}</span>{" "}
+            — this is your default, you can{" "}
+            <Link href="/settings" className="underline hover:text-foreground">
+              change it in Settings
+            </Link>
+            .
+          </>
+        )}
       </p>
     </div>
   );

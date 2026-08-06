@@ -13,9 +13,11 @@ const QUICK_MESSAGES = ["Hey!", "glhf!", "gg!", "ggs!"];
 export function CommentForm({
   action,
   onTyping,
+  lang = "en",
 }: {
   action: (prevState: SendCommentState, formData: FormData) => Promise<SendCommentState>;
   onTyping?: () => void | Promise<void>;
+  lang?: "en" | "es";
 }) {
   const [state, formAction, isPending] = useActionState(action, { error: null });
   const lastTypingSignal = useRef(0);
@@ -57,14 +59,14 @@ export function CommentForm({
         <input
           ref={inputRef}
           name="body"
-          placeholder="Say something…"
+          placeholder={lang === "es" ? "Escribe algo…" : "Say something…"}
           maxLength={500}
           autoComplete="off"
           onInput={handleInput}
           className="h-8 flex-1 rounded-lg border border-border bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring"
         />
         <Button type="submit" size="sm" disabled={isPending}>
-          Send
+          {lang === "es" ? "Enviar" : "Send"}
         </Button>
       </form>
       {state.error && <p className="text-xs text-destructive">{state.error}</p>}
