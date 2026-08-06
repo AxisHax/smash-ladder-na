@@ -4,6 +4,7 @@ import { getLeaderboardPlayers } from "@/lib/leaderboard";
 import { CharacterIcon } from "@/components/character-icon";
 import { RankBadge } from "@/components/rank-badge";
 import { StreamRefreshPoller } from "@/components/stream-refresh-poller";
+import { getLang } from "@/lib/i18n";
 
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 50;
@@ -32,13 +33,16 @@ export default async function StreamLeaderboardPage({
       ? Math.min(requestedLimit, MAX_LIMIT)
       : DEFAULT_LIMIT;
 
-  const { players } = await getLeaderboardPlayers(
-    {
-      character: isValidCharacter ? character : null,
-      country: isValidCountry ? (country as (typeof MATCH_COUNTRIES)[number]) : null,
-    },
-    { take: limit },
-  );
+  const [{ players }, lang] = await Promise.all([
+    getLeaderboardPlayers(
+      {
+        character: isValidCharacter ? character : null,
+        country: isValidCountry ? (country as (typeof MATCH_COUNTRIES)[number]) : null,
+      },
+      { take: limit },
+    ),
+    getLang(),
+  ]);
 
   return (
     <div className="p-4">
@@ -64,7 +68,11 @@ export default async function StreamLeaderboardPage({
           ))}
         </tbody>
       </table>
-      {players.length === 0 && <p className="text-sm text-muted-foreground">No ranked players yet.</p>}
+      {players.length === 0 && (
+        <p className="text-sm text-muted-foreground">
+          {lang === "es" ? "Aún no hay jugadores rankeados." : "No ranked players yet."}
+        </p>
+      )}
     </div>
   );
 }
