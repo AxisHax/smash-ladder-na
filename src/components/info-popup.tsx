@@ -19,12 +19,12 @@ import {
 // cursor-pointer. Tailwind's preflight already makes a <button> inherit the
 // nav's font size and color, but the browser still gives it an arrow cursor
 // where an <a href> gets a pointer, which is the one visible difference.
-export function InfoPopup() {
+export function InfoPopup({ lang }: { lang: "en" | "es" }) {
   return (
     <Dialog>
       <DialogTrigger className="flex items-center gap-1.5 hover:text-foreground cursor-pointer">
         <Info className="size-3.5" />
-        Info
+        {lang === "es" ? "Info" : "Info"}
       </DialogTrigger>
       <DialogContent>
         <div className="flex items-center gap-2">
@@ -32,11 +32,12 @@ export function InfoPopup() {
           <DialogTitle>Info</DialogTitle>
         </div>
         <DialogDescription className="mt-1">
-          Every rank a player can hold, highest first. Your rank comes from your ladder rating,
-          which starts at 1500 and moves after every confirmed ranked set.
+          {lang === "es"
+            ? "Todos los rangos que puede tener un jugador, de mayor a menor. Tu rango depende de tu clasificación en la liga, que empieza en 1500 y cambia con cada partida rankeada confirmada."
+            : "Every rank a player can hold, highest first. Your rank comes from your ladder rating, which starts at 1500 and moves after every confirmed ranked set."}
         </DialogDescription>
 
-        <RankTierList className="mt-8" />
+        <RankTierList className="mt-8" lang={lang} />
 
         {/* DialogClose asChild, not an onClick handler: SiteHeader survives a
             client-side route change, so without closing here the popup would
@@ -44,13 +45,13 @@ export function InfoPopup() {
             keeps the real Link underneath, so navigation is unaffected — and
             it means this component still needs no state of its own. */}
         <p className="mt-6 text-sm text-muted-foreground">
-          See also{" "}
+          {lang === "es" ? "Ver también " : "See also "}
           <DialogClose asChild>
             <Link href="/rules" prefetch={false} className="underline hover:text-foreground">
-              Rules
+              {lang === "es" ? "Reglas" : "Rules"}
             </Link>
           </DialogClose>{" "}
-          and{" "}
+          {lang === "es" ? "y " : "and "}
           <DialogClose asChild>
             <Link href="/faq" prefetch={false} className="underline hover:text-foreground">
               Q&amp;A
